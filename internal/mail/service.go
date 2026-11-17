@@ -71,6 +71,7 @@ type Service struct {
 	presence Presence
 	now      func() time.Time
 	renderer *render.Renderer
+	wake     notifier // broadcast on committed Send and Mark; wakes Wait
 	// onOperator is the post-commit hook for operator mail (see hook.go).
 	onOperator func(Message)
 

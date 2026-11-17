@@ -23,7 +23,9 @@ Reading is anonymous and recursive: listing or searching an address covers it an
 
 Identities must be registered once (register), then you sign on (sign_on) for this connection before using send or mark. Multiple sessions may sign on as the same identity. To escalate to the human operator (approvals, decisions, blockers), send to the address "operator"; the operator is not an identity, cannot be signed on as, and replies arrive in your inbox. Sending to an unknown identity fails with suggestions; namespace and subagent mailboxes are created on first send.
 
-read marks a message read for deliveries you own; pass peek=true to read without marking. Pass subagent to act as one of your subagents (send, read, mark). list shows unread by default; state=archived needs both since and until (RFC3339 timestamps).`
+read marks a message read for deliveries you own; pass peek=true to read without marking. Pass subagent to act as one of your subagents (send, read, mark). list shows unread by default; state=archived needs both since and until (RFC3339 timestamps).
+
+To wait for a reply instead of polling, call wait: it blocks until new unread mail arrives for your identity (or the address you give) or the timeout passes.`
 
 // New returns an MCP server for one connection. Handlers act on behalf of
 // conn, whose preamble and sign-on state identify the caller.
@@ -45,8 +47,13 @@ func New(svc *mail.Service, conn *presence.Entry, version string) *mcp.Server {
 	mcp.AddTool(srv, &mcp.Tool{Name: "thread", Description: "Return every message in a thread, oldest first. Anonymous."}, h.thread)
 	mcp.AddTool(srv, &mcp.Tool{Name: "mark", Description: "Mark messages read, unread, archived or unarchived. Affects only deliveries owned by your signed-on identity or the named subagent. Requires sign_on."}, h.mark)
 	mcp.AddTool(srv, &mcp.Tool{Name: "search", Description: "Full-text search (SQLite FTS5 syntax) of subjects and bodies at or below an address, ranked by relevance. Anonymous. next_cursor is a best-effort offset: results may shift if new mail arrives between pages."}, h.search)
+	mcp.AddTool(srv, &mcp.Tool{Name: "wait", Description: "Block until an unread message newer than since_id arrives for an address (default: your signed-on identity and its subagents; anonymous callers must pass address), then return its header(s) like list; or return timed_out=true. Use instead of polling list. timeout_seconds defaults to 60 and is capped at 300; keep it below your MCP client's tool-call timeout. Progress notifications are sent every 15 seconds when the client supplies a progress token. Pass since_id (the newest id you have seen) to ignore older unread mail."}, h.wait)
 	return srv
 }
+
+// progressInterval is how often wait reports progress while blocked; a
+// variable so tests can shorten it.
+var progressInterval = 15 * time.Second
 
 type handlers struct {
 	svc        *mail.Service
@@ -344,4 +351,51 @@ func (h *handlers) search(ctx context.Context, _ *mcp.CallToolRequest, in Search
 		res.Hits = []mail.Hit{}
 	}
 	return nil, res, toolErr(err)
+}
+
+// WaitInput is the input of wait.
+type WaitInput struct {
+	Address        string `json:"address,omitempty" jsonschema:"mailbox address to watch, covering everything below it; defaults to your signed-on identity"`
+	TimeoutSeconds int    `json:"timeout_seconds,omitempty" jsonschema:"how long to block, default 60, max 300; keep below your client's tool-call timeout"`
+	SinceID        string `json:"since_id,omitempty" jsonschema:"only wake for unread messages with an id newer than this"`
+}
+
+func (h *handlers) wait(ctx context.Context, req *mcp.CallToolRequest, in WaitInput) (*mcp.CallToolResult, mail.WaitResult, error) {
+	if in.TimeoutSeconds < 0 {
+		return nil, mail.WaitResult{Items: []mail.Header{}}, fmt.Errorf("mcpserver: wait: %w: timeout_seconds must not be negative", mail.ErrInvalidInput)
+	}
+	if token := req.Params.GetProgressToken(); token != nil {
+		var stop context.CancelFunc
+		ctx, stop = context.WithCancel(ctx)
+		defer stop()
+		go h.reportProgress(ctx, req.Session, token)
+	}
+	res, err := h.svc.Wait(ctx, h.caller(), mail.WaitInput{
+		Address: in.Address, SinceID: in.SinceID, Timeout: time.Duration(in.TimeoutSeconds) * time.Second,
+	})
+	if res.Items == nil {
+		res.Items = []mail.Header{}
+	}
+	return nil, res, toolErr(err)
+}
+
+// reportProgress sends a progress notification every progressInterval until
+// ctx ends, which keeps long calls alive on clients that reset their timeout
+// on progress.
+func (h *handlers) reportProgress(ctx context.Context, ss *mcp.ServerSession, token any) {
+	t := time.NewTicker(progressInterval)
+	defer t.Stop()
+	start := time.Now()
+	for n := 1; ; n++ {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			_ = ss.NotifyProgress(ctx, &mcp.ProgressNotificationParams{
+				ProgressToken: token,
+				Progress:      float64(n),
+				Message:       fmt.Sprintf("waiting for mail (%s)", time.Since(start).Round(time.Second)),
+			})
+		}
+	}
 }

@@ -423,6 +423,9 @@ func (s *Service) Mark(ctx context.Context, c Caller, in MarkInput) (int, error)
 	if err != nil {
 		return 0, err
 	}
+	if changed > 0 {
+		s.wake.broadcast()
+	}
 	return changed, nil
 }
 

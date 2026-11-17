@@ -113,8 +113,8 @@ func TestToolList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Tools) != 11 {
-		t.Fatalf("tools = %d, want 11", len(res.Tools))
+	if len(res.Tools) != 12 {
+		t.Fatalf("tools = %d, want 12", len(res.Tools))
 	}
 	for _, tool := range res.Tools {
 		if tool.Description == "" {
