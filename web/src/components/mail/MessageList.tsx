@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
-import { ago, parseAddress } from '@/lib/identity'
+import { ago } from '@/lib/identity'
 import { rowKey, type Header, type MailState } from '@/api/mail'
 import { AddressChip } from '@/components/shared/AddressChip'
-import { AgentAvatar } from '@/components/shared/AgentAvatar'
+import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
@@ -74,7 +74,6 @@ export function MessageList(p: MessageListProps) {
             const key = rowKey(h)
             const isCursor = key === p.cursorId
             const n = h.thread_count
-            const who = parseAddress(h.from)
             return (
               <li key={key} ref={isCursor ? cursorRef : undefined}>
                 <button
@@ -92,7 +91,7 @@ export function MessageList(p: MessageListProps) {
                   <span className="flex w-2 shrink-0 justify-center pt-3.5">
                     {unread && <span aria-label="Unread" role="img" className="size-2 rounded-full bg-brand" />}
                   </span>
-                  <AgentAvatar name={who.identity ?? who.path} client={h.from_client} />
+                  <RobotAvatar address={h.from} client={h.from_client} />
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="flex items-baseline gap-2">
                       <AddressChip address={h.from} className={cn('min-w-0 truncate', unread && 'font-bold')} />

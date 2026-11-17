@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Archive, CalendarDays, Circle, FolderTree, Inbox, Keyboard, Mail, Moon, PenLine, Send, User } from 'lucide-react'
+import { Archive, CalendarDays, Circle, FolderTree, Inbox, Keyboard, Mail, Moon, PenLine, Send } from 'lucide-react'
 import { rosterQuery, searchQuery } from '@/api/mail'
 import { useTree } from '@/api/queries'
 import { composeStore } from '@/lib/compose'
 import { helpFlag, paletteFlag } from '@/lib/flag'
 import { useTheme } from '@/lib/theme'
+import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 
 const VIEWS = [
@@ -98,7 +99,7 @@ export function CommandPalette() {
         <CommandGroup heading="Identities">
           {(roster?.items ?? []).map((r) => (
             <CommandItem key={r.address} value={`identity ${r.address} ${r.role}`} onSelect={go(() => void navigate({ to: '/roster', search: { edit: r.address } }))}>
-              <User aria-hidden="true" />
+              <RobotAvatar address={r.address} size={20} />
               <span className="font-mono text-[13px]">{r.address}</span>
               {r.role && <span className="text-xs text-faint">{r.role}</span>}
             </CommandItem>

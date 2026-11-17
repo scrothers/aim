@@ -5,7 +5,7 @@ import { rosterQuery } from '@/api/mail'
 import { useRetire, type RosterEntry } from '@/api/roster'
 import { ago, parseAddress, runtimeFor } from '@/lib/identity'
 import { AddressChip } from '@/components/shared/AddressChip'
-import { AgentAvatar } from '@/components/shared/AgentAvatar'
+import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { PresenceDot } from '@/components/shared/PresenceDot'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -31,7 +31,6 @@ function RosterCard({
   onEdit: () => void
   onRetire: () => void
 }) {
-  const who = parseAddress(entry.address)
   const online = entry.online ?? []
   const subagents = entry.subagents ?? []
   const retired = !!entry.retired_at
@@ -42,7 +41,7 @@ function RosterCard({
       className="flex min-w-0 flex-col gap-3 rounded-xl border bg-panel p-4 data-[retired]:opacity-70"
     >
       <div className="flex items-start gap-3">
-        <AgentAvatar name={who.identity ?? who.path} client={online[0]?.client} size={40} />
+        <RobotAvatar address={entry.address} client={online[0]?.client} size={40} />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <AddressChip address={entry.address} className="min-w-0 flex-wrap break-all" />
           <div className="flex flex-wrap items-center gap-2">

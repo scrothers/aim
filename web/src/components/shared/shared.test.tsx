@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { hueFor, initialsFor, parseAddress, runtimeFor } from '@/lib/identity'
+import { parseAddress, runtimeFor } from '@/lib/identity'
 import { AddressChip } from './AddressChip'
-import { AgentAvatar } from './AgentAvatar'
+import { RobotAvatar } from './RobotAvatar'
 import { RuntimeBadge } from './RuntimeBadge'
 import { Sparkline } from './Sparkline'
 
@@ -31,29 +31,45 @@ describe('AddressChip', () => {
   })
 })
 
-describe('AgentAvatar', () => {
-  it('derives a deterministic hue per name', () => {
-    expect(hueFor('reviewer')).toBe(hueFor('reviewer'))
-    expect(hueFor('reviewer')).toBeGreaterThanOrEqual(0)
-    expect(hueFor('reviewer')).toBeLessThan(360)
-    expect(hueFor('reviewer')).not.toBe(hueFor('builder'))
+describe('RobotAvatar', () => {
+  const addr = 'reviewer@github.com/acme/api'
+
+  it('renders the full robot with a unique clipPath per instance', () => {
+    const { container } = render(
+      <>
+        <RobotAvatar address={addr} size={40} />
+        <RobotAvatar address={addr} size={40} />
+      </>,
+    )
+    const ids = [...container.querySelectorAll('clipPath')].map((c) => c.id)
+    expect(ids).toHaveLength(2)
+    expect(new Set(ids).size).toBe(2)
+    expect(container.querySelector('svg')).toHaveAttribute('viewBox', '0 0 64 64')
   })
 
-  it('computes initials', () => {
-    expect(initialsFor('coordinator')).toBe('CO')
-    expect(initialsFor('code-reviewer')).toBe('CR')
+  it('is decorative by default and labelled when asked', () => {
+    const { container, rerender } = render(<RobotAvatar address={addr} />)
+    expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    rerender(<RobotAvatar address={addr} decorative={false} />)
+    expect(screen.getByRole('img', { name: `Robot avatar for ${addr}` })).toBeInTheDocument()
   })
 
-  it('renders initials with the hue-based background', () => {
-    const { container } = render(<AgentAvatar name="reviewer" />)
-    expect(container.firstChild).toHaveTextContent('RE')
-    expect((container.firstChild as HTMLElement).style.background).not.toBe('')
+  it('uses the compact head crop at 24px and below', () => {
+    const { container } = render(<RobotAvatar address={addr} size={18} />)
+    expect(container.querySelector('svg')).toHaveAttribute('viewBox', '12 9 40 40')
+    expect(container.querySelector('clipPath')).toBeNull()
+  })
+
+  it('overlays the runtime badge', () => {
+    render(<RobotAvatar address={addr} client="codex-cli" />)
+    expect(screen.getByAltText('Codex')).toBeInTheDocument()
   })
 })
 
 describe('operator console identity', () => {
   it('shows the console mark and no runtime badge for the operator', () => {
-    render(<AgentAvatar name="operator" client="aim-web" />)
+    render(<RobotAvatar address="operator" client="aim-web" />)
+    expect(document.querySelector('svg')).toBeNull()
     const mark = screen.getByTestId('console-mark')
     expect(mark).toHaveTextContent('>_')
     expect(mark).not.toHaveTextContent('aim-web')

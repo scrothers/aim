@@ -108,6 +108,7 @@ describe('MessageList', () => {
     expect(screen.getAllByRole('img', { name: 'Unread' })).toHaveLength(1)
     expect(screen.getAllByLabelText('2 messages in thread')).toHaveLength(2)
     expect(within(rows[0]!).getByAltText('Codex')).toBeInTheDocument()
+    for (const r of rows) expect(within(r).getByTestId('robot-avatar').querySelector('svg')).not.toBeNull()
     expect(calls(mocks.GET, '/api/messages')[0]![1].params.query).toMatchObject({ address: 'operator', state: 'inbox' })
     expect(screen.getByRole('heading', { name: 'Operator inbox' })).toBeInTheDocument()
     expect(screen.getAllByText('Snippet 1')).toHaveLength(1)

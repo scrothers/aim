@@ -68,5 +68,7 @@ describe('MailboxTree', () => {
     await renderWithRouter(ui())
     const link = await screen.findByTitle('reviewer@github.com/acme/api')
     expect(link).toHaveAttribute('href', expect.stringContaining('mailbox=reviewer%40github.com%2Facme%2Fapi'))
+    const avatar = within(link).getByTestId('robot-avatar')
+    expect(avatar).toHaveAttribute('data-compact', 'true')
   })
 })

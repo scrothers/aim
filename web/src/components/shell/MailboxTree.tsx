@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 import type { components } from '@/api/schema'
 import { ago, parseAddress } from '@/lib/identity'
 import { cn } from '@/lib/utils'
+import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { Sparkline } from '@/components/shared/Sparkline'
 
 type OrgNode = components['schemas']['OrgNode']
@@ -71,6 +72,7 @@ function IdentityRow({ node, indent }: { node: MailboxNode; indent: string }) {
         aria-label={node.online > 0 ? 'online' : 'offline'}
         className={cn('size-2 shrink-0 rounded-full', node.online > 0 ? 'bg-online' : 'bg-border')}
       />
+      <RobotAvatar address={node.address} size={18} />
       <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-muted-foreground">{name}@</span>
       <span className="text-[11px] text-faint">{ago(node.last_activity)}</span>
       <Unread n={node.unread} />

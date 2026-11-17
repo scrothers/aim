@@ -4,6 +4,7 @@ import type { components } from '@/api/schema'
 import { clock, parseAddress, runtimeFor } from '@/lib/identity'
 import { cn } from '@/lib/utils'
 import { PresenceDot } from '@/components/shared/PresenceDot'
+import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { RuntimeBadge } from '@/components/shared/RuntimeBadge'
 
 type PresenceBody = components['schemas']['PresenceBody']
@@ -30,6 +31,7 @@ function BuddyRow({ buddy }: { buddy: Buddy }) {
     >
       <span className="flex min-w-0 items-center gap-2">
         <PresenceDot online={buddy.online} />
+        <RobotAvatar address={buddy.address} size={24} />
         <span className="min-w-0 truncate font-semibold">{buddy.name}</span>
         {buddy.online && <RuntimeBadge client={buddy.client} className="ml-auto" />}
       </span>

@@ -1,0 +1,996 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`robotParts > golden snapshot guards against silent re-rolls 1`] = `
+{
+  "coordinator@github.com/acme": {
+    "compact": {
+      "parts": [
+        {
+          "attrs": {
+            "fill": "hsl(323 45% 86%)",
+            "height": 40,
+            "rx": 9,
+            "width": 40,
+            "x": 12,
+            "y": 9,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(147 58% 60%)",
+            "height": 29,
+            "rx": 5,
+            "width": 34,
+            "x": 15,
+            "y": 14,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(147 50% 46%)",
+            "height": 21,
+            "rx": 3,
+            "width": 26,
+            "x": 19,
+            "y": 18,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "cx": 25.5,
+            "cy": 27,
+            "fill": "#ffffff",
+            "r": 4.6,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 38.5,
+            "cy": 27,
+            "fill": "#ffffff",
+            "r": 4.6,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 26.5,
+            "cy": 27.6,
+            "fill": "#1b1b22",
+            "r": 2,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 39.5,
+            "cy": 27.6,
+            "fill": "#1b1b22",
+            "r": 2,
+          },
+          "tag": "circle",
+        },
+      ],
+      "viewBox": "12 9 40 40",
+    },
+    "full": {
+      "parts": [
+        {
+          "attrs": {
+            "fill": "hsl(323 45% 86%)",
+            "height": 64,
+            "rx": 14,
+            "width": 64,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "cx": 8,
+            "cy": 8,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 18,
+            "cy": 8,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 28,
+            "cy": 8,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 38,
+            "cy": 8,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 48,
+            "cy": 8,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 58,
+            "cy": 8,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 8,
+            "cy": 18,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 18,
+            "cy": 18,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 28,
+            "cy": 18,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 38,
+            "cy": 18,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 48,
+            "cy": 18,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 58,
+            "cy": 18,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 8,
+            "cy": 28,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 18,
+            "cy": 28,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 28,
+            "cy": 28,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 38,
+            "cy": 28,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 48,
+            "cy": 28,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 58,
+            "cy": 28,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 8,
+            "cy": 38,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 18,
+            "cy": 38,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 28,
+            "cy": 38,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 38,
+            "cy": 38,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 48,
+            "cy": 38,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 58,
+            "cy": 38,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 8,
+            "cy": 48,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 18,
+            "cy": 48,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 28,
+            "cy": 48,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 38,
+            "cy": 48,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 48,
+            "cy": 48,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 58,
+            "cy": 48,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 8,
+            "cy": 58,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 18,
+            "cy": 58,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 28,
+            "cy": 58,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 38,
+            "cy": 58,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 48,
+            "cy": 58,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 58,
+            "cy": 58,
+            "fill": "hsl(323 40% 76%)",
+            "r": 1.4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(171 52% 46%)",
+            "height": 22,
+            "rx": 3,
+            "width": 34,
+            "x": 15,
+            "y": 47,
+          },
+          "clip": true,
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(171 52% 36%)",
+            "height": 5,
+            "rx": 1.5,
+            "width": 10,
+            "x": 27,
+            "y": 51,
+          },
+          "clip": true,
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(171 52% 36%)",
+            "height": 6,
+            "width": 8,
+            "x": 28,
+            "y": 42,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(147 50% 46%)",
+            "height": 10,
+            "rx": 2,
+            "width": 5,
+            "x": 13,
+            "y": 25,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(147 50% 46%)",
+            "height": 10,
+            "rx": 2,
+            "width": 5,
+            "x": 46,
+            "y": 25,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(147 58% 60%)",
+            "height": 29,
+            "rx": 5,
+            "width": 34,
+            "x": 15,
+            "y": 14,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(147 50% 46%)",
+            "height": 21,
+            "rx": 3,
+            "width": 26,
+            "x": 19,
+            "y": 18,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "cx": 25.5,
+            "cy": 27,
+            "fill": "#ffffff",
+            "r": 4.6,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 38.5,
+            "cy": 27,
+            "fill": "#ffffff",
+            "r": 4.6,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 26.5,
+            "cy": 27.6,
+            "fill": "#1b1b22",
+            "r": 2,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 39.5,
+            "cy": 27.6,
+            "fill": "#1b1b22",
+            "r": 2,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(327 95% 62%)",
+            "height": 4,
+            "rx": 1,
+            "width": 14,
+            "x": 25,
+            "y": 33.5,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "d": "M28.5 33.5 V37.5 M32 33.5 V37.5 M35.5 33.5 V37.5",
+            "stroke": "hsl(147 58% 60%)",
+            "strokeWidth": 1,
+          },
+          "tag": "path",
+        },
+      ],
+      "viewBox": "0 0 64 64",
+    },
+    "traits": {
+      "accessory": 2,
+      "bg": 3,
+      "bgHue": 323,
+      "body": 0,
+      "eyes": 2,
+      "head": 4,
+      "headHue": 147,
+      "hue": 171,
+      "mouth": 0,
+    },
+  },
+  "researcher@coordinator@github.com/acme": {
+    "compact": {
+      "parts": [
+        {
+          "attrs": {
+            "fill": "hsl(323 45% 86%)",
+            "height": 40,
+            "rx": 9,
+            "width": 40,
+            "x": 12,
+            "y": 9,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(147 58% 60%)",
+            "height": 29,
+            "rx": 5,
+            "width": 34,
+            "x": 15,
+            "y": 14,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(147 50% 46%)",
+            "height": 21,
+            "rx": 3,
+            "width": 26,
+            "x": 19,
+            "y": 18,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "cx": 25.5,
+            "cy": 27,
+            "fill": "#ffffff",
+            "r": 4.6,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 38.5,
+            "cy": 27,
+            "fill": "#ffffff",
+            "r": 4.6,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 26.5,
+            "cy": 27.6,
+            "fill": "#1b1b22",
+            "r": 2,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 39.5,
+            "cy": 27.6,
+            "fill": "#1b1b22",
+            "r": 2,
+          },
+          "tag": "circle",
+        },
+      ],
+      "viewBox": "12 9 40 40",
+    },
+    "full": {
+      "parts": [
+        {
+          "attrs": {
+            "fill": "hsl(323 45% 86%)",
+            "height": 64,
+            "rx": 14,
+            "width": 64,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "cx": 32,
+            "cy": 30,
+            "fill": "none",
+            "r": 25,
+            "stroke": "hsl(323 40% 76%)",
+            "strokeWidth": 4,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(171 52% 46%)",
+            "height": 22,
+            "rx": 3,
+            "width": 34,
+            "x": 15,
+            "y": 47,
+          },
+          "clip": true,
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(171 52% 36%)",
+            "height": 5,
+            "rx": 1.5,
+            "width": 10,
+            "x": 27,
+            "y": 51,
+          },
+          "clip": true,
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(171 52% 36%)",
+            "height": 6,
+            "width": 8,
+            "x": 28,
+            "y": 42,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(147 58% 60%)",
+            "height": 29,
+            "rx": 5,
+            "width": 34,
+            "x": 15,
+            "y": 14,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(147 50% 46%)",
+            "height": 21,
+            "rx": 3,
+            "width": 26,
+            "x": 19,
+            "y": 18,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "cx": 25.5,
+            "cy": 27,
+            "fill": "#ffffff",
+            "r": 4.6,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 38.5,
+            "cy": 27,
+            "fill": "#ffffff",
+            "r": 4.6,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 26.5,
+            "cy": 27.6,
+            "fill": "#1b1b22",
+            "r": 2,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 39.5,
+            "cy": 27.6,
+            "fill": "#1b1b22",
+            "r": 2,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 28,
+            "cy": 35.5,
+            "fill": "hsl(327 95% 62%)",
+            "r": 1.3,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 32,
+            "cy": 35.5,
+            "fill": "hsl(327 95% 62%)",
+            "r": 1.3,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 36,
+            "cy": 35.5,
+            "fill": "hsl(327 95% 62%)",
+            "r": 1.3,
+          },
+          "tag": "circle",
+        },
+      ],
+      "viewBox": "0 0 64 64",
+    },
+    "traits": {
+      "accessory": 3,
+      "bg": 2,
+      "bgHue": 323,
+      "body": 0,
+      "eyes": 2,
+      "head": 4,
+      "headHue": 147,
+      "hue": 171,
+      "mouth": 2,
+    },
+  },
+  "test@github.com/testing": {
+    "compact": {
+      "parts": [
+        {
+          "attrs": {
+            "fill": "hsl(323 45% 86%)",
+            "height": 40,
+            "rx": 9,
+            "width": 40,
+            "x": 12,
+            "y": 9,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(211 58% 60%)",
+            "height": 28,
+            "rx": 12,
+            "width": 32,
+            "x": 16,
+            "y": 15,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "cx": 25.5,
+            "cy": 27,
+            "fill": "#ffffff",
+            "r": 4.6,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 38.5,
+            "cy": 27,
+            "fill": "#ffffff",
+            "r": 4.6,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 26.5,
+            "cy": 27.6,
+            "fill": "#1b1b22",
+            "r": 2,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 39.5,
+            "cy": 27.6,
+            "fill": "#1b1b22",
+            "r": 2,
+          },
+          "tag": "circle",
+        },
+      ],
+      "viewBox": "12 9 40 40",
+    },
+    "full": {
+      "parts": [
+        {
+          "attrs": {
+            "fill": "hsl(323 45% 86%)",
+            "height": 64,
+            "rx": 14,
+            "width": 64,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "d": "M0 64 L64 0 L64 50 Q64 64 50 64 Z",
+            "fill": "hsl(323 40% 76%)",
+          },
+          "tag": "path",
+        },
+        {
+          "attrs": {
+            "d": "M18 47 H46 Q52 56 46 70 H18 Q12 56 18 47 Z",
+            "fill": "hsl(171 52% 46%)",
+          },
+          "clip": true,
+          "tag": "path",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(171 52% 36%)",
+            "height": 5,
+            "rx": 1.5,
+            "width": 10,
+            "x": 27,
+            "y": 51,
+          },
+          "clip": true,
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(171 52% 36%)",
+            "height": 6,
+            "width": 8,
+            "x": 28,
+            "y": 42,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "fill": "hsl(211 58% 60%)",
+            "height": 28,
+            "rx": 12,
+            "width": 32,
+            "x": 16,
+            "y": 15,
+          },
+          "tag": "rect",
+        },
+        {
+          "attrs": {
+            "cx": 25.5,
+            "cy": 27,
+            "fill": "#ffffff",
+            "r": 4.6,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 38.5,
+            "cy": 27,
+            "fill": "#ffffff",
+            "r": 4.6,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 26.5,
+            "cy": 27.6,
+            "fill": "#1b1b22",
+            "r": 2,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 39.5,
+            "cy": 27.6,
+            "fill": "#1b1b22",
+            "r": 2,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 28,
+            "cy": 35.5,
+            "fill": "#1b1b22",
+            "r": 1.3,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 32,
+            "cy": 35.5,
+            "fill": "#1b1b22",
+            "r": 1.3,
+          },
+          "tag": "circle",
+        },
+        {
+          "attrs": {
+            "cx": 36,
+            "cy": 35.5,
+            "fill": "#1b1b22",
+            "r": 1.3,
+          },
+          "tag": "circle",
+        },
+      ],
+      "viewBox": "0 0 64 64",
+    },
+    "traits": {
+      "accessory": 3,
+      "bg": 1,
+      "bgHue": 323,
+      "body": 2,
+      "eyes": 2,
+      "head": 2,
+      "headHue": 211,
+      "hue": 171,
+      "mouth": 2,
+    },
+  },
+}
+`;

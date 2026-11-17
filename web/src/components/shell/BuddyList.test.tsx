@@ -16,6 +16,13 @@ describe('BuddyList', () => {
     expect(screen.getByText('2 online')).toBeInTheDocument()
   })
 
+  it('renders a robot avatar per buddy row', () => {
+    render(<BuddyList data={presenceFixture} />)
+    for (const row of screen.getAllByTestId('buddy')) {
+      expect(within(row).getByTestId('robot-avatar')).toBeInTheDocument()
+    }
+  })
+
   it('shows away bubble, machine · runtime, runtime icon and subagent chips', () => {
     render(<BuddyList data={presenceFixture} />)
     expect(screen.getByText('Watching issues')).toBeInTheDocument()

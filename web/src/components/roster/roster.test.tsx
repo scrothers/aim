@@ -62,6 +62,7 @@ describe('RosterGrid', () => {
     expect(screen.getByRole('heading', { name: 'github.com/acme/api' })).toBeInTheDocument()
     const card = cards.find((c) => within(c).queryByText('review'))!
     expect(within(card).getByText('pi-03 · Codex')).toBeInTheDocument()
+    for (const c of cards) expect(within(c).getByTestId('robot-avatar')).toBeInTheDocument()
     expect(within(card).getByText('scanner')).toBeInTheDocument()
     expect(within(card).getByText(/reports to/)).toBeInTheDocument()
     expect(within(card).getByText(/line one/)).toBeInTheDocument()

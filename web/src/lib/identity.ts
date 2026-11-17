@@ -15,22 +15,6 @@ export function parseAddress(addr: string): ParsedAddress {
   return { identity: parts[0], path }
 }
 
-/** Deterministic hue (0-359) from a name, stable across sessions. */
-export function hueFor(name: string): number {
-  let h = 2166136261
-  for (let i = 0; i < name.length; i++) {
-    h ^= name.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return (h >>> 0) % 360
-}
-
-export function initialsFor(name: string): string {
-  const words = name.split(/[^a-z0-9]+/i).filter(Boolean)
-  if (words.length >= 2) return ((words[0]![0] ?? '') + (words[1]![0] ?? '')).toUpperCase()
-  return name.replace(/[^a-z0-9]/gi, '').slice(0, 2).toUpperCase() || '?'
-}
-
 export interface Runtime {
   /** Display name. */
   label: string

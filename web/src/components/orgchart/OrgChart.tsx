@@ -6,23 +6,27 @@ import { OPERATOR } from '@/lib/address'
 import { layoutOrgChart } from '@/lib/orgchart'
 import { parseAddress } from '@/lib/identity'
 import { cn } from '@/lib/utils'
+import { RobotAvatar } from '@/components/shared/RobotAvatar'
 
 function NodeCard({ node }: { node: OrgChartNode }) {
   const who = parseAddress(node.address)
   const online = node.online ?? []
   return (
-    <span className="flex min-w-0 flex-col items-center gap-0.5 text-center">
-      <span className="flex items-center gap-1.5">
-        <span
-          role="img"
-          aria-label={online.length ? 'online' : 'offline'}
-          className={cn('size-2 rounded-full border', online.length ? 'border-online bg-online' : 'border-faint bg-transparent')}
-        />
-        <b className="truncate">{who.identity ?? node.address}</b>
-      </span>
-      <span className="max-w-full truncate font-mono text-xs text-muted-foreground">
-        {who.path}
-        {node.role ? ` · ${node.role}` : ''}
+    <span className="flex min-w-0 items-center gap-2 text-center">
+      <RobotAvatar address={node.address} size={32} />
+      <span className="flex min-w-0 flex-col items-center gap-0.5">
+        <span className="flex items-center gap-1.5">
+          <span
+            role="img"
+            aria-label={online.length ? 'online' : 'offline'}
+            className={cn('size-2 rounded-full border', online.length ? 'border-online bg-online' : 'border-faint bg-transparent')}
+          />
+          <b className="truncate">{who.identity ?? node.address}</b>
+        </span>
+        <span className="max-w-full truncate font-mono text-xs text-muted-foreground">
+          {who.path}
+          {node.role ? ` · ${node.role}` : ''}
+        </span>
       </span>
     </span>
   )

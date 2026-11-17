@@ -3,9 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 import { Archive, ArchiveRestore, ChevronDown, ChevronRight, MailOpen, Reply } from 'lucide-react'
 import { threadQuery, useMark, useReadMessage, type MessageView } from '@/api/mail'
 import { OPERATOR } from '@/lib/address'
-import { parseAddress, runtimeFor } from '@/lib/identity'
+import { runtimeFor } from '@/lib/identity'
 import { AddressChip } from '@/components/shared/AddressChip'
-import { AgentAvatar } from '@/components/shared/AgentAvatar'
+import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { RuntimeBadge } from '@/components/shared/RuntimeBadge'
 import { Button } from '@/components/ui/button'
 import { Composer } from './Composer'
@@ -162,11 +162,10 @@ export const ThreadView = forwardRef<HTMLElement, ThreadViewProps>(function Thre
           <ol className="m-0 flex list-none flex-col gap-2 p-0">
             {messages.map((m) => {
               const open = isOpen(m)
-              const who = parseAddress(m.from)
               return (
                 <li key={m.id} data-open={open} className="rounded-xl border bg-panel">
                   <div className="flex items-start gap-3 p-3">
-                    <AgentAvatar name={who.identity ?? who.path} client={m.from_client} />
+                    <RobotAvatar address={m.from} client={m.from_client} />
                     {open ? (
                       <MessageHeader m={m} />
                     ) : (
