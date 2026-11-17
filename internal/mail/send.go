@@ -37,10 +37,12 @@ func validateContent(op, subject, body string) error {
 	return nil
 }
 
-// dedupe merges to and cc preserving order; an address in both stays in to.
-func dedupe(to, cc []address.Address) []recipient {
-	seen := make(map[string]bool, len(to)+len(cc))
-	out := make([]recipient, 0, len(to)+len(cc))
+// dedupe merges the recipient lists preserving order. The caller's own to
+// and cc win over the expanded ones (an address the caller put in cc is never
+// promoted to to), and within each pair an address in both stays in to.
+func dedupe(to, cc, expTo, expCc []address.Address) []recipient {
+	seen := make(map[string]bool, len(to)+len(cc)+len(expTo)+len(expCc))
+	out := make([]recipient, 0, len(to)+len(cc)+len(expTo)+len(expCc))
 	add := func(list []address.Address, kind string) {
 		for _, a := range list {
 			if k := a.String(); !seen[k] {
@@ -51,6 +53,8 @@ func dedupe(to, cc []address.Address) []recipient {
 	}
 	add(to, kindTo)
 	add(cc, kindCc)
+	add(expTo, kindTo)
+	add(expCc, kindCc)
 	return out
 }
 
@@ -89,11 +93,13 @@ func (s *Service) Send(ctx context.Context, c Caller, in SendInput) (Message, er
 		}
 	}
 
-	now := s.now()
 	var out Message
 	err = s.store.WithTx(ctx, func(q *db.Queries) error {
 		var err error
-		out, err = s.send(ctx, q, c, in, from, to, cc, now)
+		// The clock and the id are read inside the transaction: the writer is
+		// serialized, so created_at and ids rise in commit order and a
+		// since-poller can never miss a later-committed message.
+		out, err = s.send(ctx, q, c, in, from, to, cc, s.now())
 		return err
 	})
 	if err != nil {
@@ -114,6 +120,7 @@ func (s *Service) send(ctx context.Context, q *db.Queries, c Caller, in SendInpu
 		return Message{}, err
 	}
 	threadID := msgID
+	var expTo, expCc []address.Address
 	if in.InReplyTo != "" {
 		parent, err := q.GetMessageByID(ctx, in.InReplyTo)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -124,13 +131,13 @@ func (s *Service) send(ctx context.Context, q *db.Queries, c Caller, in SendInpu
 		}
 		threadID = parent.ThreadID
 		if in.ReplyAll {
-			to, cc, err = s.expandReplyAll(ctx, q, parent, from, to, cc)
+			expTo, expCc, err = s.expandReplyAll(ctx, q, parent, from, nil, nil)
 			if err != nil {
 				return Message{}, err
 			}
 		}
 	}
-	recips := dedupe(to, cc)
+	recips := dedupe(to, cc, expTo, expCc)
 	if len(recips) == 0 {
 		return Message{}, invalidf(op, "reply_all left no recipients (you were the only other party); add explicit to addresses")
 	}
@@ -167,15 +174,15 @@ func (s *Service) send(ctx context.Context, q *db.Queries, c Caller, in SendInpu
 	return msg, nil
 }
 
-// expandReplyAll adds the parent's sender and recipients, minus the sender's
-// own mailbox, after the explicitly listed ones.
+// expandReplyAll appends the parent's sender and recipients to to and cc,
+// minus the sender's own addresses (the sending mailbox and its identity).
 func (s *Service) expandReplyAll(ctx context.Context, q *db.Queries, parent db.GetMessageByIDRow,
 	self address.Address, to, cc []address.Address) ([]address.Address, []address.Address, error) {
 	rows, err := q.ListDeliveriesForMessage(ctx, parent.ID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("mail: send: parent recipients: %w", err)
 	}
-	notSelf := func(a address.Address) bool { return a != self }
+	notSelf := func(a address.Address) bool { return a != self && a != self.IdentityAddress() }
 	if a := rowAddr(parent.FromHost, parent.FromOrg, parent.FromRepo, parent.FromIdentity, parent.FromSubagent); notSelf(a) {
 		to = append(to, a)
 	}

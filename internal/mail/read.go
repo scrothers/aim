@@ -66,48 +66,65 @@ func loadMessage(ctx context.Context, q *db.Queries, id string) (Message, error)
 	return raw.message(to, cc), nil
 }
 
-// Read returns a message. Without Peek it also marks the caller's own
-// delivery read (the caller must be signed on); with Peek nothing changes and
-// no sign-on is needed.
+// Read returns a message; reads are anonymous. Without Peek, a signed-on
+// caller who owns a delivery of the message also gets it marked read.
 func (s *Service) Read(ctx context.Context, c Caller, in ReadInput) (Message, error) {
 	const op = "read"
 	if in.MessageID == "" {
 		return Message{}, invalidf(op, "message_id is required")
 	}
-	if in.Peek {
-		return loadMessage(ctx, s.store.Read(), in.MessageID)
+	rq := s.store.Read()
+	out, err := loadMessage(ctx, rq, in.MessageID)
+	if err != nil || in.Peek || requireSignedOn(op, c) != nil {
+		return out, err
 	}
-	if err := requireSignedOn(op, c); err != nil {
-		return Message{}, fmt.Errorf("%w (or pass peek=true to read without marking)", err)
+	mb, ok, err := lookupCallerMailbox(ctx, rq, c, in.Subagent)
+	if err != nil || !ok {
+		return out, err
 	}
-	now := s.now().UnixMilli()
-	var out Message
-	err := s.store.WithTx(ctx, func(q *db.Queries) error {
-		var err error
-		if out, err = loadMessage(ctx, q, in.MessageID); err != nil {
-			return err
-		}
-		mb, err := callerMailbox(ctx, q, op, c, in.Subagent)
-		if err != nil {
-			return err
-		}
+	// Check on the reader pool first so the common already-read case never
+	// takes the writer.
+	d, err := rq.GetDelivery(ctx, db.GetDeliveryParams{MessageID: in.MessageID, MailboxID: mb.ID})
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && d.ReadAt.Valid) {
+		return out, nil // not ours, or already read
+	}
+	if err != nil {
+		return Message{}, fmt.Errorf("mail: %s: delivery: %w", op, err)
+	}
+	err = s.store.WithTx(ctx, func(q *db.Queries) error {
 		d, err := q.GetDelivery(ctx, db.GetDeliveryParams{MessageID: in.MessageID, MailboxID: mb.ID})
-		if errors.Is(err, sql.ErrNoRows) || (err == nil && d.ReadAt.Valid) {
-			return nil // not ours, or already read
+		if err != nil || d.ReadAt.Valid {
+			return err // raced with another reader of the same delivery
 		}
-		if err != nil {
-			return fmt.Errorf("mail: %s: delivery: %w", op, err)
-		}
-		_, err = q.SetReadAt(ctx, db.SetReadAtParams{Now: sql.NullInt64{Int64: now, Valid: true}, MessageID: in.MessageID, MailboxID: mb.ID})
-		if err != nil {
+		now := sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}
+		if _, err := q.SetReadAt(ctx, db.SetReadAtParams{Now: now, MessageID: in.MessageID, MailboxID: mb.ID}); err != nil {
 			return fmt.Errorf("mail: %s: mark read: %w", op, err)
 		}
 		return nil
 	})
 	if err != nil {
-		return Message{}, err
+		return Message{}, fmt.Errorf("mail: %s: mark read: %w", op, err)
 	}
 	return out, nil
+}
+
+// lookupCallerMailbox finds the caller's identity or subagent mailbox without
+// creating it; ok is false when it does not exist.
+func lookupCallerMailbox(ctx context.Context, q *db.Queries, c Caller, subagent string) (mb db.Mailbox, ok bool, err error) {
+	a := c.Identity.IdentityAddress()
+	if subagent != "" {
+		if a, err = a.WithSubagent(subagent); err != nil {
+			return db.Mailbox{}, false, invalidAddr("read", err)
+		}
+	}
+	mb, err = q.GetMailboxByKey(ctx, keyOf(a))
+	if errors.Is(err, sql.ErrNoRows) {
+		return db.Mailbox{}, false, nil
+	}
+	if err != nil {
+		return db.Mailbox{}, false, fmt.Errorf("mail: read: mailbox: %w", err)
+	}
+	return mb, true, nil
 }
 
 // Thread returns every message in a thread, oldest first.

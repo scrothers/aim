@@ -594,8 +594,18 @@ func TestReadOwnershipAndAnonymous(t *testing.T) {
 	if state(aliceWeb) != nil {
 		t.Error("peek marked read")
 	}
-	if _, err := e.svc.Read(ctx, mail.Caller{}, mail.ReadInput{MessageID: m.ID}); !errors.Is(err, mail.ErrNotSignedOn) {
-		t.Errorf("anonymous non-peek err = %v", err)
+	if got, err := e.svc.Read(ctx, mail.Caller{}, mail.ReadInput{MessageID: m.ID}); err != nil || got.ID != m.ID {
+		t.Errorf("anonymous non-peek read = %v, %v; want the message", got.ID, err)
+	}
+	if state(aliceWeb) != nil {
+		t.Error("anonymous read marked read")
+	}
+	// A subagent mailbox that does not exist yet is not an error: nothing to mark.
+	if got, err := e.svc.Read(ctx, caller(aliceWeb), mail.ReadInput{MessageID: m.ID, Subagent: "ghost"}); err != nil || got.ID != m.ID {
+		t.Errorf("read as unknown subagent = %v, %v", got.ID, err)
+	}
+	if state(aliceWeb) != nil {
+		t.Error("read as unknown subagent marked alice's delivery")
 	}
 	// A different identity can read but cannot mark alice's delivery.
 	if _, err := e.svc.Read(ctx, caller(bobWeb), mail.ReadInput{MessageID: m.ID}); err != nil {
@@ -625,13 +635,11 @@ func TestReadOwnershipAndAnonymous(t *testing.T) {
 	if _, err := e.svc.Read(ctx, caller(aliceWeb), mail.ReadInput{MessageID: "msg-zzz"}); !errors.Is(err, mail.ErrMessageNotFound) {
 		t.Errorf("unknown id err = %v", err)
 	}
-	if _, err := e.svc.Read(ctx, caller(aliceWeb), mail.ReadInput{MessageID: m.ID, Subagent: "ghost"}); !errors.Is(err, mail.ErrMailboxNotFound) {
-		t.Errorf("unknown subagent err = %v", err)
-	}
 	if _, err := e.svc.Read(ctx, caller(aliceWeb), mail.ReadInput{MessageID: m.ID, Subagent: "Bad Name"}); !errors.Is(err, mail.ErrInvalidInput) {
 		t.Errorf("bad subagent err = %v", err)
 	}
-	if _, err := e.svc.Read(ctx, caller("ghost@github.com/acme/web"), mail.ReadInput{MessageID: m.ID}); !errors.Is(err, mail.ErrMailboxNotFound) {
+	// An unregistered caller owns no delivery: the read succeeds, marking nothing.
+	if _, err := e.svc.Read(ctx, caller("ghost@github.com/acme/web"), mail.ReadInput{MessageID: m.ID}); err != nil {
 		t.Errorf("unregistered caller err = %v", err)
 	}
 }
@@ -849,5 +857,94 @@ func TestDefaultsAndConcurrentIDs(t *testing.T) {
 		if err := <-errs; err != nil {
 			t.Error(err)
 		}
+	}
+}
+
+func TestListPagesThroughOneMessagesDeliveries(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.register(t, aliceWeb, bobWeb)
+	m := e.send(t, bobWeb, []string{aliceWeb, orgNS}, "fanout")
+	older := e.send(t, bobWeb, []string{aliceWeb}, "single")
+	var got []string
+	cursor := ""
+	for range 10 {
+		r := e.list(t, mail.ListInput{Address: orgNS, State: "all", Limit: 1, Cursor: cursor})
+		for _, h := range r.Items {
+			got = append(got, h.ID+"@"+h.Mailbox)
+		}
+		if cursor = r.NextCursor; cursor == "" {
+			break
+		}
+	}
+	want := []string{older.ID + "@" + aliceWeb, m.ID + "@" + orgNS, m.ID + "@" + aliceWeb}
+	slices.Sort(want)
+	slices.Sort(got)
+	if !slices.Equal(got, want) {
+		t.Errorf("paged deliveries = %v, want %v", got, want)
+	}
+	if _, err := e.svc.List(context.Background(), mail.ListInput{Address: orgNS, Cursor: "msg-x"}); !errors.Is(err, mail.ErrInvalidInput) {
+		t.Errorf("malformed cursor err = %v", err)
+	}
+}
+
+func TestReplyAllExcludesIdentityAndKeepsCallerCc(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.register(t, aliceWeb, bobWeb, carolAPI)
+	ctx := context.Background()
+	root := e.send(t, aliceWeb, []string{bobWeb}, "q")
+	// bob's subagent replies: bob's identity must not be re-added.
+	r, err := e.svc.Send(ctx, caller(bobWeb), mail.SendInput{Subagent: "helper", InReplyTo: root.ID, ReplyAll: true, Subject: "Re", Body: "b"})
+	if err != nil || !slices.Equal(r.To, []string{aliceWeb}) || len(r.Cc) != 0 {
+		t.Errorf("subagent reply_all = %+v, %v", r, err)
+	}
+	// An address the caller put in cc stays in cc, not promoted by the expansion.
+	r, err = e.svc.Send(ctx, caller(carolAPI), mail.SendInput{InReplyTo: root.ID, ReplyAll: true, Cc: []string{aliceWeb}, Subject: "Re", Body: "b"})
+	if err != nil || !slices.Equal(r.To, []string{bobWeb}) || !slices.Equal(r.Cc, []string{aliceWeb}) {
+		t.Errorf("reply_all with caller cc = %+v, %v", r, err)
+	}
+}
+
+func TestSendTimestampsFollowCommitOrder(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.register(t, aliceWeb, bobWeb)
+	var ticks atomic.Int64
+	slow, release := make(chan struct{}), make(chan struct{})
+	clock := func() time.Time {
+		n := ticks.Add(1)
+		if n == 1 {
+			close(slow)
+			select { // wait for the second send to finish, if it can
+			case <-release:
+			case <-time.After(300 * time.Millisecond):
+			}
+		}
+		return epoch.Add(time.Duration(n) * time.Second)
+	}
+	svc := mail.New(e.st, e.pres, mail.WithClock(clock), mail.WithEntropy(&counterReader{}))
+	type result struct {
+		m   mail.Message
+		end time.Time
+	}
+	do := func(subject string, out chan<- result) {
+		m, err := svc.Send(context.Background(), caller(aliceWeb), mail.SendInput{To: []string{bobWeb}, Subject: subject, Body: "b"})
+		if err != nil {
+			t.Errorf("send %s: %v", subject, err)
+		}
+		out <- result{m, time.Now()}
+	}
+	first, second := make(chan result, 1), make(chan result, 1)
+	go do("first", first)
+	<-slow
+	go func() { do("second", second); close(release) }()
+	a, b := <-first, <-second
+	if a.end.After(b.end) {
+		a, b = b, a
+	}
+	if a.m.ID >= b.m.ID || a.m.CreatedAt.After(b.m.CreatedAt) {
+		t.Errorf("committed %s (%s) before %s (%s): ids/timestamps out of commit order",
+			a.m.Subject, a.m.CreatedAt, b.m.Subject, b.m.CreatedAt)
 	}
 }

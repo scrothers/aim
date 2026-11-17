@@ -147,7 +147,9 @@ const (
 	MaxSearchLimit     = 100
 )
 
-// SearchInput is the argument of Service.Search. Cursor is an opaque offset.
+// SearchInput is the argument of Service.Search. Cursor is a best-effort
+// offset into the ranked results: it is not a stable snapshot, so results may
+// shift, repeat or be skipped if new mail arrives between pages.
 type SearchInput struct {
 	Address string
 	Query   string

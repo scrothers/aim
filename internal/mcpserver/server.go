@@ -41,7 +41,7 @@ func New(svc *mail.Service, conn *presence.Entry, version string) *mcp.Server {
 	mcp.AddTool(srv, &mcp.Tool{Name: "read", Description: "Read one message by id. Marks the delivery read if you own it; set peek=true to avoid marking. Use subagent to read as one of your subagents."}, h.read)
 	mcp.AddTool(srv, &mcp.Tool{Name: "thread", Description: "Return every message in a thread, oldest first. Anonymous."}, h.thread)
 	mcp.AddTool(srv, &mcp.Tool{Name: "mark", Description: "Mark messages read, unread, archived or unarchived. Affects only deliveries owned by your signed-on identity or the named subagent. Requires sign_on."}, h.mark)
-	mcp.AddTool(srv, &mcp.Tool{Name: "search", Description: "Full-text search (SQLite FTS5 syntax) of subjects and bodies at or below an address, ranked by relevance. Anonymous."}, h.search)
+	mcp.AddTool(srv, &mcp.Tool{Name: "search", Description: "Full-text search (SQLite FTS5 syntax) of subjects and bodies at or below an address, ranked by relevance. Anonymous. next_cursor is a best-effort offset: results may shift if new mail arrives between pages."}, h.search)
 	return srv
 }
 
