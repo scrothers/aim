@@ -41,7 +41,7 @@ func New(svc *mail.Service, conn *presence.Entry, version string) *mcp.Server {
 	mcp.AddTool(srv, &mcp.Tool{Name: "sign_off", Description: "Sign this connection off; you appear offline in rosters and can no longer send or mark."}, h.signOff)
 	mcp.AddTool(srv, &mcp.Tool{Name: "send", Description: "Send a message from your signed-on identity (or one of its subagents via subagent) to to[] and optional cc[] addresses. Use in_reply_to to thread a reply; reply_all addresses the original sender and recipients. Send to 'operator' to escalate to the human operator. Requires sign_on. Sending to an unregistered identity fails with suggestions."}, h.send)
 	mcp.AddTool(srv, &mcp.Tool{Name: "list", Description: "List message headers for an address and everything below it. Anonymous. state is unread (default), read, archived or all; archived requires since and until (RFC3339). Use cursor from a previous result to page."}, h.list)
-	mcp.AddTool(srv, &mcp.Tool{Name: "read", Description: "Read one message by id. Marks the delivery read if you own it; set peek=true to avoid marking. Use subagent to read as one of your subagents."}, h.read)
+	mcp.AddTool(srv, &mcp.Tool{Name: "read", Description: "Read one message by id. Marks the delivery read if you own it; set peek=true to avoid marking. The result's marked field is true when your delivery is marked read, and false if you peeked or aren't signed on as an owner of the message. Use subagent to read as one of your subagents."}, h.read)
 	mcp.AddTool(srv, &mcp.Tool{Name: "thread", Description: "Return every message in a thread, oldest first. Anonymous."}, h.thread)
 	mcp.AddTool(srv, &mcp.Tool{Name: "mark", Description: "Mark messages read, unread, archived or unarchived. Affects only deliveries owned by your signed-on identity or the named subagent. Requires sign_on."}, h.mark)
 	mcp.AddTool(srv, &mcp.Tool{Name: "search", Description: "Full-text search (SQLite FTS5 syntax) of subjects and bodies at or below an address, ranked by relevance. Anonymous. next_cursor is a best-effort offset: results may shift if new mail arrives between pages."}, h.search)
@@ -231,7 +231,7 @@ func (h *handlers) send(ctx context.Context, _ *mcp.CallToolRequest, in SendInpu
 // ListInput is the input of list.
 type ListInput struct {
 	Address string `json:"address" jsonschema:"mailbox address; covers everything below it"`
-	State   string `json:"state,omitempty" jsonschema:"unread (default), read, archived or all; archived requires since and until"`
+	State   string `json:"state,omitempty" jsonschema:"unread (default), read, archived, inbox (read or unread, not archived) or all; archived requires since and until"`
 	From    string `json:"from,omitempty" jsonschema:"only messages from this sender address"`
 	Since   string `json:"since,omitempty" jsonschema:"RFC3339 lower time bound"`
 	Until   string `json:"until,omitempty" jsonschema:"RFC3339 upper time bound"`
@@ -268,9 +268,16 @@ type ReadInput struct {
 	Subagent  string `json:"subagent,omitempty" jsonschema:"read as this subagent of your identity"`
 }
 
-func (h *handlers) read(ctx context.Context, _ *mcp.CallToolRequest, in ReadInput) (*mcp.CallToolResult, mail.Message, error) {
+// ReadOutput is the result of read: the message plus whether the read left
+// the delivery marked read.
+type ReadOutput struct {
+	mail.Message
+	Marked bool `json:"marked" jsonschema:"true when a delivery of this message is marked read for you; false for peek or when you are not signed on as an owner"`
+}
+
+func (h *handlers) read(ctx context.Context, _ *mcp.CallToolRequest, in ReadInput) (*mcp.CallToolResult, ReadOutput, error) {
 	m, err := h.svc.Read(ctx, h.caller(), mail.ReadInput{MessageID: in.MessageID, Peek: in.Peek, Subagent: in.Subagent})
-	return nil, m, toolErr(err)
+	return nil, ReadOutput{Message: m, Marked: m.Marked}, toolErr(err)
 }
 
 // ThreadInput is the input of thread.

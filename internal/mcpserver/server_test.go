@@ -190,13 +190,20 @@ func TestMailFlow(t *testing.T) {
 	if items := l["items"].([]any); len(items) != 1 {
 		t.Fatalf("list = %v", l)
 	}
-	ok(t, b, "read", map[string]any{"message_id": id, "peek": true})
+	if p := ok(t, b, "read", map[string]any{"message_id": id, "peek": true}); p["marked"] != false {
+		t.Fatalf("peek marked = %v", p["marked"])
+	}
 	if l := ok(t, b, "list", map[string]any{"address": "github.com/acme"}); len(l["items"].([]any)) == 0 {
 		t.Fatalf("peek should not mark read: %v", l)
 	}
 	m := ok(t, b, "read", map[string]any{"message_id": id})
-	if m["subject"] != "deploy plan" {
+	if m["subject"] != "deploy plan" || m["marked"] != true {
 		t.Fatalf("read = %v", m)
+	}
+	// A caller who has not signed on reads fine but nothing is marked.
+	anon := e.client(t, "anon")
+	if r := ok(t, anon, "read", map[string]any{"message_id": id}); r["subject"] != "deploy plan" || r["marked"] != false {
+		t.Fatalf("unsigned read = %v", r)
 	}
 	if l := ok(t, b, "list", map[string]any{"address": "bob@github.com/acme/api"}); len(l["items"].([]any)) != 0 {
 		t.Fatalf("expected no unread: %v", l)
