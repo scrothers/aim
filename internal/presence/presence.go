@@ -145,6 +145,9 @@ func (r *Registry) Add(connID string, p wire.Preamble, now time.Time) *Entry {
 	if r.entries == nil {
 		r.entries = make(map[string]*Entry)
 	}
+	if old, ok := r.entries[connID]; ok {
+		r.recordDisconnect(old)
+	}
 	r.entries[connID] = e
 	r.record(Event{Kind: EventConnected, Machine: p.Machine, At: now})
 	return e
@@ -159,6 +162,12 @@ func (r *Registry) Remove(connID string) {
 		return
 	}
 	delete(r.entries, connID)
+	r.recordDisconnect(e)
+}
+
+// recordDisconnect logs the disconnect of e. The caller must hold r.mu for
+// writing.
+func (r *Registry) recordDisconnect(e *Entry) {
 	ev := Event{Kind: EventDisconnected, Machine: e.preamble.Machine, Client: e.client, At: r.clock()}
 	if e.signedOn {
 		ev.Identity = e.identity.String()
@@ -234,6 +243,9 @@ func (e *Entry) SignOn(identity address.Address, away string, now time.Time) err
 	}
 	e.reg.mu.Lock()
 	defer e.reg.mu.Unlock()
+	if e.signedOn {
+		e.reg.record(Event{Kind: EventSignedOff, Identity: e.identity.String(), Machine: e.preamble.Machine, Client: e.client, At: now})
+	}
 	e.signedOn = true
 	e.identity = identity
 	e.signedOnAt = now

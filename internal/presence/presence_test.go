@@ -325,6 +325,36 @@ func TestEventLog(t *testing.T) {
 	}
 }
 
+func TestEventLogReplace(t *testing.T) {
+	t.Parallel()
+	r := New()
+	e := r.Add("c1", preamble("s1"), t0)
+	if err := e.SignOn(identity, "", t0); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.SignOn(other, "", t0.Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	r.Add("c1", preamble("s2"), t0.Add(time.Minute))
+	ev := r.Events(0) // newest first
+	want := []struct{ kind, id string }{
+		{EventConnected, ""},
+		{EventDisconnected, other.String()},
+		{EventSignedOn, other.String()},
+		{EventSignedOff, identity.String()},
+		{EventSignedOn, identity.String()},
+		{EventConnected, ""},
+	}
+	if len(ev) != len(want) {
+		t.Fatalf("events = %+v", ev)
+	}
+	for i, w := range want {
+		if ev[i].Kind != w.kind || ev[i].Identity != w.id {
+			t.Errorf("event %d = %s/%s, want %s/%s", i, ev[i].Kind, ev[i].Identity, w.kind, w.id)
+		}
+	}
+}
+
 func TestEventRingWraps(t *testing.T) {
 	t.Parallel()
 	r := New()
