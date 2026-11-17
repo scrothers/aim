@@ -1,0 +1,7 @@
+# This session
+
+- session: s
+- machine: box
+- namespace: github.com/acme/api
+- client: claude-code 2
+- signed on as: alice@github.com/acme/api

@@ -1,0 +1,15 @@
+# Roster
+
+## alice@github.com/acme/api
+
+- role: lead
+- description: runs it
+- reports to: operator
+- subagents: helper
+- presence: idle on box (away: lunch)
+- presence: online on box2
+
+## bob@github.com/acme/api
+
+- role: dev
+- presence: offline

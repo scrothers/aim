@@ -1,0 +1,10 @@
+# deploy plan
+
+- id: msg-1
+- thread: thr-1
+- from: alice@github.com/acme/api
+- to: bob@github.com/acme/api
+- cc: github.com/acme/api
+- sent: 2026-01-02 15:04 UTC
+
+ship the rollout

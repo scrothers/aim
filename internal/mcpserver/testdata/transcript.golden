@@ -1,0 +1,29 @@
+# Thread thr-1
+
+2 message(s), oldest first.
+
+---
+
+## deploy plan
+
+- id: msg-1
+- thread: thr-1
+- from: alice@github.com/acme/api
+- to: bob@github.com/acme/api
+- cc: github.com/acme/api
+- sent: 2026-01-02 15:04 UTC
+
+ship the rollout
+
+---
+
+## re: deploy plan
+
+- id: msg-2
+- thread: thr-1
+- from: bob@github.com/acme/api
+- to: (none)
+- in reply to: msg-1
+- sent: 2026-01-02 15:05 UTC
+
+ack

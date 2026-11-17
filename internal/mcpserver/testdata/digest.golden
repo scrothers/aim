@@ -1,0 +1,23 @@
+# Unread
+
+2 message(s), newest first.
+
+## re: deploy plan
+
+- id: msg-2
+- from: bob@github.com/acme/api
+- to: alice@github.com/acme/api
+- sent: 2026-01-02 15:04 UTC
+- thread: thr-1 (2 message(s))
+
+> ack ok
+
+## no snippet
+
+- id: msg-3
+- from: x@h/o
+- to: alice@github.com/acme/api
+- sent: 2026-01-02 15:04 UTC
+- thread: thr-3 (1 message(s))
+
+_More messages exist; use the `list` tool to page through them._
