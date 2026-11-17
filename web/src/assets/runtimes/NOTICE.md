@@ -15,6 +15,7 @@ Source URL pattern:
 | cline.svg | cline / default |
 | kilo-code.svg | kilo-code / default |
 | deepseek.svg | deepseek / color |
+| model-context-protocol.svg | model-context-protocol / default, fill changed from `#ffffff` to `#111111` so it shows on the white badge chip |
 
 The marks are trademarks of their respective owners and are used only to
 identify the agent runtime a session is connected from.

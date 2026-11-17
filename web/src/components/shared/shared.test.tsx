@@ -61,6 +61,7 @@ describe('runtime mapping', () => {
     ['grok-build', 'grok'],
     ['cline', 'cline'],
     ['kilo-code', 'kilo-code'],
+    ['mcp-inspector', 'model-context-protocol'],
     ['deepseek-tui', 'deepseek'],
   ])('maps %s to %s', (client, icon) => {
     expect(runtimeFor(client).icon).toBe(icon)

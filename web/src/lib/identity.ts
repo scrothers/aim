@@ -47,6 +47,7 @@ const RUNTIME_RULES: Array<[RegExp, Runtime]> = [
   [/^cline/i, { label: 'Cline', icon: 'cline' }],
   [/^kilo/i, { label: 'Kilo Code', icon: 'kilo-code' }],
   [/^deepseek/i, { label: 'DeepSeek', icon: 'deepseek' }],
+  [/^mcp-inspector/i, { label: 'MCP Inspector', icon: 'model-context-protocol' }],
 ]
 
 /** Maps an MCP clientInfo name to a runtime; unknown names keep the raw name. */
