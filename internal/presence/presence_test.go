@@ -2,6 +2,7 @@ package presence
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -261,5 +262,85 @@ func mustSignOn(t *testing.T, e *Entry, a address.Address, away string, now time
 	t.Helper()
 	if err := e.SignOn(a, away, now); err != nil {
 		t.Fatalf("SignOn(%s) error = %v", a, err)
+	}
+}
+
+func TestClientAndAll(t *testing.T) {
+	t.Parallel()
+	r := New()
+	e1 := r.Add("c1", preamble("s1"), t0)
+	e2 := r.Add("c2", preamble("s2"), t0.Add(time.Second))
+	e2.SetClient("claude-code", "2.1")
+	if err := e2.SignOn(identity, "", t0.Add(2*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	all := r.All()
+	if len(all) != 2 || all[0].ConnID != "c1" || all[1].ConnID != "c2" {
+		t.Fatalf("All = %+v", all)
+	}
+	if all[0].Identity != "" || all[0].Client != "" {
+		t.Errorf("unsigned status = %+v", all[0])
+	}
+	if got := all[1]; got.Client != "claude-code" || got.ClientVersion != "2.1" || got.Identity != identity.String() {
+		t.Errorf("signed status = %+v", got)
+	}
+	_ = e1
+}
+
+func TestEventLog(t *testing.T) {
+	t.Parallel()
+	now := t0
+	r := New(WithClock(func() time.Time { now = now.Add(time.Second); return now }))
+	e := r.Add("c1", preamble("s1"), t0)
+	e.SetClient("codex", "1")
+	if err := e.SignOn(identity, "", t0.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	e.SignOff()
+	e.SignOff() // no event: already signed off
+	if err := e.SignOn(identity, "", t0.Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	r.Remove("c1")
+	r.Remove("c1")
+	ev := r.Events(0)
+	kinds := make([]string, len(ev))
+	for i, x := range ev {
+		kinds[i] = x.Kind
+	}
+	want := []string{EventDisconnected, EventSignedOn, EventSignedOff, EventSignedOn, EventConnected}
+	if len(kinds) != len(want) {
+		t.Fatalf("kinds = %v, want %v", kinds, want)
+	}
+	for i := range want {
+		if kinds[i] != want[i] {
+			t.Fatalf("kinds = %v, want %v", kinds, want)
+		}
+	}
+	if ev[0].Identity != identity.String() || ev[0].Client != "codex" || ev[0].Machine != "box-s1" {
+		t.Errorf("disconnect event = %+v", ev[0])
+	}
+	if got := r.Events(2); len(got) != 2 || got[0].Kind != EventDisconnected {
+		t.Errorf("Events(2) = %+v", got)
+	}
+}
+
+func TestEventRingWraps(t *testing.T) {
+	t.Parallel()
+	r := New()
+	for i := range maxEvents + 20 {
+		r.Add(fmt.Sprintf("c%d", i), preamble("s"), t0.Add(time.Duration(i)*time.Second))
+	}
+	ev := r.Events(0)
+	if len(ev) != maxEvents {
+		t.Fatalf("len = %d, want %d", len(ev), maxEvents)
+	}
+	if !ev[0].At.Equal(t0.Add(time.Duration(maxEvents+19)*time.Second)) || !ev[maxEvents-1].At.Equal(t0.Add(20*time.Second)) {
+		t.Errorf("newest %v oldest %v", ev[0].At, ev[maxEvents-1].At)
+	}
+	for i := 1; i < len(ev); i++ {
+		if !ev[i].At.Before(ev[i-1].At) {
+			t.Fatalf("not newest-first at %d", i)
+		}
 	}
 }
