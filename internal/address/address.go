@@ -17,7 +17,12 @@ const (
 	KindNamespace Kind = iota + 1
 	KindIdentity
 	KindSubagent
+	// KindOperator is the single reserved address of the human operator.
+	KindOperator
 )
+
+// OperatorName is the literal text of the operator address.
+const OperatorName = "operator"
 
 // String returns the lower-case name of the kind.
 func (k Kind) String() string {
@@ -28,6 +33,8 @@ func (k Kind) String() string {
 		return "identity"
 	case KindSubagent:
 		return "subagent"
+	case KindOperator:
+		return "operator"
 	default:
 		return fmt.Sprintf("kind(%d)", int(k))
 	}
@@ -61,6 +68,9 @@ func invalid(format string, args ...any) error {
 // Parse parses and normalizes s into an Address.
 func Parse(s string) (Address, error) {
 	s = strings.ToLower(strings.TrimSpace(s))
+	if s == OperatorName {
+		return Operator(), nil
+	}
 	if s == "" {
 		return Address{}, invalid("address is empty; expected [subagent@][identity@]host/org[/repo]")
 	}
@@ -108,6 +118,10 @@ func Parse(s string) (Address, error) {
 	}
 	return a, nil
 }
+
+// Operator returns the reserved operator address. It has no host or org: the
+// operator is a single global mailbox.
+func Operator() Address { return Address{Identity: OperatorName} }
 
 // MustParse is like Parse but panics on error. Intended for tests.
 func MustParse(s string) Address {
@@ -204,6 +218,9 @@ func isAlnum(c byte) bool {
 
 // String returns the canonical form of a.
 func (a Address) String() string {
+	if a.IsOperator() {
+		return OperatorName
+	}
 	var b strings.Builder
 	if a.Subagent != "" {
 		b.WriteString(a.Subagent)
@@ -226,6 +243,8 @@ func (a Address) String() string {
 // Kind returns the level of a.
 func (a Address) Kind() Kind {
 	switch {
+	case a.IsOperator():
+		return KindOperator
 	case a.Subagent != "":
 		return KindSubagent
 	case a.Identity != "":
@@ -233,6 +252,11 @@ func (a Address) Kind() Kind {
 	default:
 		return KindNamespace
 	}
+}
+
+// IsOperator reports whether a is the operator address.
+func (a Address) IsOperator() bool {
+	return a == Address{Identity: OperatorName}
 }
 
 // RepoScoped reports whether a lives under a repo rather than directly
@@ -267,6 +291,9 @@ func (a Address) WithSubagent(name string) (Address, error) {
 
 // Contains reports whether b lies within the subtree read by a.
 func (a Address) Contains(b Address) bool {
+	if a.IsOperator() || b.IsOperator() {
+		return a == b
+	}
 	if a.Host != b.Host || a.Org != b.Org {
 		return false
 	}
@@ -282,6 +309,9 @@ func (a Address) Contains(b Address) bool {
 
 // Scope returns the query scope equivalent to Contains for a.
 func (a Address) Scope() Scope {
+	if a.IsOperator() {
+		return Scope{Identity: OperatorName, MatchRepo: true, MatchIdentity: true}
+	}
 	k := a.Kind()
 	return Scope{
 		Host:          a.Host,

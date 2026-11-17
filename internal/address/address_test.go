@@ -113,7 +113,7 @@ func TestValidName(t *testing.T) {
 
 func TestKindString(t *testing.T) {
 	t.Parallel()
-	want := map[Kind]string{KindNamespace: "namespace", KindIdentity: "identity", KindSubagent: "subagent", Kind(0): "kind(0)"}
+	want := map[Kind]string{KindNamespace: "namespace", KindIdentity: "identity", KindSubagent: "subagent", KindOperator: "operator", Kind(0): "kind(0)"}
 	for k, s := range want {
 		if k.String() != s {
 			t.Errorf("Kind(%d).String() = %q, want %q", int(k), k.String(), s)
@@ -247,4 +247,29 @@ func FuzzParse(f *testing.F) {
 			t.Fatalf("%q does not contain itself", canon)
 		}
 	})
+}
+
+func TestOperator(t *testing.T) {
+	t.Parallel()
+	for _, in := range []string{"operator", "  OPERATOR ", "Operator"} {
+		a, err := Parse(in)
+		if err != nil {
+			t.Fatalf("Parse(%q): %v", in, err)
+		}
+		if a != Operator() || !a.IsOperator() || a.Kind() != KindOperator || a.String() != "operator" {
+			t.Errorf("Parse(%q) = %+v kind %v str %q", in, a, a.Kind(), a.String())
+		}
+	}
+	op := Operator()
+	other := MustParse("bob@github.com/acme")
+	if !op.Contains(op) || op.Contains(other) || other.Contains(op) || MustParse("github.com/acme").Contains(op) {
+		t.Error("operator must contain only itself")
+	}
+	want := Scope{Identity: "operator", MatchRepo: true, MatchIdentity: true}
+	if got := op.Scope(); got != want {
+		t.Errorf("Scope = %+v, want %+v", got, want)
+	}
+	if other.IsOperator() || MustParse("github.com/acme").IsOperator() {
+		t.Error("ordinary addresses are not the operator")
+	}
 }
