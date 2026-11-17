@@ -948,3 +948,30 @@ func TestSendTimestampsFollowCommitOrder(t *testing.T) {
 			a.m.Subject, a.m.CreatedAt, b.m.Subject, b.m.CreatedAt)
 	}
 }
+
+func TestListHeaderSenderAndThreadCount(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ctx := context.Background()
+	e.register(t, aliceWeb, bobWeb)
+	bob := caller(bobWeb)
+	bob.Client, bob.Machine = "codex", "devbox"
+	first, err := e.svc.Send(ctx, bob, mail.SendInput{To: []string{aliceWeb}, Subject: "q", Body: "b"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Send(ctx, caller(aliceWeb), mail.SendInput{To: []string{bobWeb}, Subject: "re", Body: "b", InReplyTo: first.ID}); err != nil {
+		t.Fatal(err)
+	}
+	solo := e.send(t, bobWeb, []string{aliceWeb}, "solo")
+	got := map[string]mail.Header{}
+	for _, h := range e.list(t, mail.ListInput{Address: aliceWeb, State: "all"}).Items {
+		got[h.ID] = h
+	}
+	if h := got[first.ID]; h.FromClient != "codex" || h.FromMachine != "devbox" || h.ThreadCount != 2 {
+		t.Errorf("first = %+v", h)
+	}
+	if h := got[solo.ID]; h.FromClient != "" || h.ThreadCount != 1 {
+		t.Errorf("solo = %+v", h)
+	}
+}

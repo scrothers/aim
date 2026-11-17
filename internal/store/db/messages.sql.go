@@ -8,7 +8,50 @@ package db
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
+
+const countThreadMessages = `-- name: CountThreadMessages :many
+SELECT thread_id, COUNT(*) AS n FROM messages WHERE thread_id IN (/*SLICE:thread_ids*/?) GROUP BY thread_id
+`
+
+type CountThreadMessagesRow struct {
+	ThreadID string
+	N        int64
+}
+
+func (q *Queries) CountThreadMessages(ctx context.Context, threadIds []string) ([]CountThreadMessagesRow, error) {
+	query := countThreadMessages
+	var queryParams []interface{}
+	if len(threadIds) > 0 {
+		for _, v := range threadIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:thread_ids*/?", strings.Repeat(",?", len(threadIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:thread_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CountThreadMessagesRow
+	for rows.Next() {
+		var i CountThreadMessagesRow
+		if err := rows.Scan(&i.ThreadID, &i.N); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
 
 const getMessageByID = `-- name: GetMessageByID :one
 SELECT m.id, m.thread_id, m.in_reply_to, m.from_mailbox, m.from_session, m.from_client, m.from_machine, m.subject, m.body, m.created_at,
@@ -92,6 +135,49 @@ func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) er
 		arg.CreatedAt,
 	)
 	return err
+}
+
+const listMessageSenders = `-- name: ListMessageSenders :many
+SELECT id, from_client, from_machine FROM messages WHERE id IN (/*SLICE:ids*/?)
+`
+
+type ListMessageSendersRow struct {
+	ID          string
+	FromClient  string
+	FromMachine string
+}
+
+func (q *Queries) ListMessageSenders(ctx context.Context, ids []string) ([]ListMessageSendersRow, error) {
+	query := listMessageSenders
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListMessageSendersRow
+	for rows.Next() {
+		var i ListMessageSendersRow
+		if err := rows.Scan(&i.ID, &i.FromClient, &i.FromMachine); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listThread = `-- name: ListThread :many

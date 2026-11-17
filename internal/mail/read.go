@@ -295,6 +295,15 @@ func (s *Service) headers(ctx context.Context, q *db.Queries, rows []store.Inbox
 	if err != nil {
 		return nil, err
 	}
+	msgIDs := make([]string, len(rows))
+	threadIDs := make([]string, len(rows))
+	for i, r := range rows {
+		msgIDs[i], threadIDs[i] = r.MessageID, r.ThreadID
+	}
+	senders, counts, err := messageExtras(ctx, q, msgIDs, threadIDs)
+	if err != nil {
+		return nil, err
+	}
 	type pair struct{ to, cc []string }
 	recips := map[string]pair{}
 	items := make([]Header, 0, len(rows))
@@ -312,9 +321,36 @@ func (s *Service) headers(ctx context.Context, q *db.Queries, rows []store.Inbox
 			To: p.to, Cc: p.cc,
 			Mailbox: rowAddr(r.Host, r.Org, r.Repo, r.Identity, r.Subagent).String(), Kind: r.Kind,
 			ReadAt: nullTime(r.ReadAt), ArchivedAt: nullTime(r.ArchivedAt),
+			FromClient: senders[r.MessageID].FromClient, FromMachine: senders[r.MessageID].FromMachine,
+			ThreadCount: counts[r.ThreadID],
 		})
 	}
 	return items, nil
+}
+
+// messageExtras batch-loads sender runtime metadata per message id and the
+// message count per thread id.
+func messageExtras(ctx context.Context, q *db.Queries, msgIDs, threadIDs []string) (map[string]db.ListMessageSendersRow, map[string]int, error) {
+	senders := map[string]db.ListMessageSendersRow{}
+	counts := map[string]int{}
+	if len(msgIDs) == 0 {
+		return senders, counts, nil
+	}
+	srows, err := q.ListMessageSenders(ctx, slices.Compact(slices.Sorted(slices.Values(msgIDs))))
+	if err != nil {
+		return nil, nil, fmt.Errorf("mail: senders: %w", err)
+	}
+	for _, r := range srows {
+		senders[r.ID] = r
+	}
+	crows, err := q.CountThreadMessages(ctx, slices.Compact(slices.Sorted(slices.Values(threadIDs))))
+	if err != nil {
+		return nil, nil, fmt.Errorf("mail: thread counts: %w", err)
+	}
+	for _, r := range crows {
+		counts[r.ThreadID] = int(r.N)
+	}
+	return senders, counts, nil
 }
 
 // Mark changes read or archive state on deliveries the caller owns and

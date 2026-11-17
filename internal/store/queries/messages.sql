@@ -18,3 +18,9 @@ FROM messages m
 JOIN mailboxes f ON f.id = m.from_mailbox
 WHERE m.thread_id = @thread_id
 ORDER BY m.id;
+
+-- name: ListMessageSenders :many
+SELECT id, from_client, from_machine FROM messages WHERE id IN (sqlc.slice('ids'));
+
+-- name: CountThreadMessages :many
+SELECT thread_id, COUNT(*) AS n FROM messages WHERE thread_id IN (sqlc.slice('thread_ids')) GROUP BY thread_id;

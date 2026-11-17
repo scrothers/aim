@@ -101,6 +101,12 @@ type Header struct {
 	Kind       string     `json:"kind"`
 	ReadAt     *time.Time `json:"read_at,omitempty"`
 	ArchivedAt *time.Time `json:"archived_at,omitempty"`
+	// FromClient and FromMachine describe the sender's MCP client and host at
+	// send time; empty for mail sent before they were tracked.
+	FromClient  string `json:"from_client,omitempty"`
+	FromMachine string `json:"from_machine,omitempty"`
+	// ThreadCount is the number of messages in the thread.
+	ThreadCount int `json:"thread_count"`
 }
 
 // List states.

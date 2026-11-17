@@ -394,6 +394,8 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             from: string;
+            from_client?: string;
+            from_machine?: string;
             id: string;
             in_reply_to?: string;
             kind: string;
@@ -401,6 +403,8 @@ export interface components {
             /** Format: date-time */
             read_at?: string;
             subject: string;
+            /** Format: int64 */
+            thread_count: number;
             thread_id: string;
             to: string[] | null;
         };
