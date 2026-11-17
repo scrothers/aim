@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useRouterState } from '@tanstack/react-router'
@@ -245,5 +245,54 @@ describe('runtime icons', () => {
     const names = ['claude-code', 'codex-cli', 'gemini-cli', 'opencode', 'grok', 'cline', 'kilo-code', 'deepseek-tui']
     for (const n of names) expect(runtimeFor(n).icon, n).toBeTruthy()
     expect(runtimeFor('mystery-agent')).toEqual({ label: 'mystery-agent' })
+  })
+})
+
+describe('mobile layout', () => {
+  afterEach(() => {
+    delete (window as { matchMedia?: unknown }).matchMedia
+  })
+  const phone = (matches: boolean) => {
+    window.matchMedia = ((q: string) => ({
+      matches,
+      media: q,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia
+  }
+  const shell = async () => {
+    const { AppShell } = await import('./AppShell')
+    return renderWithRouter(
+      <Providers client={qc()}>
+        <AppShell>
+          <p>page</p>
+        </AppShell>
+      </Providers>,
+    )
+  }
+
+  it('desktop renders the nav and buddy rail inline', async () => {
+    phone(false)
+    await shell()
+    expect(await screen.findByRole('navigation', { name: 'Mailboxes' })).toBeInTheDocument()
+    expect(screen.getByRole('complementary', { name: 'Buddy list' })).toBeInTheDocument()
+  })
+
+  it('phone moves the nav and buddy list into sheets opened from the top bar', async () => {
+    const user = userEvent.setup()
+    phone(true)
+    mocks.GET.mockImplementation(async (path: string) =>
+      path === '/api/presence' ? ok({ groups: [], events: [] }) : path === '/api/tree' ? ok({ orgs: treeFixture }) : path === '/api/views' ? ok({ operator_unread: 0, unread_everywhere: 0, today: 0 }) : { error: { detail: 'nope' }, response: new Response(null, { status: 404 }) },
+    )
+    await shell()
+    expect(screen.queryByRole('navigation', { name: 'Mailboxes' })).toBeNull()
+    expect(screen.queryByRole('complementary', { name: 'Buddy list' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Open navigation' }))
+    const drawer = await screen.findByRole('dialog', { name: 'Navigation' })
+    expect(within(drawer).getByRole('navigation', { name: 'Mailboxes' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Navigation' })).toBeNull())
+    await user.click(screen.getByRole('button', { name: 'Open buddy list' }))
+    expect(await screen.findByRole('dialog', { name: 'Buddy list' })).toBeInTheDocument()
   })
 })

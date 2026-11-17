@@ -32,3 +32,7 @@ export function isTyping(t: EventTarget | null): boolean {
   if (!(t instanceof HTMLElement)) return false
   return t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)
 }
+
+/** Mobile: the left-nav drawer and the buddy-list sheet. */
+export const navFlag = createFlag()
+export const buddiesFlag = createFlag()

@@ -370,7 +370,7 @@ function NotifyCard({ settings }: { settings: Settings }) {
       {hooks.length === 0 ? (
         <p className="m-0 text-[13px] text-faint">No webhooks configured.</p>
       ) : (
-        <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(420px,1fr))] gap-3 p-0">
+        <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(min(100%,420px),1fr))] gap-3 p-0">
           {hooks.map((h) => (
             <WebhookRow
               key={h.id}

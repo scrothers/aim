@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from '@/components/ui/input'
 
 const rowCls =
-  'flex h-8 min-w-0 flex-1 items-center gap-2.5 rounded-md px-2.5 text-muted-foreground hover:bg-hover data-[status=active]:bg-accent-soft data-[status=active]:font-semibold data-[status=active]:text-accent-text'
+  'flex h-8 max-md:min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-md px-2.5 text-muted-foreground hover:bg-hover data-[status=active]:bg-accent-soft data-[status=active]:font-semibold data-[status=active]:text-accent-text'
 
 function FilterLink({ filter }: { filter: SavedFilter }) {
   const body = (

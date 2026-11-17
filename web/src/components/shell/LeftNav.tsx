@@ -11,7 +11,7 @@ import { SavedViews } from './SavedViews'
 type ViewKey = 'operator' | 'unread' | 'today' | 'sent' | 'archived'
 
 const rowCls =
-  'flex h-8 items-center gap-2.5 rounded-md px-2.5 text-muted-foreground hover:bg-hover data-[status=active]:bg-accent-soft data-[status=active]:font-semibold data-[status=active]:text-accent-text'
+  'flex h-8 items-center max-md:min-h-11 gap-2.5 rounded-md px-2.5 text-muted-foreground hover:bg-hover data-[status=active]:bg-accent-soft data-[status=active]:font-semibold data-[status=active]:text-accent-text'
 
 function ViewLink({
   view,
@@ -42,7 +42,7 @@ function ViewLink({
   )
 }
 
-export function LeftNav() {
+export function LeftNav({ drawer = false, onNavigate }: { drawer?: boolean; onNavigate?: () => void }) {
   const views = useViews().data
   const tree = useTree()
   const presence = usePresence().data
@@ -54,10 +54,16 @@ export function LeftNav() {
     [presence],
   )
   return (
-    <nav aria-label="Mailboxes" className="box-border flex flex-[1_1_232px] flex-col gap-5 border-r bg-panel px-3 py-4">
+    <nav
+      aria-label="Mailboxes"
+      className={cn('box-border flex flex-col gap-5 bg-panel px-3 py-4', drawer ? 'w-full' : 'flex-[1_1_232px] border-r')}
+    >
       <button
         type="button"
-        onClick={composeStore.open}
+        onClick={() => {
+          onNavigate?.()
+          composeStore.open()
+        }}
         className="flex h-10 items-center justify-center gap-2 rounded-lg bg-brand font-semibold text-on-accent"
       >
         <PenLine aria-hidden="true" className="size-4" />

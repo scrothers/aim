@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Header, MailSearch, MessageView } from '@/api/mail'
 import { composeStore } from '@/lib/compose'
 import { helpFlag, paletteFlag } from '@/lib/flag'
@@ -615,5 +615,35 @@ describe('bulk actions, mute and saved views', () => {
       name: 'Reviewer all',
       params: { mailbox: 'reviewer@github.com/acme/api', state: 'all' },
     })
+  })
+})
+
+describe('mobile single-pane navigation', () => {
+  afterEach(() => {
+    delete (window as { matchMedia?: unknown }).matchMedia
+  })
+  beforeEach(() => {
+    window.matchMedia = ((q: string) => ({ matches: true, media: q, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia
+  })
+
+  it('shows only the list, then only the thread with a Back button', async () => {
+    const user = userEvent.setup()
+    routes({ list: () => ({ items: [hdr('1', { thread_id: 't-1' })] }), thread: [msg('1')] })
+    wrap(<Harness />)
+    await user.click(await screen.findByRole('button', { name: /Subject 1/ }))
+    expect(await screen.findByRole('article', { name: 'Thread' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Message list' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(await screen.findByRole('region', { name: 'Message list' })).toBeInTheDocument()
+    expect(screen.queryByRole('article', { name: 'Thread' })).toBeNull()
+  })
+
+  it('desktop keeps both panes and no Back button', async () => {
+    delete (window as { matchMedia?: unknown }).matchMedia
+    routes({ list: () => ({ items: [hdr('1', { thread_id: 't-1' })] }), thread: [msg('1')] })
+    wrap(<Harness initial={{ thread: 't-1' }} />)
+    expect(await screen.findByRole('region', { name: 'Message list' })).toBeInTheDocument()
+    expect(screen.getByRole('article', { name: 'Thread' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull()
   })
 })

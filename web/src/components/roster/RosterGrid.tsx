@@ -102,7 +102,7 @@ export function RosterGrid({ editing, onEdit }: { editing?: string; onEdit: (add
   const editEntry = editing ? items.find((e) => e.address === editing) : undefined
 
   return (
-    <section aria-label="Roster" className="box-border flex min-w-0 flex-1 flex-col gap-4 p-6">
+    <section aria-label="Roster" className="box-border flex min-w-0 flex-1 flex-col gap-4 p-6 max-md:p-4">
       <header className="flex flex-wrap items-center gap-3">
         <h1 className="m-0 flex-1 text-[22px] leading-[30px] font-semibold">Roster</h1>
         <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
@@ -122,7 +122,7 @@ export function RosterGrid({ editing, onEdit }: { editing?: string; onEdit: (add
         groupByPath(items).map(([path, entries]) => (
           <div key={path} className="flex flex-col gap-2">
             <h2 className="m-0 font-mono text-[13px] font-semibold text-muted-foreground">{path || 'global'}</h2>
-            <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-3 p-0">
+            <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(min(100%,320px),1fr))] gap-3 p-0">
               {entries.map((e) => (
                 <RosterCard
                   key={e.address}

@@ -76,7 +76,7 @@ function IdentityRow({ node, indent, idle }: { node: MailboxNode; indent: string
       search={{ mailbox: node.address }}
       title={node.address}
       className={cn(
-        'flex h-[30px] items-center gap-2 rounded-md pr-1.5 hover:bg-hover data-[status=active]:bg-accent-soft',
+        'flex h-[30px] items-center gap-2 rounded-md pr-1.5 hover:bg-hover data-[status=active]:bg-accent-soft max-md:min-h-11',
         indent,
         node.retired && 'opacity-50',
       )}
@@ -131,7 +131,7 @@ export function MailboxTree({ orgs, now, idle }: { orgs: ReadonlyArray<OrgNode>;
               <Link
                 to="/mail"
                 search={{ mailbox: org.address }}
-                className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 hover:bg-hover data-[status=active]:bg-accent-soft"
+                className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 max-md:min-h-11 hover:bg-hover data-[status=active]:bg-accent-soft"
               >
                 <span
                   aria-hidden="true"
@@ -178,7 +178,7 @@ export function MailboxTree({ orgs, now, idle }: { orgs: ReadonlyArray<OrgNode>;
                   const ropen = filtering || (repoOpen[repo.address] ?? repo.unread > 0)
                   return (
                     <div key={repo.address} data-testid="repo-block" className="flex flex-col gap-px">
-                      <div className="flex h-[30px] items-center gap-2 rounded-md pr-1.5 pl-2.5 hover:bg-hover">
+                      <div className="flex h-[30px] items-center gap-2 rounded-md pr-1.5 pl-2.5 hover:bg-hover max-md:min-h-11">
                         <button
                           type="button"
                           aria-expanded={ropen}
@@ -191,7 +191,7 @@ export function MailboxTree({ orgs, now, idle }: { orgs: ReadonlyArray<OrgNode>;
                         <Link
                           to="/mail"
                           search={{ mailbox: repo.address }}
-                          className="flex min-w-0 flex-1 items-center gap-2"
+                          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 md:min-h-0"
                         >
                           <span className="min-w-0 flex-1 truncate font-mono text-[13px] font-medium">{repo.name}</span>
                           <Sparkline values={repo.activity} />

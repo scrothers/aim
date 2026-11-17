@@ -15,6 +15,7 @@ import {
   type MailState,
   type MarkState,
 } from '@/api/mail'
+import { useIsMobile } from '@/lib/viewport'
 import { Button } from '@/components/ui/button'
 import { SaveFilterButton } from './SaveFilter'
 import { composeStore } from '@/lib/compose'
@@ -41,6 +42,7 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
   )
   const q = useInfiniteQuery(messagesQuery(params))
   const items = useMemo(() => q.data?.pages.flatMap((p) => p.items ?? []) ?? [], [q.data])
+  const mobile = useIsMobile()
   const mark = useMark()
   const mute = useMute()
   const [cursor, setCursor] = useState<string | undefined>()
@@ -205,6 +207,7 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
 
   return (
     <>
+      {!(mobile && search.thread) && (
       <MessageList
         title={VIEW_TITLES[view ?? 'operator']}
         titleAddress={search.mailbox}
@@ -230,14 +233,18 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
         onState={(s) => onSearch({ state: s })}
         onLoadMore={() => void q.fetchNextPage()}
       />
+      )}
+      {(!mobile || search.thread) && (
       <ThreadView
         ref={threadRef}
+        onBack={mobile ? () => onSearch({ thread: undefined }) : undefined}
         threadId={search.thread}
         archived={state === 'archived'}
         replying={replying}
         onReplying={setReplying}
         onArchived={() => onSearch({ thread: undefined })}
       />
+      )}
     </>
   )
 }

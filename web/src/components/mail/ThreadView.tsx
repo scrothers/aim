@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Archive, ArchiveRestore, Bell, BellOff, ChevronDown, ChevronRight, MailOpen, Reply } from 'lucide-react'
+import { Archive, ArchiveRestore, ArrowLeft, Bell, BellOff, ChevronDown, ChevronRight, MailOpen, Reply } from 'lucide-react'
 import { threadQuery, useMark, useMute, useReadMessage, type MessageView } from '@/api/mail'
 import { OPERATOR } from '@/lib/address'
 import { runtimeFor } from '@/lib/identity'
@@ -57,10 +57,12 @@ export interface ThreadViewProps {
   onReplying: (v: boolean) => void
   /** Called after the thread's operator deliveries were archived. */
   onArchived: () => void
+  /** Phone layout: shows a back button that returns to the list. */
+  onBack?: () => void
 }
 
 export const ThreadView = forwardRef<HTMLElement, ThreadViewProps>(function ThreadView(
-  { threadId, archived, replying, onReplying, onArchived },
+  { threadId, archived, replying, onReplying, onArchived, onBack },
   ref,
 ) {
   const q = useQuery({ ...threadQuery(threadId ?? ''), enabled: !!threadId })
@@ -102,7 +104,13 @@ export const ThreadView = forwardRef<HTMLElement, ThreadViewProps>(function Thre
   }
 
   return (
-    <article ref={ref} tabIndex={-1} aria-label="Thread" className="box-border flex min-w-0 flex-[999_1_420px] flex-col gap-4 overflow-y-auto bg-bg p-5 outline-none">
+    <article ref={ref} tabIndex={-1} aria-label="Thread" className="box-border flex min-w-0 flex-[999_1_420px] flex-col gap-4 overflow-y-auto bg-bg p-5 outline-none max-md:p-3">
+      {onBack && (
+        <Button variant="ghost" size="sm" className="-ml-1 self-start" onClick={onBack}>
+          <ArrowLeft aria-hidden="true" />
+          Back
+        </Button>
+      )}
       {q.isError ? (
         <p role="alert" className="m-0 text-[13px] text-destructive">
           Could not load this thread.

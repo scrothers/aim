@@ -50,7 +50,7 @@ export function OrgChart() {
   const offset = Math.max(0, Math.floor((boxW - layout.width) / 2))
 
   return (
-    <section aria-label="Org chart" className="box-border flex min-w-0 flex-1 flex-col gap-2 p-6">
+    <section aria-label="Org chart" className="box-border flex min-w-0 flex-1 flex-col gap-2 p-6 max-md:p-4">
       <h1 className="m-0 text-[22px] leading-[30px] font-semibold">Org chart</h1>
       <p className="m-0 text-[13px] text-muted-foreground">Lines follow reports_to. Escalations climb toward operator.</p>
       {q.isError ? (

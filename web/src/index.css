@@ -184,3 +184,26 @@
   .prose-aim img { max-width: 100%; }
   .prose-aim input[type='checkbox'] { margin-right: 0.4em; }
 }
+
+/* Touch targets: every control is at least 44px on phones. */
+@media (max-width: 767px) {
+  button,
+  select,
+  [role='tab'],
+  [role='menuitem'],
+  [role='menuitemcheckbox'],
+  [role='option'],
+  input:not([type='checkbox']):not([type='radio']) {
+    min-height: 44px;
+  }
+  button {
+    min-width: 44px;
+  }
+  [data-slot='tabs-list'] {
+    height: auto;
+  }
+  /* Checkboxes stay small; their label is the 44px target. */
+  label:has(> input[type='checkbox']) {
+    min-height: 44px;
+  }
+}
