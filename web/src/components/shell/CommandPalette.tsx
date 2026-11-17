@@ -64,9 +64,11 @@ export function CommandPalette() {
     >
       <CommandInput placeholder="Search mail, mailboxes and agents" value={text} onValueChange={setText} />
       <CommandList>
-        <CommandEmpty>No results.</CommandEmpty>
+        {!(term.length >= 2 && hits.length > 0) && <CommandEmpty>No results.</CommandEmpty>}
         {term.length >= 2 && hits.length > 0 && (
-          <CommandGroup heading="Messages">
+          // forceMount on the group too: cmdk hides a group whose items all
+          // fail its text filter, even when the items are force-mounted.
+          <CommandGroup heading="Messages" forceMount>
             {hits.map((h) => (
               <CommandItem
                 key={h.message_id}
