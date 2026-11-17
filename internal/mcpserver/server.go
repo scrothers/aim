@@ -33,6 +33,7 @@ func New(svc *mail.Service, conn *presence.Entry, version string, opts ...Option
 	)
 	h.srv = srv
 	h.registerResources(srv)
+	h.registerPrompts(srv)
 	srv.AddReceivingMiddleware(h.captureClient)
 	// Descriptions live in prompts/tools/<name>.md (see prompts.go).
 	tool := func(name string) *mcp.Tool { return &mcp.Tool{Name: name, Description: toolDescription(name)} }

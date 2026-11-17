@@ -11,6 +11,9 @@ import (
 // description; longer text is truncated silently, so the end would be lost.
 const maxPromptChars = 2048
 
+// maxWorkflowChars is the sanity cap for workflow prompt scripts (8 KB).
+const maxWorkflowChars = 8 * 1024
+
 func TestPromptsFitClientCap(t *testing.T) {
 	t.Parallel()
 	err := fs.WalkDir(promptFS, "prompts", func(path string, d fs.DirEntry, err error) error {
@@ -18,8 +21,13 @@ func TestPromptsFitClientCap(t *testing.T) {
 			return err
 		}
 		n := utf8.RuneCountInString(prompt(path))
-		if n > maxPromptChars {
-			t.Errorf("%s is %d characters; keep it at most %d or clients truncate it", path, n, maxPromptChars)
+		limit := maxPromptChars
+		if strings.HasPrefix(path, workflowDir+"/") {
+			// Workflow prompts load only when invoked; they have a sanity cap.
+			limit = maxWorkflowChars
+		}
+		if n > limit {
+			t.Errorf("%s is %d characters; keep it at most %d", path, n, limit)
 		}
 		return nil
 	})
