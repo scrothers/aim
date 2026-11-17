@@ -64,3 +64,12 @@ WHERE in_reply_to IS NOT NULL AND NOT EXISTS (SELECT 1 FROM messages p WHERE p.i
 
 -- name: NullRepliesTo :execrows
 UPDATE messages SET in_reply_to = NULL WHERE in_reply_to = @message_id;
+
+-- name: CountUnreadInMutedThreads :one
+SELECT COUNT(*) FROM deliveries d
+JOIN messages m ON m.id = d.message_id
+JOIN thread_mutes t ON t.thread_id = m.thread_id
+WHERE d.mailbox_id = @mailbox_id AND d.read_at IS NULL AND d.archived_at IS NULL;
+
+-- name: ThreadExists :one
+SELECT EXISTS (SELECT 1 FROM messages WHERE thread_id = @thread_id);

@@ -10,6 +10,20 @@ import (
 	"database/sql"
 )
 
+const countUnreadInMutedThreads = `-- name: CountUnreadInMutedThreads :one
+SELECT COUNT(*) FROM deliveries d
+JOIN messages m ON m.id = d.message_id
+JOIN thread_mutes t ON t.thread_id = m.thread_id
+WHERE d.mailbox_id = ?1 AND d.read_at IS NULL AND d.archived_at IS NULL
+`
+
+func (q *Queries) CountUnreadInMutedThreads(ctx context.Context, mailboxID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUnreadInMutedThreads, mailboxID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteMessage = `-- name: DeleteMessage :exec
 DELETE FROM messages WHERE id = ?1
 `
@@ -233,6 +247,17 @@ func (q *Queries) PruneSessionSignons(ctx context.Context, before int64) (int64,
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const threadExists = `-- name: ThreadExists :one
+SELECT EXISTS (SELECT 1 FROM messages WHERE thread_id = ?1)
+`
+
+func (q *Queries) ThreadExists(ctx context.Context, threadID string) (bool, error) {
+	row := q.db.QueryRowContext(ctx, threadExists, threadID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const unmuteThread = `-- name: UnmuteThread :exec

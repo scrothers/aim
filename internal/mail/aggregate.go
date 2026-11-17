@@ -356,6 +356,11 @@ func (s *Service) Views(ctx context.Context, todaySince time.Time) (ViewCounts, 
 			v.OperatorUnread = int(a.Unread)
 		}
 	}
+	m, err := operatorUnreadMuted(ctx, q, op.ID)
+	if err != nil {
+		return ViewCounts{}, err
+	}
+	v.OperatorUnread = max(0, v.OperatorUnread-m)
 	return v, nil
 }
 

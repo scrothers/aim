@@ -90,6 +90,9 @@ type Message struct {
 	// are not signed on as an owner of the message. It is set only by Read
 	// and is not part of the JSON form.
 	Marked bool `json:"-"`
+	// Muted reports whether the thread is muted for the operator. It is set
+	// by Read and Thread.
+	Muted bool `json:"muted"`
 }
 
 // Header is a message summary as delivered to one mailbox.
@@ -114,6 +117,9 @@ type Header struct {
 	Snippet string `json:"snippet"`
 	// ThreadCount is the number of messages in the thread.
 	ThreadCount int `json:"thread_count"`
+	// Muted reports whether the thread is muted; set only on operator
+	// mailbox deliveries.
+	Muted bool `json:"muted"`
 }
 
 // List states.
@@ -146,6 +152,9 @@ type ListInput struct {
 	Until   *time.Time
 	Limit   int
 	Cursor  string
+	// IncludeMuted lists operator mail in muted threads, which are hidden
+	// from the operator inbox by default.
+	IncludeMuted bool
 }
 
 // ListResult is one page of headers, newest first.

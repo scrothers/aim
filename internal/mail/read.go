@@ -78,6 +78,9 @@ func (s *Service) Read(ctx context.Context, c Caller, in ReadInput) (Message, er
 	}
 	rq := s.store.Read()
 	out, err := loadMessage(ctx, rq, in.MessageID)
+	if err == nil {
+		out.Muted, err = threadMuted(ctx, rq, out.ThreadID)
+	}
 	if err != nil || in.Peek || requireSignedOn(op, c) != nil {
 		return out, err
 	}
@@ -148,6 +151,10 @@ func (s *Service) Thread(ctx context.Context, threadID string) ([]Message, error
 	if len(rows) == 0 {
 		return nil, fmt.Errorf("mail: thread: %w: no thread %q; thread ids appear on every message", ErrMessageNotFound, threadID)
 	}
+	muted, err := threadMuted(ctx, q, threadID)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]Message, 0, len(rows))
 	for _, r := range rows {
 		to, cc, err := recipients(ctx, q, r.ID)
@@ -159,7 +166,9 @@ func (s *Service) Thread(ctx context.Context, threadID string) ([]Message, error
 			createdAt: r.CreatedAt, from: rowAddr(r.FromHost, r.FromOrg, r.FromRepo, r.FromIdentity, r.FromSubagent),
 			fromClient: r.FromClient, fromMachine: r.FromMachine,
 		}
-		out = append(out, raw.message(to, cc))
+		msg := raw.message(to, cc)
+		msg.Muted = muted
+		out = append(out, msg)
 	}
 	return out, nil
 }
@@ -246,9 +255,14 @@ func (s *Service) List(ctx context.Context, in ListInput) (ListResult, error) {
 		limit = DefaultListLimit
 	}
 	limit = min(limit, MaxListLimit)
-	p.PageLimit = int64(limit) + 1
 	q := s.store.Read()
-	rows, err := store.ListInbox(ctx, q, p)
+	var muted map[string]bool
+	if !in.IncludeMuted && isOperatorScope(in.Address) {
+		if muted, err = s.mutedSet(ctx, q); err != nil {
+			return ListResult{}, err
+		}
+	}
+	rows, err := listRows(ctx, q, p, limit, muted)
 	if err != nil {
 		return ListResult{}, fmt.Errorf("mail: %s: %w", op, err)
 	}
@@ -309,6 +323,14 @@ func (s *Service) headers(ctx context.Context, q *db.Queries, rows []store.Inbox
 	if err != nil {
 		return nil, err
 	}
+	var muted map[string]bool
+	if slices.ContainsFunc(rows, func(r store.InboxRow) bool {
+		return rowAddr(r.Host, r.Org, r.Repo, r.Identity, r.Subagent).IsOperator()
+	}) {
+		if muted, err = s.mutedSet(ctx, q); err != nil {
+			return nil, err
+		}
+	}
 	type pair struct{ to, cc []string }
 	recips := map[string]pair{}
 	items := make([]Header, 0, len(rows))
@@ -329,6 +351,7 @@ func (s *Service) headers(ctx context.Context, q *db.Queries, rows []store.Inbox
 			FromClient: senders[r.MessageID].FromClient, FromMachine: senders[r.MessageID].FromMachine,
 			Snippet:     s.renderer.Snippet(senders[r.MessageID].BodyHead, snippetRunes),
 			ThreadCount: counts[r.ThreadID],
+			Muted:       muted[r.ThreadID] && rowAddr(r.Host, r.Org, r.Repo, r.Identity, r.Subagent).IsOperator(),
 		})
 	}
 	return items, nil
