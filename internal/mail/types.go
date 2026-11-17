@@ -85,6 +85,11 @@ type Message struct {
 	// tracked.
 	FromClient  string `json:"from_client,omitempty"`
 	FromMachine string `json:"from_machine,omitempty"`
+	// Marked reports whether a non-peek Read left a delivery of this message
+	// marked read for the caller. It is false for peeks and for callers who
+	// are not signed on as an owner of the message. It is set only by Read
+	// and is not part of the JSON form.
+	Marked bool `json:"-"`
 }
 
 // Header is a message summary as delivered to one mailbox.
@@ -105,6 +110,8 @@ type Header struct {
 	// send time; empty for mail sent before they were tracked.
 	FromClient  string `json:"from_client,omitempty"`
 	FromMachine string `json:"from_machine,omitempty"`
+	// Snippet is a plain-text preview of the body.
+	Snippet string `json:"snippet"`
 	// ThreadCount is the number of messages in the thread.
 	ThreadCount int `json:"thread_count"`
 }
@@ -114,8 +121,13 @@ const (
 	StateUnread   = "unread"
 	StateRead     = "read"
 	StateArchived = "archived"
-	StateAll      = "all"
+	// StateInbox matches every delivery that is not archived, read or unread.
+	StateInbox = "inbox"
+	StateAll   = "all"
 )
+
+// snippetRunes is the length of a plain-text preview.
+const snippetRunes = 140
 
 // Limits.
 const (

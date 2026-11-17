@@ -65,3 +65,27 @@ func TestKeepsFormatting(t *testing.T) {
 		})
 	}
 }
+
+func TestSnippetIsPlainText(t *testing.T) {
+	t.Parallel()
+	r := render.New()
+	cases := []struct {
+		name, src string
+		max       int
+		want      string
+	}{
+		{"heading and table", "## Plan\n\n| a | b |\n|---|---|\n| 1 | 2 |\n", 100, "Plan a b 1 2"},
+		{"emphasis and link", "**bold** and _it_ [site](http://x.test)", 100, "bold and it site"},
+		{"code fence", "```go\nfmt.Println(1)\n```\ndone", 100, "fmt.Println(1) done"},
+		{"entities", "a &amp; b <script>x</script>", 100, "a & b x"},
+		{"truncated", "abcdefghij", 4, "abcd…"},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := r.Snippet(tt.src, tt.max); got != tt.want {
+				t.Errorf("Snippet(%q) = %q, want %q", tt.src, got, tt.want)
+			}
+		})
+	}
+}

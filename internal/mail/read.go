@@ -88,8 +88,12 @@ func (s *Service) Read(ctx context.Context, c Caller, in ReadInput) (Message, er
 	// Check on the reader pool first so the common already-read case never
 	// takes the writer.
 	d, err := rq.GetDelivery(ctx, db.GetDeliveryParams{MessageID: in.MessageID, MailboxID: mb.ID})
-	if errors.Is(err, sql.ErrNoRows) || (err == nil && d.ReadAt.Valid) {
-		return out, nil // not ours, or already read
+	if errors.Is(err, sql.ErrNoRows) {
+		return out, nil // not ours
+	}
+	if err == nil && d.ReadAt.Valid {
+		out.Marked = true // already read
+		return out, nil
 	}
 	if err != nil {
 		return Message{}, fmt.Errorf("mail: %s: delivery: %w", op, err)
@@ -108,6 +112,7 @@ func (s *Service) Read(ctx context.Context, c Caller, in ReadInput) (Message, er
 	if err != nil {
 		return Message{}, fmt.Errorf("mail: %s: mark read: %w", op, err)
 	}
+	out.Marked = true
 	return out, nil
 }
 
@@ -182,8 +187,8 @@ func (s *Service) listParams(ctx context.Context, in ListInput) (store.InboxPara
 	if state == "" {
 		state = StateUnread
 	}
-	if !slices.Contains([]string{StateUnread, StateRead, StateArchived, StateAll}, state) {
-		return store.InboxParams{}, false, invalidf(op, "state %q is not one of unread, read, archived, all", state)
+	if !slices.Contains([]string{StateUnread, StateRead, StateArchived, StateInbox, StateAll}, state) {
+		return store.InboxParams{}, false, invalidf(op, "state %q is not one of unread, read, archived, inbox, all", state)
 	}
 	if state == StateArchived {
 		if in.Since == nil || in.Until == nil {
@@ -322,6 +327,7 @@ func (s *Service) headers(ctx context.Context, q *db.Queries, rows []store.Inbox
 			Mailbox: rowAddr(r.Host, r.Org, r.Repo, r.Identity, r.Subagent).String(), Kind: r.Kind,
 			ReadAt: nullTime(r.ReadAt), ArchivedAt: nullTime(r.ArchivedAt),
 			FromClient: senders[r.MessageID].FromClient, FromMachine: senders[r.MessageID].FromMachine,
+			Snippet:     s.renderer.Snippet(senders[r.MessageID].BodyHead, snippetRunes),
 			ThreadCount: counts[r.ThreadID],
 		})
 	}

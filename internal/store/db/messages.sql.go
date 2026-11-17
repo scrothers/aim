@@ -138,13 +138,14 @@ func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) er
 }
 
 const listMessageSenders = `-- name: ListMessageSenders :many
-SELECT id, from_client, from_machine FROM messages WHERE id IN (/*SLICE:ids*/?)
+SELECT id, from_client, from_machine, substr(body, 1, 1000) AS body_head FROM messages WHERE id IN (/*SLICE:ids*/?)
 `
 
 type ListMessageSendersRow struct {
 	ID          string
 	FromClient  string
 	FromMachine string
+	BodyHead    string
 }
 
 func (q *Queries) ListMessageSenders(ctx context.Context, ids []string) ([]ListMessageSendersRow, error) {
@@ -166,7 +167,12 @@ func (q *Queries) ListMessageSenders(ctx context.Context, ids []string) ([]ListM
 	var items []ListMessageSendersRow
 	for rows.Next() {
 		var i ListMessageSendersRow
-		if err := rows.Scan(&i.ID, &i.FromClient, &i.FromMachine); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.FromClient,
+			&i.FromMachine,
+			&i.BodyHead,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

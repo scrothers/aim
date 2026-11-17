@@ -15,6 +15,7 @@ import (
 	"github.com/oklog/ulid/v2"
 
 	"github.com/scrothers/aim/internal/address"
+	"github.com/scrothers/aim/internal/render"
 	"github.com/scrothers/aim/internal/store"
 	"github.com/scrothers/aim/internal/store/db"
 )
@@ -69,6 +70,7 @@ type Service struct {
 	store    *store.Store
 	presence Presence
 	now      func() time.Time
+	renderer *render.Renderer
 
 	mu      sync.Mutex
 	entropy *ulid.MonotonicEntropy
@@ -77,7 +79,7 @@ type Service struct {
 // New returns a Service. presence may be nil, in which case rosters report
 // nobody online.
 func New(st *store.Store, p Presence, opts ...Option) *Service {
-	s := &Service{store: st, presence: p, now: time.Now}
+	s := &Service{store: st, presence: p, now: time.Now, renderer: render.New()}
 	WithEntropy(rand.Reader)(s)
 	for _, o := range opts {
 		o(s)

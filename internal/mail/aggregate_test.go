@@ -137,7 +137,7 @@ func TestViews(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Deliveries: one->bob,operator; two->alice,web ns; three->org ns; sub->bob.
-	if v.OperatorUnread != 1 || v.UnreadEverywhere != 6 || v.Today != 4 {
+	if v.OperatorUnread != 1 || v.UnreadEverywhere != 6 || v.Today != 6 {
 		t.Errorf("views = %+v", v)
 	}
 	later, err := e.svc.Views(ctx, epoch.Add(time.Hour))

@@ -335,7 +335,7 @@ func (s *Service) Views(ctx context.Context, todaySince time.Time) (ViewCounts, 
 		return ViewCounts{}, fmt.Errorf("mail: views: unread: %w", err)
 	}
 	v.UnreadEverywhere = int(unread)
-	today, err := q.CountMessagesSince(ctx, todaySince.UnixMilli())
+	today, err := q.CountDeliveriesSince(ctx, todaySince.UnixMilli())
 	if err != nil {
 		return ViewCounts{}, fmt.Errorf("mail: views: today: %w", err)
 	}

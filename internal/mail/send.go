@@ -185,13 +185,20 @@ func (s *Service) expandReplyAll(ctx context.Context, q *db.Queries, parent db.G
 	if err != nil {
 		return nil, nil, fmt.Errorf("mail: send: parent recipients: %w", err)
 	}
-	notSelf := func(a address.Address) bool { return a != self && a != self.IdentityAddress() }
-	if a := rowAddr(parent.FromHost, parent.FromOrg, parent.FromRepo, parent.FromIdentity, parent.FromSubagent); notSelf(a) {
+	// Retired identities are skipped rather than failing the whole send.
+	usable := func(a address.Address) bool {
+		if a == self || a == self.IdentityAddress() {
+			return false
+		}
+		m, err := q.GetMailboxByKey(ctx, keyOf(a.IdentityAddress()))
+		return err != nil || !m.RetiredAt.Valid
+	}
+	if a := rowAddr(parent.FromHost, parent.FromOrg, parent.FromRepo, parent.FromIdentity, parent.FromSubagent); usable(a) {
 		to = append(to, a)
 	}
 	for _, r := range rows {
 		a := rowAddr(r.Host, r.Org, r.Repo, r.Identity, r.Subagent)
-		if !notSelf(a) {
+		if !usable(a) {
 			continue
 		}
 		if r.Kind == kindTo {
