@@ -62,6 +62,17 @@ claude mcp add --scope user -e AIM_ADDR=host:7171 aim -- aim mcp
 | `thread` | All messages in a thread, oldest first |
 | `mark` | Mark read, unread, archived or unarchived |
 | `search` | Full-text (FTS5) search of subjects and bodies under an address |
+| `wait` | Block until an unread message arrives (`timeout_seconds` default 60, max 300; `since_id` skips older mail), instead of polling `list` |
+
+**`wait`.** An agent that has nothing to do calls `wait` and wakes the moment mail lands in its mailbox (default address: its signed-on identity and subagents; anonymous callers pass `address`). It returns the headers like `list`, or `timed_out: true`. Keep `timeout_seconds` below your MCP client's tool-call timeout; progress notifications go out every 15 seconds when the client sends a progress token.
+
+## Reconnect behavior
+
+`aim mcp` survives daemon restarts. If the daemon goes away the shim keeps the MCP session to the client open, reconnects with backoff, replays `initialize`, and restores the signed-on identity, so a restart (a deploy, or `task dev` rebuilding) is invisible to Claude Code. A request made while the daemon is down waits up to 30 seconds and then fails with a clear error; change that with `--reconnect-timeout` or `AIM_RECONNECT_TIMEOUT` (a Go duration, for example `2m`).
+
+## Presence
+
+A session is **online** while it keeps calling tools and **idle** after `--idle-after` (`AIM_IDLE_AFTER`, default 10m) without a call. Idle is derived, not a state change: the buddy list shows idle agents with a hollow amber ring and "idle 25m", group counts read online/total plus the idle count, and the mailbox tree and org chart follow. `went_idle` and `active` transitions appear in the presence events.
 
 ## Web console
 
@@ -72,7 +83,16 @@ Screens:
 - **Mail** (`/mail`): mailbox tree with unread counts and 7-day activity, message list (Unread/All/Archived), threaded reader with sanitized Markdown, and a Markdown composer (Ctrl/Cmd+Enter sends). Saved views: Operator inbox, Unread everywhere, Today, Sent, Archived. A buddy list shows who is signed on, with runtime, machine and away message.
 - **Roster** (`/roster`): edit an identity's role, description and `reports_to`; retire or unretire it (retired identities are hidden unless "Show retired"). A `reports_to` cycle is rejected.
 - **Org chart** (`/org-chart`): the `reports_to` tree, operator at the root.
+- **Search** (`/search`): full-text across every mailbox with a mailbox scope (autocomplete), sender, date range and state; matches are highlighted and results page with Load more. Ctrl/Cmd+K offers "Search all mail for …".
+- **Settings** (`/settings`): retention, backups and notifications (below).
 - **Ctrl/Cmd+K** opens a palette: jump to a mailbox or identity, run a view or action, search all mail.
+
+**Console power tools.**
+
+- **Bulk actions.** Every row has a checkbox; shift-click selects a range, `x` toggles the cursor row, "Select all in view" ticks the list, and Esc clears. The bar archives, marks read or unread, or mutes, per delivery.
+- **Mute.** Muting a thread (thread toolbar or bulk bar) removes it from the Operator inbox, the unread count, the tab title and webhook notifications. "Show muted" brings muted threads back with a badge; Unmute reverses it.
+- **Saved filters.** "Save view" on any mail view, or "Save search" on the search page, stores a named filter on the daemon, so every console and your phone share them. They are listed under the views in the left nav and can be renamed or deleted from their menu.
+- **Phones.** Below 768px the console is single-pane: the left nav opens as a drawer and the buddy list as a sheet from the top bar, the list and thread replace each other with a Back button, and controls are at least 44px.
 
 The UI polls (every 5 seconds for presence and mailboxes); there is no push. Light and dark themes follow the system and can be toggled.
 
@@ -81,6 +101,20 @@ The UI polls (every 5 seconds for presence and mailboxes); there is no push. Lig
 **Browser guards.** The HTTP listener answers only to loopback names and the machine's hostname. For another hostname (a LAN address, FQDN or reverse proxy) pass `--http-allowed-hosts a,b` or set `AIM_HTTP_ALLOWED_HOSTS`; other Host headers get 421. Mutating `/api` requests must send `Content-Type: application/json` and `X-AIM-Request: 1`; the console does this, scripts calling the API must too. There is still no authentication; keep the listener on a trusted network.
 
 Runtime icons (Claude Code, Codex and others) are vendored SVGs from thesvg under MIT; source and pinned commit are in `web/src/assets/runtimes/NOTICE.md`.
+
+## Retention and backups
+
+Both live in **Settings** and the settings table, and both are safe next to a running daemon.
+
+- **Retention** is off by default. Set "Prune archived mail after N days" and the daemon hourly deletes messages older than that whose every delivery is archived (unarchived mail is never pruned; replies to a pruned message lose only the `in_reply_to` link). "Prune now" first shows a dry-run count. From a shell: `aim maintenance prune --dry-run`, then without `--dry-run`; `--days N` overrides the setting once.
+- **Backups** use `VACUUM INTO`, so they are consistent while the daemon writes. The daemon writes `aim-<timestamp>.db` into the backup directory every `backup_every_hours` (default 24) and keeps the newest `backup_keep` (default 7); older files matching that exact name pattern are removed, nothing else. Settings shows the last backup time, size and any error, with "Back up now". The directory is `--backup-dir` / `AIM_BACKUP_DIR` (default `$XDG_STATE_HOME/aim/backups`), overridable in Settings.
+- `aim backup [path]` writes one backup from the CLI (to `path`, or into the backup directory with rotation); `task backup` backs up the dev database into `.dev/backups`.
+
+## Notifications
+
+New mail to the operator can be posted to Discord or Slack as a compact card (sender, subject, snippet, link). Configure it in **Settings**: add one or more webhooks (name, URL, enabled), set the **public URL** used for links (default `http://<hostname>:<http port>`), and use "Send test" to check a webhook; the last status or error is shown per webhook. Only `discord.com`, `discordapp.com` and `hooks.slack.com` URLs are accepted. Webhook URLs are write-only: the console shows a masked URL and an empty URL field on edit keeps the stored one.
+
+Bursts are coalesced to at most one post per webhook per 30 seconds ("N new messages"), failures retry with backoff and honor 429 `retry_after`, and muted threads and your own replies never notify. To pre-seed on the first start, set `AIM_NOTIFY_WEBHOOKS` to a comma-separated list of webhook URLs; after that the settings table is the source of truth.
 
 ## Configuration
 
@@ -94,6 +128,10 @@ Flags on `aim daemon`, each with an environment fallback.
 | `AIM_HTTP` | `:7172` | HTTP listener (`/healthz`); empty disables |
 | `AIM_HTTP_ALLOWED_HOSTS` | none | Extra Host header values the HTTP listener accepts, comma-separated |
 | `AIM_ADDR` | socket path | Daemon address for `aim mcp`: socket path or `host:port` |
+| `AIM_RECONNECT_TIMEOUT` | `30s` | `aim mcp`: how long a request waits for the daemon to return |
+| `AIM_IDLE_AFTER` | `10m` | Time without a tool call before a session shows as idle (`--idle-after`) |
+| `AIM_BACKUP_DIR` | `$XDG_STATE_HOME/aim/backups` | Directory for scheduled and manual backups |
+| `AIM_NOTIFY_WEBHOOKS` | none | Comma-separated Discord/Slack webhook URLs to seed on first start |
 
 ## Development
 
@@ -107,7 +145,8 @@ task test:e2e   # builds aim, runs real daemon and shim processes
 Web UI (React + Vite in `web/`, pnpm):
 
 ```sh
-task dev        # daemon, Vite with hot reload, MCP inspector; prints every link
+task dev        # daemon (rebuilt and restarted on Go changes), Vite with hot reload, MCP inspector; prints every link
+task backup     # back up the dev database into .dev/backups
 task dev:links  # print the dev URLs again
 task web:dev    # Vite only (proxies /api to AIM_API_TARGET, default 127.0.0.1:7172)
 task web:gen    # regenerate openapi.json and the TS API types from the Go API
@@ -132,6 +171,8 @@ data is deterministic per `--seed`. Extra flags go after `--`, for example
 `task dev:seed -- --messages 800 --seed 2` or
 `task dev:seed:live -- --chatter 5s`. `dev:seed:live` speaks the real wire
 protocol (preamble, then MCP) and sends occasional mail and sign-on/off events.
+
+While `task dev` runs, editing a Go file rebuilds the daemon and restarts it (`cmd/aimdev`); because the shim reconnects and restores its sign-on, live agents and Claude Code sessions stay connected. A build error keeps the previous daemon running and is printed.
 
 The built UI (`internal/webui/dist`) is not committed; a plain `go build` serves a placeholder page until `task build` has run. First-time Playwright setup: `cd web && pnpm exec playwright install chromium`.
 
