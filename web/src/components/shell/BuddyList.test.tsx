@@ -26,6 +26,19 @@ describe('BuddyList', () => {
     expect(screen.getByText('↳ summarizer')).toBeInTheDocument()
   })
 
+  it('keeps the machine · runtime line on one truncating row with the full host in a title', () => {
+    const long = 'devbox.example.com'
+    const data = structuredClone(presenceFixture)
+    data.groups![0]!.buddies![0]!.machine = long
+    render(<BuddyList data={data} />)
+    const host = screen.getByText(long)
+    expect(host).toHaveAttribute('title', long)
+    expect(host.className).toContain('truncate')
+    const line = host.parentElement!
+    expect(line.className).toContain('whitespace-nowrap')
+    expect(screen.getByText('· Claude Code').className).toContain('shrink-0')
+  })
+
   it('collapses the offline group by default and expands it on click', async () => {
     const user = userEvent.setup()
     render(<BuddyList data={presenceFixture} />)

@@ -202,9 +202,10 @@ test('screenshots of the main screen, light and dark', async ({ page }) => {
   await page.getByRole('region', { name: 'Message list' }).getByRole('button').first().click()
   await expect(page.getByTestId('buddy').first()).toBeVisible()
   await expect(page.locator('html')).not.toHaveClass(/dark/)
-  await page.screenshot({ path: join(ARTIFACTS, 'mail-light.png') })
+  // animations: 'disabled' settles colour transitions, which otherwise mid-fade after the theme toggle.
+  await page.screenshot({ path: join(ARTIFACTS, 'mail-light.png'), animations: 'disabled' })
 
   await page.getByRole('button', { name: 'Switch to dark theme' }).click()
   await expect(page.locator('html')).toHaveClass(/dark/)
-  await page.screenshot({ path: join(ARTIFACTS, 'mail-dark.png') })
+  await page.screenshot({ path: join(ARTIFACTS, 'mail-dark.png'), animations: 'disabled' })
 })

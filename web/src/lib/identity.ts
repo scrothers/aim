@@ -36,9 +36,12 @@ export interface Runtime {
   label: string
   /** Vendored icon file slug, or undefined for the generic fallback badge. */
   icon?: string
+  /** The operator's own web console: it gets no runtime badge. */
+  console?: boolean
 }
 
 const RUNTIME_RULES: Array<[RegExp, Runtime]> = [
+  [/^aim-web$/i, { label: 'Web console', console: true }],
   [/^claude/i, { label: 'Claude Code', icon: 'claude' }],
   [/^codex/i, { label: 'Codex', icon: 'codex' }],
   [/^gemini/i, { label: 'Gemini CLI', icon: 'gemini' }],

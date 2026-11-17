@@ -1,9 +1,24 @@
 import { hueFor, initialsFor } from '@/lib/identity'
+import { OPERATOR } from '@/lib/address'
 import { cn } from '@/lib/utils'
 import { RuntimeBadge } from './RuntimeBadge'
 
 export function avatarColor(name: string): string {
   return `hsl(${hueFor(name)} 55% 38%)`
+}
+
+/** The operator's mark: a dark rounded square with a terminal prompt. */
+function ConsoleMark({ size, className }: { size: number; className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="console-mark"
+      className={cn('flex shrink-0 items-center justify-center rounded-lg border border-white/15 bg-[#18181b] font-mono font-bold text-white', className)}
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.4) }}
+    >
+      {'>_'}
+    </span>
+  )
 }
 
 export function AgentAvatar({
@@ -17,6 +32,7 @@ export function AgentAvatar({
   size?: number
   className?: string
 }) {
+  if (name === OPERATOR) return <ConsoleMark size={size} className={className} />
   return (
     <span
       aria-hidden="true"

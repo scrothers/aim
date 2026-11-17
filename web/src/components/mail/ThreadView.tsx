@@ -111,7 +111,7 @@ export const ThreadView = forwardRef<HTMLElement, ThreadViewProps>(function Thre
       ) : (
         <>
           <header className="flex flex-wrap items-center gap-3">
-            <h1 className="m-0 min-w-0 flex-1 text-lg font-semibold">{latest.subject}</h1>
+            <h1 className="m-0 min-w-0 basis-full text-lg font-semibold">{latest.subject}</h1>
             <span className="text-xs text-faint">
               {messages.length} {messages.length === 1 ? 'message' : 'messages'}
             </span>

@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 /** Runtime icon on a white chip, or a text badge with the raw client name. */
 export function RuntimeBadge({ client, className, size = 18 }: { client?: string; className?: string; size?: number }) {
   const rt = runtimeFor(client)
+  if (rt.console) return null
   const url = rt.icon ? runtimeIconUrl(rt.icon) : undefined
   if (url) {
     return (

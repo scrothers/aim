@@ -224,6 +224,14 @@ describe('ThreadView', () => {
     await waitFor(() => expect(calls(mocks.POST, '/api/messages/{id}/read')).toHaveLength(2))
   })
 
+  it('shows the operator as a console mark with a "Web console" meta line', async () => {
+    routes({ thread: [msg('1', { from: 'operator', to: ['reviewer@github.com/acme/api'], cc: [], from_client: 'aim-web', from_machine: 'devbox' })] })
+    wrap(view())
+    await screen.findByText('Web console on devbox')
+    expect(screen.getByTestId('console-mark')).toBeInTheDocument()
+    expect(screen.queryByText(/aim-web/)).toBeNull()
+  })
+
   it('retries marking read after a failure once the message is reopened', async () => {
     const user = userEvent.setup()
     routes({ thread })

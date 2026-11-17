@@ -51,6 +51,22 @@ describe('AgentAvatar', () => {
   })
 })
 
+describe('operator console identity', () => {
+  it('shows the console mark and no runtime badge for the operator', () => {
+    render(<AgentAvatar name="operator" client="aim-web" />)
+    const mark = screen.getByTestId('console-mark')
+    expect(mark).toHaveTextContent('>_')
+    expect(mark).not.toHaveTextContent('aim-web')
+    expect(screen.queryByTitle('Web console')).toBeNull()
+  })
+
+  it('maps the aim-web client to a plain "Web console" label without an icon', () => {
+    expect(runtimeFor('aim-web')).toEqual({ label: 'Web console', console: true })
+    const { container } = render(<RuntimeBadge client="aim-web" />)
+    expect(container).toBeEmptyDOMElement()
+  })
+})
+
 describe('runtime mapping', () => {
   it.each([
     ['claude-code', 'claude'],

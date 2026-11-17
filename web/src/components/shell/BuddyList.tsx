@@ -28,16 +28,18 @@ function BuddyRow({ buddy }: { buddy: Buddy }) {
       data-testid="buddy"
       data-online={buddy.online}
     >
-      <span className="flex items-center gap-2">
+      <span className="flex min-w-0 items-center gap-2">
         <PresenceDot online={buddy.online} />
-        <span className="font-semibold">{buddy.name}</span>
+        <span className="min-w-0 truncate font-semibold">{buddy.name}</span>
         {buddy.online && <RuntimeBadge client={buddy.client} className="ml-auto" />}
       </span>
       {buddy.online && (
-        <span className="ml-4 flex items-center gap-1 text-[11px] leading-[14px] text-faint">
-          <Monitor aria-hidden="true" className="size-3" />
-          <span className="font-mono">{buddy.machine || 'unknown'}</span>
-          <span>· {rt.label}</span>
+        <span className="ml-4 flex min-w-0 items-center gap-1 text-[11px] leading-[14px] whitespace-nowrap text-faint">
+          <Monitor aria-hidden="true" className="size-3 shrink-0" />
+          <span className="min-w-0 truncate font-mono" title={buddy.machine || 'unknown'}>
+            {buddy.machine || 'unknown'}
+          </span>
+          <span className="shrink-0">· {rt.label}</span>
         </span>
       )}
       {buddy.online && buddy.away && (
