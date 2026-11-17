@@ -26,3 +26,16 @@ func (p presenceAdapter) Online(identity address.Address) []mail.OnlineStatus {
 	}
 	return out
 }
+
+// Sessions implements mail.SessionCounter: connected sessions and the number
+// of distinct machines they run on.
+func (p presenceAdapter) Sessions() (sessions, machines int) {
+	all := p.r.All()
+	seen := make(map[string]struct{}, len(all))
+	for _, s := range all {
+		seen[s.Machine] = struct{}{}
+	}
+	return len(all), len(seen)
+}
+
+var _ mail.SessionCounter = presenceAdapter{}
