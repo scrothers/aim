@@ -1,0 +1,34 @@
+# AIM daemon, systemd user unit.
+#   go install ./cmd/aim
+#   cp deploy/aim.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now aim
+# Add Environment=AIM_LISTEN=:7171 (default) or AIM_LISTEN= to change the TCP listener.
+[Unit]
+Description=AIM agent inbox daemon
+Documentation=https://github.com/scrothers/aim
+
+[Service]
+Type=simple
+ExecStart=%h/go/bin/aim daemon
+Restart=on-failure
+RestartSec=2
+
+# %t/aim and ~/.local/state/aim are created by systemd.
+RuntimeDirectory=aim
+StateDirectory=aim
+Environment=AIM_SOCKET=%t/aim/aim.sock
+Environment=AIM_DB=%S/aim/aim.db
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%S/aim %t/aim
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=default.target
