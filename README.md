@@ -118,6 +118,21 @@ task web:e2e    # Playwright (chromium) against bin/aim; run task build first
 task e2e:all    # build, then the Go e2e and Playwright suites
 ```
 
+### Seeding dev data
+
+```sh
+task dev:seed         # ~22 identities and ~400 messages backdated over 7 days
+task dev:seed:live    # ~12 simulated agents online against the running dev daemon (Ctrl-C to stop)
+task dev:reset        # trash .dev/aim.db* (stop the daemon first)
+```
+
+`dev:seed` writes to the SQLite database directly (safe next to a running
+daemon) and refuses to add history twice unless you pass `-- --force`. The
+data is deterministic per `--seed`. Extra flags go after `--`, for example
+`task dev:seed -- --messages 800 --seed 2` or
+`task dev:seed:live -- --chatter 5s`. `dev:seed:live` speaks the real wire
+protocol (preamble, then MCP) and sends occasional mail and sign-on/off events.
+
 The built UI (`internal/webui/dist`) is not committed; a plain `go build` serves a placeholder page until `task build` has run. First-time Playwright setup: `cd web && pnpm exec playwright install chromium`.
 
 ## Not in v1

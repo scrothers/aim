@@ -121,6 +121,31 @@ tasks:
         -e AIM_ADDR={{.DEV_SOCKET}}
         go run ./cmd/aim mcp
 
+  dev:seed:
+    desc: Seed the dev database with a week of realistic history (safe next to a running daemon)
+    cmds:
+      - mkdir -p {{.DEV_DIR}}
+      - go run ./cmd/aimseed --db {{.DEV_DIR}}/aim.db {{.CLI_ARGS}}
+
+  dev:seed:live:
+    desc: Connect ~12 simulated agents to the running dev daemon until Ctrl-C
+    cmds:
+      - go run ./cmd/aimseed --live --addr {{.DEV_SOCKET}} {{.CLI_ARGS}}
+
+  dev:reset:
+    desc: Move the dev database (aim.db*) to the trash; stop the daemon first
+    cmds:
+      - |
+        found=0
+        for f in {{.DEV_DIR}}/aim.db {{.DEV_DIR}}/aim.db-wal {{.DEV_DIR}}/aim.db-shm; do
+          if [ -e "$f" ]; then
+            echo "trashing $f"
+            trash-put "$f"
+            found=1
+          fi
+        done
+        [ "$found" = 1 ] || echo "nothing to reset in {{.DEV_DIR}}"
+
   gen:
     desc: Generate sqlc code
     cmds:
