@@ -3,6 +3,7 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { ApiError } from '@/api/client'
 import { ARCHIVE_DAYS, listParamsFor, messagesQuery, useMark, type Header, type MailSearch, type MailState } from '@/api/mail'
 import { composeStore } from '@/lib/compose'
+import { isTyping } from '@/lib/flag'
 import { MessageList } from './MessageList'
 import { ThreadView } from './ThreadView'
 
@@ -12,11 +13,6 @@ const VIEW_TITLES: Record<NonNullable<MailSearch['view']>, string> = {
   today: 'Today',
   sent: 'Sent',
   archived: 'Archived',
-}
-
-function isTyping(t: EventTarget | null): boolean {
-  if (!(t instanceof HTMLElement)) return false
-  return t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)
 }
 
 const day = (iso?: string) => (iso ? new Date(iso).toLocaleDateString([], { dateStyle: 'medium' }) : '')

@@ -124,3 +124,12 @@ export function useSend() {
     },
   })
 }
+
+export const searchQuery = (q: string) =>
+  queryOptions({
+    queryKey: ['search', q],
+    queryFn: async () => unwrap(await api.GET('/api/search', { params: { query: { q, limit: 8 } } })),
+    staleTime: 10_000,
+    refetchInterval: false,
+    retry: false,
+  })

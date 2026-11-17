@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Moon, Search, Sun } from 'lucide-react'
+import { Bell, BellOff, Keyboard, Moon, MoreHorizontal, Search, Sun } from 'lucide-react'
+import { toast } from 'sonner'
+import { helpFlag, paletteFlag } from '@/lib/flag'
+import { notifySupported, setNotificationsEnabled, useNotificationsEnabled } from '@/lib/notify'
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useTheme } from '@/lib/theme'
 import { Logo } from './Logo'
 
@@ -30,6 +34,36 @@ export function UpdatedAgo() {
   )
 }
 
+function MoreMenu() {
+  const notify = useNotificationsEnabled()
+  const onToggle = async (on: boolean) => {
+    const result = await setNotificationsEnabled(on)
+    if (on && !result) toast.error('Notification permission was not granted')
+  }
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label="More options"
+        className="flex size-8 items-center justify-center rounded-lg border text-muted-foreground hover:bg-hover"
+      >
+        <MoreHorizontal aria-hidden="true" className="size-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {notifySupported() && (
+          <DropdownMenuCheckboxItem checked={notify} onCheckedChange={(v) => void onToggle(v === true)}>
+            {notify ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
+            Desktop notifications
+          </DropdownMenuCheckboxItem>
+        )}
+        <DropdownMenuItem onSelect={() => helpFlag.set(true)}>
+          <Keyboard aria-hidden="true" />
+          Keyboard shortcuts
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 export function TopBar() {
   const { dark, toggle } = useTheme()
   return (
@@ -42,6 +76,7 @@ export function TopBar() {
       <button
         type="button"
         aria-label="Search mail, mailboxes and agents"
+        onClick={() => paletteFlag.set(true)}
         className="flex h-9 flex-[1_1_280px] items-center gap-2 rounded-lg border bg-panel2 px-3 text-faint"
       >
         <Search aria-hidden="true" className="size-4" />
@@ -64,6 +99,7 @@ export function TopBar() {
         >
           {dark ? <Sun aria-hidden="true" className="size-4" /> : <Moon aria-hidden="true" className="size-4" />}
         </button>
+        <MoreMenu />
       </div>
     </header>
   )
