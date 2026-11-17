@@ -29,6 +29,7 @@ func New(svc *mail.Service, conn *presence.Entry, version string, opts ...Option
 			Instructions:       instructions(),
 			SubscribeHandler:   h.subscribe,
 			UnsubscribeHandler: h.unsubscribe,
+			CompletionHandler:  h.complete,
 		},
 	)
 	h.srv = srv
