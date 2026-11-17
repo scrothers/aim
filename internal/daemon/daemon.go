@@ -20,6 +20,7 @@ import (
 	"github.com/scrothers/aim/internal/mail"
 	"github.com/scrothers/aim/internal/maintenance"
 	"github.com/scrothers/aim/internal/mcpserver"
+	"github.com/scrothers/aim/internal/notify"
 	"github.com/scrothers/aim/internal/presence"
 	"github.com/scrothers/aim/internal/store"
 	"github.com/scrothers/aim/internal/webui"
@@ -64,6 +65,9 @@ type Config struct {
 	// MaintenanceInterval is how often retention and backups are checked;
 	// zero means hourly.
 	MaintenanceInterval time.Duration
+	// NotifyWebhooks pre-seeds the notification webhooks on the first start
+	// only (AIM_NOTIFY_WEBHOOKS).
+	NotifyWebhooks []string
 	// Ready, if set, is called once all listeners are bound.
 	Ready func(Addrs)
 }
@@ -77,6 +81,7 @@ type daemon struct {
 	svc    *mail.Service
 	reg    *presence.Registry
 	maint  *maintenance.Runner
+	notify *notify.Manager
 
 	mu    sync.Mutex
 	conns map[net.Conn]struct{}
@@ -125,9 +130,11 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) (err error) {
 
 	mctx, stopMaint := context.WithCancel(ctx)
 	maintDone := d.startMaintenance(mctx, st)
+	notifyDone := d.startNotify(mctx)
 	defer func() { // registered after the store close, so it runs before it
 		stopMaint()
 		<-maintDone
+		<-notifyDone
 	}()
 
 	var addrs Addrs
@@ -170,6 +177,7 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) (err error) {
 			return fmt.Errorf("daemon: listen http %s: %w", cfg.HTTP, lerr)
 		}
 		addrs.HTTP = l.Addr().String()
+		d.setPublicURL(addrs.HTTP)
 		hs = &http.Server{
 			Handler: httpapi.New(httpapi.Deps{
 				Pinger: st, Mail: d.svc, Presence: d.reg, Static: webui.FS(),

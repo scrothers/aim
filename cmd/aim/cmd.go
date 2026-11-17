@@ -85,6 +85,10 @@ func newDaemonCmd() *cobra.Command {
 				return err
 			}
 			cfg.Version = version()
+			// Env only, never a flag: webhook URLs are secrets and flag
+			// defaults are printed by --help. AIM_NOTIFY_WEBHOOKS seeds the
+			// settings on first start only.
+			cfg.NotifyWebhooks = splitList(os.Getenv("AIM_NOTIFY_WEBHOOKS"))
 			return daemon.Run(cmd.Context(), cfg, newLogger(cmd.ErrOrStderr(), lvl))
 		},
 	}

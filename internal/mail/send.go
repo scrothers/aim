@@ -108,6 +108,7 @@ func (s *Service) Send(ctx context.Context, c Caller, in SendInput) (Message, er
 	if err != nil {
 		return Message{}, err
 	}
+	s.afterSend(out)
 	return out, nil
 }
 

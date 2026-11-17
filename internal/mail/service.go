@@ -71,6 +71,8 @@ type Service struct {
 	presence Presence
 	now      func() time.Time
 	renderer *render.Renderer
+	// onOperator is the post-commit hook for operator mail (see hook.go).
+	onOperator func(Message)
 
 	mu      sync.Mutex
 	entropy *ulid.MonotonicEntropy
