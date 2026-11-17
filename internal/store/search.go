@@ -17,9 +17,11 @@ var ErrBadQuery = errors.New("store: invalid search query")
 type SearchParams struct {
 	Host, Org, Repo, Identity, Subagent     string
 	MatchRepo, MatchIdentity, MatchSubagent bool
-	Query                                   string
-	Limit, Offset                           int
-	Since, Until                            *int64
+	// All searches every mailbox, ignoring the address fields.
+	All           bool
+	Query         string
+	Limit, Offset int
+	Since, Until  *int64
 }
 
 // SearchHit is one ranked search result. Rank is the bm25 score (lower is
@@ -40,6 +42,9 @@ type SearchHit struct {
 // equalities the scope depth needs so SQLite can walk the full UNIQUE index.
 // The text is assembled from fixed fragments; all values stay bound.
 func scopeClause(alias string, p SearchParams) string {
+	if p.All {
+		return "1 = 1"
+	}
 	c := alias + ".host = @host AND " + alias + ".org = @org"
 	if p.MatchRepo || p.MatchIdentity || p.MatchSubagent {
 		c += " AND " + alias + ".repo = @repo"
@@ -103,18 +108,20 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]SearchHit, error)
 	}
 	args := []any{
 		sql.Named("query", p.Query),
-		sql.Named("host", p.Host), sql.Named("org", p.Org),
 		sql.Named("since", nullInt(p.Since)), sql.Named("until", nullInt(p.Until)),
 		sql.Named("limit", limit), sql.Named("offset", max(p.Offset, 0)),
 	}
-	if p.MatchRepo || p.MatchIdentity || p.MatchSubagent {
-		args = append(args, sql.Named("repo", p.Repo))
-	}
-	if p.MatchIdentity || p.MatchSubagent {
-		args = append(args, sql.Named("identity", p.Identity))
-	}
-	if p.MatchSubagent {
-		args = append(args, sql.Named("subagent", p.Subagent))
+	if !p.All {
+		args = append(args, sql.Named("host", p.Host), sql.Named("org", p.Org))
+		if p.MatchRepo || p.MatchIdentity || p.MatchSubagent {
+			args = append(args, sql.Named("repo", p.Repo))
+		}
+		if p.MatchIdentity || p.MatchSubagent {
+			args = append(args, sql.Named("identity", p.Identity))
+		}
+		if p.MatchSubagent {
+			args = append(args, sql.Named("subagent", p.Subagent))
+		}
 	}
 	rows, err := s.reader.QueryContext(ctx, searchSQL(p), args...)
 	if err != nil {

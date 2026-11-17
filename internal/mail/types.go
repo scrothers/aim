@@ -17,6 +17,7 @@ type OnlineStatus struct {
 	Machine    string    `json:"machine"`
 	Away       string    `json:"away,omitempty"`
 	SignedOnAt time.Time `json:"signed_on_at"`
+	Client     string    `json:"client,omitempty"`
 }
 
 // Identity is a registered identity mailbox.
@@ -26,6 +27,16 @@ type Identity struct {
 	Description string    `json:"description"`
 	ReportsTo   string    `json:"reports_to,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
+	// RetiredAt is nil for active identities.
+	RetiredAt *time.Time `json:"retired_at,omitempty"`
+}
+
+// UpdateInput is the argument of Service.UpdateIdentity. A nil field is left
+// unchanged; a pointer to the empty string clears reports_to or description.
+type UpdateInput struct {
+	Role        *string
+	Description *string
+	ReportsTo   *string
 }
 
 // RegisterInput is the argument of Service.Register.
@@ -44,6 +55,7 @@ type RosterEntry struct {
 	ReportsTo   string         `json:"reports_to,omitempty"`
 	Online      []OnlineStatus `json:"online"`
 	Subagents   []string       `json:"subagents"`
+	RetiredAt   *time.Time     `json:"retired_at,omitempty"`
 }
 
 // SendInput is the argument of Service.Send.
@@ -68,6 +80,11 @@ type Message struct {
 	CreatedAt time.Time `json:"created_at"`
 	To        []string  `json:"to"`
 	Cc        []string  `json:"cc"`
+	// FromClient and FromMachine record the sender's MCP client name and
+	// machine at send time; they are empty for mail sent before they were
+	// tracked.
+	FromClient  string `json:"from_client,omitempty"`
+	FromMachine string `json:"from_machine,omitempty"`
 }
 
 // Header is a message summary as delivered to one mailbox.

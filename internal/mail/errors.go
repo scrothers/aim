@@ -20,6 +20,14 @@ var (
 	ErrNotSignedOn = errors.New("not signed on")
 	// ErrExists marks an attempt to register an identity that already exists.
 	ErrExists = errors.New("already exists")
+	// ErrRetired marks an operation on a retired identity.
+	ErrRetired = errors.New("identity retired")
+	// ErrReserved marks an attempt to use the reserved operator address as an
+	// agent identity.
+	ErrReserved = errors.New("address reserved")
+	// ErrCycle marks a reports_to chain that loops back on itself or is too
+	// deep to follow.
+	ErrCycle = errors.New("reports_to cycle")
 	// ErrBadQuery marks a search query that is empty or not valid FTS5 syntax.
 	ErrBadQuery = fmt.Errorf("invalid search query: %w", store.ErrBadQuery)
 )

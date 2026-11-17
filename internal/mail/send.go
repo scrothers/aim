@@ -87,6 +87,9 @@ func (s *Service) Send(ctx context.Context, c Caller, in SendInput) (Message, er
 		return Message{}, err
 	}
 	from := c.Identity.IdentityAddress()
+	if c.Operator && in.Subagent != "" {
+		return Message{}, invalidf(op, "the operator has no subagents")
+	}
 	if in.Subagent != "" {
 		if from, err = from.WithSubagent(in.Subagent); err != nil {
 			return Message{}, invalidAddr(op, err)
@@ -151,7 +154,7 @@ func (s *Service) send(ctx context.Context, q *db.Queries, c Caller, in SendInpu
 	}
 	err = q.InsertMessage(ctx, db.InsertMessageParams{
 		ID: msgID, ThreadID: threadID, InReplyTo: sql.NullString{String: in.InReplyTo, Valid: in.InReplyTo != ""},
-		FromMailbox: sender.ID, FromSession: c.SessionID, Subject: in.Subject, Body: in.Body, CreatedAt: now.UnixMilli(),
+		FromMailbox: sender.ID, FromSession: c.SessionID, FromClient: c.Client, FromMachine: c.Machine, Subject: in.Subject, Body: in.Body, CreatedAt: now.UnixMilli(),
 	})
 	if err != nil {
 		return Message{}, fmt.Errorf("mail: %s: insert message: %w", op, err)
@@ -159,7 +162,7 @@ func (s *Service) send(ctx context.Context, q *db.Queries, c Caller, in SendInpu
 	msg := Message{
 		ID: msgID, ThreadID: threadID, InReplyTo: in.InReplyTo, From: from.String(),
 		Subject: in.Subject, Body: in.Body, CreatedAt: fromMS(now.UnixMilli()),
-		To: []string{}, Cc: []string{},
+		To: []string{}, Cc: []string{}, FromClient: c.Client, FromMachine: c.Machine,
 	}
 	for i, r := range recips {
 		if err := q.InsertDelivery(ctx, db.InsertDeliveryParams{MessageID: msgID, MailboxID: ids[i], Kind: r.kind}); err != nil {

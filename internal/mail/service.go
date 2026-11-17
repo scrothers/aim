@@ -34,6 +34,21 @@ type Caller struct {
 	SessionID string
 	Identity  address.Address
 	SignedOn  bool
+	// Operator marks the human operator's session. Only the HTTP layer may
+	// construct such a caller (see OperatorCaller); its Identity is the
+	// operator address.
+	Operator bool
+	// Client is the MCP client name (or UI name) and Machine the host the
+	// session runs on; both are recorded on sent messages.
+	Client  string
+	Machine string
+}
+
+// OperatorCaller returns the caller for the human operator, who sends only
+// as the operator address. It must be constructed only by trusted code (the
+// HTTP layer), never from agent input.
+func OperatorCaller(sessionID, client, machine string) Caller {
+	return Caller{SessionID: sessionID, Identity: address.Operator(), SignedOn: true, Operator: true, Client: client, Machine: machine}
 }
 
 // Option configures a Service.
@@ -115,6 +130,9 @@ func parseAll(op string, in []string) ([]address.Address, error) {
 }
 
 func requireSignedOn(op string, c Caller) error {
+	if c.Operator && c.Identity.IsOperator() {
+		return nil
+	}
 	if !c.SignedOn || c.Identity.Kind() != address.KindIdentity {
 		return notSignedOn(op)
 	}
@@ -125,9 +143,22 @@ func keyOf(a address.Address) db.GetMailboxByKeyParams {
 	return db.GetMailboxByKeyParams{Host: a.Host, Org: a.Org, Repo: a.Repo, Identity: a.Identity, Subagent: a.Subagent}
 }
 
-// findIdentity returns the registered identity mailbox for a, or a
-// *MailboxNotFoundError with suggestions.
+// findIdentity returns the active registered identity mailbox for a (or the
+// operator mailbox), a *MailboxNotFoundError with suggestions, or an error
+// wrapping ErrRetired.
 func findIdentity(ctx context.Context, q *db.Queries, a address.Address) (db.Mailbox, error) {
+	m, err := findIdentityAny(ctx, q, a)
+	if err != nil {
+		return db.Mailbox{}, err
+	}
+	if m.RetiredAt.Valid {
+		return db.Mailbox{}, fmt.Errorf("mail: %w: %s was retired; ask the operator to restore it or register a new identity", ErrRetired, addrOf(m))
+	}
+	return m, nil
+}
+
+// findIdentityAny is findIdentity without the retirement check.
+func findIdentityAny(ctx context.Context, q *db.Queries, a address.Address) (db.Mailbox, error) {
 	a = a.IdentityAddress()
 	m, err := q.GetMailboxByKey(ctx, keyOf(a))
 	if errors.Is(err, sql.ErrNoRows) {
@@ -183,6 +214,9 @@ func (s *Service) ensureMailbox(ctx context.Context, q *db.Queries, a address.Ad
 	if a.Kind() == address.KindIdentity {
 		return findIdentity(ctx, q, a)
 	}
+	if a.Kind() == address.KindOperator {
+		return s.ensureOperator(ctx, q, now)
+	}
 	if a.Kind() == address.KindSubagent {
 		if _, err := findIdentity(ctx, q, a); err != nil {
 			return db.Mailbox{}, err
@@ -211,6 +245,41 @@ func (s *Service) ensureMailbox(ctx context.Context, q *db.Queries, a address.Ad
 		return db.Mailbox{}, fmt.Errorf("mail: insert mailbox: %w", err)
 	}
 	return m, nil
+}
+
+// ensureOperator returns the operator mailbox, creating it on first use.
+func (s *Service) ensureOperator(ctx context.Context, q *db.Queries, now time.Time) (db.Mailbox, error) {
+	a := address.Operator()
+	m, err := q.GetMailboxByKey(ctx, keyOf(a))
+	if err == nil {
+		return m, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return db.Mailbox{}, fmt.Errorf("mail: get operator mailbox: %w", err)
+	}
+	id, err := s.newID(prefixMailbox, now)
+	if err != nil {
+		return db.Mailbox{}, err
+	}
+	m = db.Mailbox{ID: id, Identity: a.Identity, Kind: address.KindOperator.String(), CreatedAt: now.UnixMilli()}
+	err = q.InsertMailbox(ctx, db.InsertMailboxParams{ID: m.ID, Identity: m.Identity, Kind: m.Kind, CreatedAt: m.CreatedAt})
+	if err != nil {
+		return db.Mailbox{}, fmt.Errorf("mail: insert operator mailbox: %w", err)
+	}
+	return m, nil
+}
+
+// EnsureOperator creates the reserved operator mailbox if it does not exist.
+// The daemon calls it at startup; it is idempotent.
+func (s *Service) EnsureOperator(ctx context.Context) error {
+	err := s.store.WithTx(ctx, func(q *db.Queries) error {
+		_, err := s.ensureOperator(ctx, q, s.now())
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("mail: ensure operator: %w", err)
+	}
+	return nil
 }
 
 // callerMailbox returns the mailbox the caller owns: its identity mailbox, or

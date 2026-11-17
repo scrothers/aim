@@ -20,12 +20,14 @@ type rawMessage struct {
 	id, threadID, inReplyTo, subject, body string
 	from                                   address.Address
 	createdAt                              int64
+	fromClient, fromMachine                string
 }
 
 func (r rawMessage) message(to, cc []string) Message {
 	return Message{
 		ID: r.id, ThreadID: r.threadID, InReplyTo: r.inReplyTo, From: r.from.String(),
 		Subject: r.subject, Body: r.body, CreatedAt: fromMS(r.createdAt), To: to, Cc: cc,
+		FromClient: r.fromClient, FromMachine: r.fromMachine,
 	}
 }
 
@@ -62,6 +64,7 @@ func loadMessage(ctx context.Context, q *db.Queries, id string) (Message, error)
 	raw := rawMessage{
 		id: m.ID, threadID: m.ThreadID, inReplyTo: m.InReplyTo.String, subject: m.Subject, body: m.Body,
 		createdAt: m.CreatedAt, from: rowAddr(m.FromHost, m.FromOrg, m.FromRepo, m.FromIdentity, m.FromSubagent),
+		fromClient: m.FromClient, fromMachine: m.FromMachine,
 	}
 	return raw.message(to, cc), nil
 }
@@ -149,6 +152,7 @@ func (s *Service) Thread(ctx context.Context, threadID string) ([]Message, error
 		raw := rawMessage{
 			id: r.ID, threadID: r.ThreadID, inReplyTo: r.InReplyTo.String, subject: r.Subject, body: r.Body,
 			createdAt: r.CreatedAt, from: rowAddr(r.FromHost, r.FromOrg, r.FromRepo, r.FromIdentity, r.FromSubagent),
+			fromClient: r.FromClient, fromMachine: r.FromMachine,
 		}
 		out = append(out, raw.message(to, cc))
 	}
@@ -164,9 +168,15 @@ func ptrMS(t *time.Time) sql.NullInt64 {
 
 func (s *Service) listParams(ctx context.Context, in ListInput) (store.InboxParams, bool, error) {
 	const op = "list"
-	a, err := parseAddr(op, in.Address)
-	if err != nil {
-		return store.InboxParams{}, false, err
+	var sc store.Scope
+	if strings.TrimSpace(in.Address) == "" {
+		sc.All = true
+	} else {
+		a, err := parseAddr(op, in.Address)
+		if err != nil {
+			return store.InboxParams{}, false, err
+		}
+		sc = toStoreScope(a.Scope())
 	}
 	state := in.State
 	if state == "" {
@@ -187,7 +197,7 @@ func (s *Service) listParams(ctx context.Context, in ListInput) (store.InboxPara
 		return store.InboxParams{}, false, invalidf(op, "limit must not be negative")
 	}
 	p := store.InboxParams{
-		Scope: toStoreScope(a.Scope()),
+		Scope: sc,
 		Since: ptrMS(in.Since), Until: ptrMS(in.Until), State: state,
 	}
 	if in.Cursor != "" {
@@ -216,6 +226,7 @@ func (s *Service) listParams(ctx context.Context, in ListInput) (store.InboxPara
 }
 
 // List returns delivery headers for the subtree at in.Address, newest first.
+// An empty address lists every mailbox.
 func (s *Service) List(ctx context.Context, in ListInput) (ListResult, error) {
 	const op = "list"
 	p, empty, err := s.listParams(ctx, in)
@@ -366,12 +377,17 @@ func applyMark(ctx context.Context, q *db.Queries, state string, d db.Delivery, 
 	return int(n), err
 }
 
-// Search runs a full-text query over messages delivered inside in.Address.
+// Search runs a full-text query over messages delivered inside in.Address, or
+// everywhere when the address is empty.
 func (s *Service) Search(ctx context.Context, in SearchInput) (SearchResult, error) {
 	const op = "search"
-	a, err := parseAddr(op, in.Address)
-	if err != nil {
-		return SearchResult{}, err
+	var a address.Address
+	all := strings.TrimSpace(in.Address) == ""
+	if !all {
+		var err error
+		if a, err = parseAddr(op, in.Address); err != nil {
+			return SearchResult{}, err
+		}
 	}
 	if in.Limit < 0 {
 		return SearchResult{}, invalidf(op, "limit must not be negative")
@@ -382,6 +398,7 @@ func (s *Service) Search(ctx context.Context, in SearchInput) (SearchResult, err
 	}
 	limit = min(limit, MaxSearchLimit)
 	offset := 0
+	var err error
 	if in.Cursor != "" {
 		if offset, err = strconv.Atoi(in.Cursor); err != nil || offset < 0 {
 			return SearchResult{}, invalidf(op, "cursor %q is not valid; pass next_cursor from the previous page", in.Cursor)
@@ -390,7 +407,7 @@ func (s *Service) Search(ctx context.Context, in SearchInput) (SearchResult, err
 	sc := a.Scope()
 	hits, err := s.store.Search(ctx, store.SearchParams{
 		Host: sc.Host, Org: sc.Org, Repo: sc.Repo, Identity: sc.Identity, Subagent: sc.Subagent,
-		MatchRepo: sc.MatchRepo, MatchIdentity: sc.MatchIdentity, MatchSubagent: sc.MatchSubagent,
+		All: all, MatchRepo: sc.MatchRepo, MatchIdentity: sc.MatchIdentity, MatchSubagent: sc.MatchSubagent,
 		Query: in.Query, Limit: limit + 1, Offset: offset,
 	})
 	if errors.Is(err, store.ErrBadQuery) {

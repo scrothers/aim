@@ -21,6 +21,7 @@ func (p presenceAdapter) Online(identity address.Address) []mail.OnlineStatus {
 			Machine:    s.Machine,
 			Away:       s.Away,
 			SignedOnAt: s.SignedOnAt,
+			Client:     s.Client,
 		})
 	}
 	return out
