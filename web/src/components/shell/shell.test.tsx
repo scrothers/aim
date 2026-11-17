@@ -213,6 +213,17 @@ describe('OperatorAlerts', () => {
     expect(notes).toHaveLength(1)
   })
 
+  it('polls views in a hidden tab only when notifications are enabled', async () => {
+    const client = mount()
+    const opts = () => client.getQueryCache().find({ queryKey: ['views'] })!.observers[0]!.options.refetchIntervalInBackground
+    await waitFor(() => expect(document.title).toBe('AIM'))
+    expect(opts()).toBe(false)
+    await act(async () => void (await setNotificationsEnabled(true)))
+    await waitFor(() => expect(opts()).toBe(true))
+    await act(async () => void (await setNotificationsEnabled(false)))
+    await waitFor(() => expect(opts()).toBe(false))
+  })
+
   it('does not enable when permission is denied', async () => {
     ;(Notification as unknown as { permission: string }).permission = 'denied'
     await expect(setNotificationsEnabled(true)).resolves.toBe(false)

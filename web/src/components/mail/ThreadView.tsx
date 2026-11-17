@@ -12,10 +12,6 @@ import { Composer } from './Composer'
 
 const toOperator = (m: MessageView) => (m.to ?? []).includes(OPERATOR) || (m.cc ?? []).includes(OPERATOR)
 
-function snippet(m: MessageView): string {
-  return m.body.replace(/\s+/g, ' ').trim().slice(0, 140)
-}
-
 function stamp(iso: string): string {
   const d = new Date(iso)
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
@@ -91,7 +87,8 @@ export const ThreadView = forwardRef<HTMLElement, ThreadViewProps>(function Thre
     for (const id of key ? key.split(',') : []) {
       if (readRef.current.has(id)) continue
       readRef.current.add(id)
-      markRead(id)
+      // Forget the id on failure so a later open retries.
+      markRead(id, { onError: () => readRef.current.delete(id) })
     }
   }, [key, markRead])
 
@@ -149,7 +146,12 @@ export const ThreadView = forwardRef<HTMLElement, ThreadViewProps>(function Thre
                   variant="outline"
                   size="sm"
                   disabled={mark.isPending}
-                  onClick={() => mark.mutate({ ids: [mine[mine.length - 1]!.id], state: 'unread' })}
+                  onClick={() => {
+                    const id = mine[mine.length - 1]!.id
+                    // Reopening the message after an explicit "unread" should mark it read again.
+                    readRef.current.delete(id)
+                    mark.mutate({ ids: [id], state: 'unread' })
+                  }}
                 >
                   <MailOpen aria-hidden="true" />
                   Mark unread
@@ -170,7 +172,7 @@ export const ThreadView = forwardRef<HTMLElement, ThreadViewProps>(function Thre
                     ) : (
                       <span className="flex min-w-0 flex-1 items-baseline gap-2 pt-1">
                         <AddressChip address={m.from} className="shrink-0" />
-                        <span className="min-w-0 flex-1 truncate text-[13px] text-faint">{snippet(m)}</span>
+                        <span className="min-w-0 flex-1 truncate text-[13px] text-faint">{m.snippet}</span>
                         <span className="shrink-0 text-xs text-faint">{stamp(m.created_at)}</span>
                       </span>
                     )}

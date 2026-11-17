@@ -6,7 +6,7 @@ import { MailView } from '@/components/mail/MailView'
 export const mailSearchSchema = z.object({
   view: z.enum(['operator', 'unread', 'today', 'sent', 'archived']).optional().catch(undefined),
   mailbox: z.string().optional().catch(undefined),
-  state: z.enum(['unread', 'all', 'archived']).optional().catch(undefined),
+  state: z.enum(['inbox', 'unread', 'all', 'archived']).optional().catch(undefined),
   thread: z.string().optional().catch(undefined),
 })
 

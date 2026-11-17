@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from 'react'
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Header, MailSearch, MessageView } from '@/api/mail'
 import { composeStore } from '@/lib/compose'
+import { helpFlag, paletteFlag } from '@/lib/flag'
 
 const mocks = vi.hoisted(() => ({ GET: vi.fn(), POST: vi.fn() }))
 vi.mock('@/api/client', async (orig) => ({ ...(await orig<typeof import('@/api/client')>()), api: mocks }))
@@ -29,6 +30,7 @@ const hdr = (id: string, extra: Partial<Header> = {}): Header => ({
   cc: [],
   mailbox: 'operator',
   kind: 'message',
+  snippet: `Snippet ${id}`,
   thread_count: 1,
   ...extra,
 })
@@ -40,6 +42,7 @@ const msg = (id: string, extra: Partial<MessageView> = {}): MessageView => ({
   subject: 'Deploy plan',
   body: `body ${id}`,
   body_html: `<p>html ${id}</p>`,
+  snippet: `plain ${id}`,
   created_at: `2026-11-17T10:0${id}:00Z`,
   to: ['operator'],
   cc: ['builder@github.com/acme/api'],
@@ -53,11 +56,17 @@ function wrap(ui: ReactNode) {
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>)
 }
 
-function routes(opts: { list?: (q: Record<string, string>) => unknown; thread?: MessageView[]; roster?: string[] } = {}) {
+function routes(
+  opts: { list?: (q: Record<string, string>) => unknown; thread?: MessageView[]; roster?: string[]; retired?: string[] } = {},
+) {
   mocks.GET.mockImplementation(async (path: string, o?: { params?: { query?: Record<string, string> } }) => {
     if (path === '/api/messages') return ok(opts.list?.(o?.params?.query ?? {}) ?? { items: [] })
     if (path === '/api/threads/{id}') return ok({ messages: opts.thread ?? [] })
-    if (path === '/api/roster') return ok({ items: (opts.roster ?? []).map((address) => ({ address, role: '', description: '', online: [], subagents: [] })) })
+    if (path === '/api/roster') {
+      const live = (opts.roster ?? []).map((address) => ({ address, role: '', description: '', online: [], subagents: [] }))
+      const gone = (opts.retired ?? []).map((address) => ({ address, role: '', description: '', online: [], subagents: [], retired_at: '2026-11-01T00:00:00Z' }))
+      return ok({ items: [...live, ...gone] })
+    }
     return fail(404, 'nope')
   })
   mocks.POST.mockImplementation(async (path: string) => {
@@ -68,6 +77,7 @@ function routes(opts: { list?: (q: Record<string, string>) => unknown; thread?: 
 }
 
 const calls = (fn: typeof mocks.GET, path: string) => fn.mock.calls.filter((c) => c[0] === path)
+const press = (key: string) => act(() => void window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true })))
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -98,7 +108,43 @@ describe('MessageList', () => {
     expect(screen.getAllByRole('img', { name: 'Unread' })).toHaveLength(1)
     expect(screen.getAllByLabelText('2 messages in thread')).toHaveLength(2)
     expect(within(rows[0]!).getByAltText('Codex')).toBeInTheDocument()
-    expect(calls(mocks.GET, '/api/messages')[0]![1].params.query).toMatchObject({ address: 'operator', state: 'all' })
+    expect(calls(mocks.GET, '/api/messages')[0]![1].params.query).toMatchObject({ address: 'operator', state: 'inbox' })
+    expect(screen.getByRole('heading', { name: 'Operator inbox' })).toBeInTheDocument()
+    expect(screen.getAllByText('Snippet 1')).toHaveLength(1)
+    expect(['Inbox', 'Unread', 'Archived', 'All'].map((n) => screen.getByRole('tab', { name: n }))).toHaveLength(4)
+  })
+
+  it('keys rows per delivery so one message in two mailboxes renders twice and j reaches both', async () => {
+    routes({
+      list: () => ({
+        items: [
+          hdr('1', { mailbox: 'a@github.com/acme/x' }),
+          hdr('1', { mailbox: 'b@github.com/acme/x' }),
+          hdr('2', { mailbox: 'a@github.com/acme/x' }),
+        ],
+      }),
+    })
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    wrap(<Harness initial={{ view: 'unread' }} />)
+    const rows = await screen.findAllByRole('button', { name: /Subject/ })
+    expect(rows).toHaveLength(3)
+    expect(within(rows[0]!).getAllByTestId('address-chip').at(-1)).toHaveTextContent('a@github.com/acme/x')
+    expect(within(rows[1]!).getAllByTestId('address-chip').at(-1)).toHaveTextContent('b@github.com/acme/x')
+    press('j')
+    press('j')
+    expect(rows[1]).toHaveAttribute('data-cursor', 'true')
+    press('j')
+    expect(rows[2]).toHaveAttribute('data-cursor', 'true')
+    expect(err.mock.calls.flat().join(' ')).not.toMatch(/same key/)
+    err.mockRestore()
+  })
+
+  it('titles mailbox views with an address chip', async () => {
+    routes({ list: () => ({ items: [] }) })
+    wrap(<Harness initial={{ mailbox: 'reviewer@github.com/acme/api' }} />)
+    await screen.findByText('No messages.')
+    const head = screen.getByRole('heading', { level: 2 })
+    expect(within(head).getByTestId('address-chip')).toHaveTextContent('reviewer@github.com/acme/api')
   })
 
   it('loads more pages with the cursor', async () => {
@@ -154,7 +200,7 @@ describe('ThreadView', () => {
     await screen.findByText('html 3')
     expect(screen.queryByText('html 1')).toBeNull()
     expect(screen.queryByText('html 2')).toBeNull()
-    expect(screen.getByText('body 1')).toBeInTheDocument() // collapsed snippet
+    expect(screen.getByText('plain 1')).toBeInTheDocument() // collapsed plain-text snippet, not raw body
     expect(screen.getByText('Claude Code on devbox')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Expand message from builder@github.com/acme/api' }))
     expect(screen.getByText('html 1')).toBeInTheDocument()
@@ -175,6 +221,35 @@ describe('ThreadView', () => {
     expect(calls(mocks.POST, '/api/messages/{id}/read')[0]![1].params.path.id).toBe('3')
     // Expanding an earlier operator-addressed message reads it once too.
     await user.click(screen.getByRole('button', { name: 'Expand message from builder@github.com/acme/api' }))
+    await waitFor(() => expect(calls(mocks.POST, '/api/messages/{id}/read')).toHaveLength(2))
+  })
+
+  it('retries marking read after a failure once the message is reopened', async () => {
+    const user = userEvent.setup()
+    routes({ thread })
+    let n = 0
+    mocks.POST.mockImplementation(async (path: string) => {
+      if (path === '/api/messages/{id}/read' && n++ === 0) return fail(500, 'boom')
+      return ok({})
+    })
+    wrap(view())
+    await screen.findByText('html 3')
+    await waitFor(() => expect(calls(mocks.POST, '/api/messages/{id}/read')).toHaveLength(1))
+    await user.click(screen.getByRole('button', { name: /^Collapse message from reviewer/ }))
+    await user.click(screen.getAllByRole('button', { name: /^Expand message from reviewer/ }).at(-1)!)
+    await waitFor(() => expect(calls(mocks.POST, '/api/messages/{id}/read')).toHaveLength(2))
+  })
+
+  it('marks a message read again when reopened after the user marked it unread', async () => {
+    const user = userEvent.setup()
+    routes({ thread })
+    wrap(view())
+    await screen.findByText('html 3')
+    await waitFor(() => expect(calls(mocks.POST, '/api/messages/{id}/read')).toHaveLength(1))
+    await user.click(screen.getByRole('button', { name: 'Mark unread' }))
+    await waitFor(() => expect(calls(mocks.POST, '/api/marks')).toHaveLength(1))
+    await user.click(screen.getByRole('button', { name: /^Collapse message from reviewer/ }))
+    await user.click(screen.getAllByRole('button', { name: /^Expand message from reviewer/ }).at(-1)!)
     await waitFor(() => expect(calls(mocks.POST, '/api/messages/{id}/read')).toHaveLength(2))
   })
 
@@ -226,6 +301,30 @@ describe('Composer', () => {
     expect(within(form).queryByRole('button', { name: 'Remove operator' })).toBeNull()
     expect(within(form).getByRole('button', { name: 'Remove reviewer@github.com/acme/api' })).toBeInTheDocument()
     expect(within(form).getByRole('button', { name: 'Remove b@github.com/acme/x' })).toBeInTheDocument()
+  })
+
+  it('leaves retired participants out of the reply prefill', async () => {
+    const m = msg('1', { to: ['operator'], cc: ['gone@github.com/acme/x', 'builder@github.com/acme/api'] })
+    expect(replyDefaults(m, new Set(['gone@github.com/acme/x']))).toMatchObject({ cc: ['builder@github.com/acme/api'] })
+    routes({ retired: ['gone@github.com/acme/x'] })
+    wrap(<Composer mode={{ kind: 'reply', original: m }} onClose={() => {}} />)
+    const form = screen.getByRole('form', { name: 'Reply' })
+    await waitFor(() => expect(within(form).queryByRole('button', { name: 'Remove gone@github.com/acme/x' })).toBeNull())
+    expect(within(form).getByRole('button', { name: 'Remove builder@github.com/acme/api' })).toBeInTheDocument()
+  })
+
+  it('refuses to send while leftover recipient text is invalid', async () => {
+    const user = userEvent.setup()
+    routes()
+    wrap(<Composer mode={{ kind: 'new' }} onClose={() => {}} />)
+    await user.type(screen.getByLabelText('To recipients'), 'ops@github.com/acme/api{Enter}')
+    await user.type(screen.getByLabelText('To recipients'), 'bad!!')
+    await user.type(screen.getByLabelText('Subject'), 'S')
+    await user.type(screen.getByLabelText('Message body'), 'B')
+    await user.click(screen.getByRole('button', { name: /^Send/ }))
+    const alerts = await screen.findAllByRole('alert')
+    expect(alerts.some((a) => a.textContent?.includes('Invalid address: bad!!'))).toBe(true)
+    expect(calls(mocks.POST, '/api/messages')).toHaveLength(0)
   })
 
   it('adds, validates and removes chips', async () => {
@@ -308,7 +407,6 @@ describe('Composer', () => {
 })
 
 describe('keyboard shortcuts', () => {
-  const press = (key: string) => act(() => void window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true })))
   const items = () => ({ items: [hdr('1'), hdr('2'), hdr('3')] })
 
   it('j/k move the cursor, Enter opens', async () => {
@@ -354,6 +452,46 @@ describe('keyboard shortcuts', () => {
     expect(calls(mocks.POST, '/api/marks')).toHaveLength(0)
     press('Escape')
     await waitFor(() => expect(screen.queryByRole('form', { name: 'Reply' })).toBeNull())
+  })
+
+  it('ignores shortcuts while a dialog is open', async () => {
+    routes({ list: items })
+    wrap(
+      <>
+        <Harness />
+        <div role="dialog" aria-label="Help" />
+      </>,
+    )
+    await screen.findByText('Subject 1')
+    press('j')
+    press('c')
+    expect(document.querySelector('[data-cursor]')).toBeNull()
+    expect(composeStore.isOpen()).toBe(false)
+  })
+
+  it('ignores shortcuts while the palette or help flag is set', async () => {
+    routes({ list: items })
+    wrap(<Harness />)
+    await screen.findByText('Subject 1')
+    paletteFlag.set(true)
+    press('j')
+    paletteFlag.set(false)
+    helpFlag.set(true)
+    press('j')
+    helpFlag.set(false)
+    expect(document.querySelector('[data-cursor]')).toBeNull()
+    press('j')
+    expect(document.querySelector('[data-cursor]')).not.toBeNull()
+  })
+
+  it('Enter on a focused button does not also open the cursor row', async () => {
+    routes({ list: items })
+    const onSearch = vi.fn()
+    wrap(<MailView search={{}} onSearch={onSearch} />)
+    await screen.findByText('Subject 1')
+    press('j')
+    fireEvent.keyDown(screen.getByRole('button', { name: /Subject 2/ }), { key: 'Enter' })
+    expect(onSearch).not.toHaveBeenCalled()
   })
 
   it('c opens the compose store', async () => {

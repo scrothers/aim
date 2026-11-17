@@ -11,11 +11,13 @@ export function localMidnight(now = new Date()): string {
   return d.toISOString()
 }
 
-export const viewsQuery = () =>
+/** `background` keeps polling while the tab is hidden (needed for desktop notifications). */
+export const viewsQuery = (background = false) =>
   queryOptions({
     queryKey: ['views'],
     queryFn: async () => unwrap(await api.GET('/api/views', { params: { query: { today_since: localMidnight() } } })),
     refetchInterval: FAST_POLL_MS,
+    refetchIntervalInBackground: background,
     placeholderData: keepPreviousData,
   })
 

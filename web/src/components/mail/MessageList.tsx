@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { ago, parseAddress } from '@/lib/identity'
-import type { Header, MailState } from '@/api/mail'
+import { rowKey, type Header, type MailState } from '@/api/mail'
 import { AddressChip } from '@/components/shared/AddressChip'
 import { AgentAvatar } from '@/components/shared/AgentAvatar'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export interface MessageListProps {
   title: string
+  /** Mailbox view: the title is shown as an address chip. */
+  titleAddress?: string
+  /** The list spans several mailboxes: label each row with the mailbox it was delivered to. */
+  showMailbox?: boolean
   items: Header[]
   state: MailState
   /** View forces its own state filter (e.g. "Unread everywhere"). */
@@ -39,13 +43,16 @@ export function MessageList(p: MessageListProps) {
       className="box-border flex min-w-0 flex-[1_1_340px] flex-col border-r bg-panel text-[13px]"
     >
       <header className="flex flex-col gap-2 border-b px-4 pt-3 pb-2">
-        <h2 className="m-0 truncate font-mono text-sm font-semibold">{p.title}</h2>
+        <h2 className="m-0 min-w-0 truncate text-sm font-semibold">
+          {p.titleAddress ? <AddressChip address={p.titleAddress} /> : p.title}
+        </h2>
         {!p.lockedState && (
           <Tabs value={p.state} onValueChange={(v) => p.onState(v as MailState)}>
             <TabsList>
+              <TabsTrigger value="inbox">Inbox</TabsTrigger>
               <TabsTrigger value="unread">Unread</TabsTrigger>
-              <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="archived">Archived</TabsTrigger>
+              <TabsTrigger value="all">All</TabsTrigger>
             </TabsList>
           </Tabs>
         )}
@@ -64,11 +71,12 @@ export function MessageList(p: MessageListProps) {
           {p.items.map((h) => {
             const unread = p.showUnread && !h.read_at && !h.archived_at
             const selected = h.thread_id === p.selectedThread
-            const isCursor = h.id === p.cursorId
+            const key = rowKey(h)
+            const isCursor = key === p.cursorId
             const n = h.thread_count
             const who = parseAddress(h.from)
             return (
-              <li key={h.id} ref={isCursor ? cursorRef : undefined}>
+              <li key={key} ref={isCursor ? cursorRef : undefined}>
                 <button
                   type="button"
                   data-unread={unread}
@@ -101,6 +109,13 @@ export function MessageList(p: MessageListProps) {
                         </span>
                       )}
                     </span>
+                    {h.snippet && <span className="truncate text-xs text-faint">{h.snippet}</span>}
+                    {p.showMailbox && (
+                      <span className="flex items-center gap-1 text-xs text-faint">
+                        <span>to</span>
+                        <AddressChip address={h.mailbox} className="min-w-0 truncate" />
+                      </span>
+                    )}
                   </span>
                 </button>
               </li>

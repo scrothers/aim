@@ -7,7 +7,10 @@ import { DEFAULT_POLL_MS, FAST_POLL_MS, localMidnight } from './queries'
 export type Header = components['schemas']['Header']
 export type MessageView = components['schemas']['MessageView']
 export type SendRequest = components['schemas']['SendRequest']
-export type MailState = 'unread' | 'all' | 'archived'
+export type MailState = 'inbox' | 'unread' | 'all' | 'archived'
+
+/** Row identity: lists are per delivery, so a message appears once per mailbox it reached. */
+export const rowKey = (h: Pick<Header, 'id' | 'mailbox'>) => `${h.id}/${h.mailbox}`
 
 export interface MailSearch {
   view?: 'operator' | 'unread' | 'today' | 'sent' | 'archived'
@@ -19,7 +22,7 @@ export interface MailSearch {
 export interface ListParams {
   address?: string
   from?: string
-  state: 'unread' | 'read' | 'archived' | 'all'
+  state: 'unread' | 'read' | 'archived' | 'inbox' | 'all'
   since?: string
   until?: string
 }
@@ -29,7 +32,8 @@ export const ARCHIVE_DAYS = 30
 /** Resolves URL search params to API list parameters. */
 export function listParamsFor(search: MailSearch, now = new Date()): ListParams {
   const view = search.mailbox ? undefined : (search.view ?? 'operator')
-  let state: MailState = search.state ?? (view === 'unread' ? 'unread' : 'all')
+  // Mailbox lists default to the inbox (not archived); today and sent show everything.
+  let state: MailState = search.state ?? (view === 'today' || view === 'sent' ? 'all' : 'inbox')
   if (view === 'archived') state = 'archived'
   if (view === 'unread') state = 'unread'
   const p: ListParams = { state }

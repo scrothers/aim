@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { api, unwrap } from '@/api/client'
-import { useViews } from '@/api/queries'
-import { notificationsActive } from '@/lib/notify'
+import { viewsQuery } from '@/api/queries'
+import { notificationsActive, useNotificationsEnabled } from '@/lib/notify'
 
 async function announce(): Promise<void> {
   const res = unwrap(await api.GET('/api/messages', { params: { query: { address: 'operator', state: 'unread', limit: 1 } } }))
@@ -16,7 +17,9 @@ async function announce(): Promise<void> {
  * Renders nothing.
  */
 export function OperatorAlerts() {
-  const unread = useViews().data?.operator_unread
+  // Hidden tabs only keep polling when the user opted in to notifications.
+  const background = useNotificationsEnabled() && notificationsActive()
+  const unread = useQuery(viewsQuery(background)).data?.operator_unread
   const prev = useRef<number | undefined>(undefined)
 
   useEffect(() => {

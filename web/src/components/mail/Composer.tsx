@@ -15,9 +15,11 @@ export type ComposerMode = { kind: 'new' } | { kind: 'reply'; original: MessageV
 const uniq = (xs: string[]) => [...new Set(xs)]
 
 /** Reply-all prefill: to = original sender, cc = other recipients, operator excluded. */
-export function replyDefaults(m: MessageView): { to: string[]; cc: string[]; subject: string } {
-  const others = uniq([...(m.to ?? []), ...(m.cc ?? [])]).filter((a) => a !== OPERATOR)
-  const to = m.from === OPERATOR ? (m.to ?? []).filter((a) => a !== OPERATOR) : [m.from]
+export function replyDefaults(m: MessageView, retired: ReadonlySet<string> = new Set()): { to: string[]; cc: string[]; subject: string } {
+  // Retired identities cannot receive mail: sending to one fails the whole message.
+  const live = (a: string) => a !== OPERATOR && !retired.has(a)
+  const others = uniq([...(m.to ?? []), ...(m.cc ?? [])]).filter(live)
+  const to = (m.from === OPERATOR ? (m.to ?? []) : [m.from]).filter(live)
   const cc = others.filter((a) => !to.includes(a))
   const subject = /^re:\s/i.test(m.subject) ? m.subject : `Re: ${m.subject}`
   return { to, cc, subject }
@@ -26,8 +28,8 @@ export function replyDefaults(m: MessageView): { to: string[]; cc: string[]; sub
 export function Composer({ mode, onClose, onSent }: { mode: ComposerMode; onClose: () => void; onSent?: () => void }) {
   const reply = mode.kind === 'reply' ? mode.original : undefined
   const defaults = reply ? replyDefaults(reply) : { to: [], cc: [], subject: '' }
-  const [to, setTo] = useState<string[]>(defaults.to)
-  const [cc, setCc] = useState<string[]>(defaults.cc)
+  const [toRaw, setTo] = useState<string[]>(defaults.to)
+  const [ccRaw, setCc] = useState<string[]>(defaults.cc)
   const [showCc, setShowCc] = useState(defaults.cc.length > 0)
   const [subject, setSubject] = useState(defaults.subject)
   const [body, setBody] = useState('')
@@ -37,18 +39,33 @@ export function Composer({ mode, onClose, onSent }: { mode: ComposerMode; onClos
   const toPending = useRef('')
   const ccPending = useRef('')
   const send = useSend()
-  const roster = useQuery(rosterQuery())
-  const options = (roster.data?.items ?? []).map((r) => r.address)
+  const roster = useQuery(rosterQuery(true))
+  const options = (roster.data?.items ?? []).filter((r) => !r.retired_at).map((r) => r.address)
+  // The roster may arrive after the reply prefill, so retired participants are
+  // hidden at render time rather than removed from state.
+  const retired = new Set((roster.data?.items ?? []).filter((r) => r.retired_at).map((r) => r.address))
+  const prefilled = new Set([...defaults.to, ...defaults.cc])
+  const keep = (a: string) => !(reply && retired.has(a) && prefilled.has(a))
+  const to = toRaw.filter(keep)
+  const cc = ccRaw.filter(keep)
   const rendered = useQuery({ ...renderQuery(body), enabled: preview && body.trim() !== '' })
 
   const submit = () => {
     if (send.isPending) return
+    // Leftover typed text becomes a recipient; invalid text blocks the send.
+    let bad = ''
     const flush = (list: string[], pending: string) => {
-      const t = pending.trim()
-      return t && isValidAddress(t) && !list.includes(t) ? [...list, t] : list
+      const t = pending.trim().replace(/,$/, '')
+      if (!t) return list
+      if (!isValidAddress(t)) {
+        bad ||= t
+        return list
+      }
+      return list.includes(t) ? list : [...list, t]
     }
     const finalTo = flush(to, toPending.current)
     const finalCc = flush(cc, ccPending.current)
+    if (bad) return setError(`Invalid address: ${bad}`)
     if (finalTo.length + finalCc.length === 0) return setError('Add at least one recipient.')
     if (!subject.trim()) return setError('Subject is required.')
     if (!body.trim()) return setError('Write a message first.')

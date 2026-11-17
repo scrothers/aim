@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { ApiError } from '@/api/client'
-import { ARCHIVE_DAYS, listParamsFor, messagesQuery, useMark, type Header, type MailSearch, type MailState } from '@/api/mail'
+import { ARCHIVE_DAYS, listParamsFor, messagesQuery, rowKey, useMark, type Header, type MailSearch, type MailState } from '@/api/mail'
 import { composeStore } from '@/lib/compose'
-import { isTyping } from '@/lib/flag'
+import { helpFlag, isTyping, paletteFlag } from '@/lib/flag'
 import { MessageList } from './MessageList'
 import { ThreadView } from './ThreadView'
 
 const VIEW_TITLES: Record<NonNullable<MailSearch['view']>, string> = {
-  operator: 'operator',
+  operator: 'Operator inbox',
   unread: 'Unread everywhere',
   today: 'Today',
   sent: 'Sent',
@@ -31,12 +31,14 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
   const [replying, setReplying] = useState(false)
   const threadRef = useRef<HTMLElement>(null)
 
-  const cursorId = cursor ?? items.find((h) => h.thread_id === search.thread)?.id
+  // Cursor is a delivery key (message id + mailbox): one message can appear in several rows.
+  const threadRow = search.thread ? items.find((h) => h.thread_id === search.thread) : undefined
+  const cursorId = cursor ?? (threadRow ? rowKey(threadRow) : undefined)
   const state = params.state
 
   const open = useCallback(
     (h: Header) => {
-      setCursor(h.id)
+      setCursor(rowKey(h))
       setReplying(false)
       onSearch({ thread: h.thread_id })
     },
@@ -46,22 +48,26 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return
+      // Dialogs (help, palette, compose sheet) own the keyboard while open.
+      if (paletteFlag.get() || helpFlag.get() || document.querySelector('[role="dialog"]')) return
       if (e.key === 'Escape') {
         setReplying(false)
         composeStore.close()
         return
       }
       if (isTyping(e.target) || composeStore.isOpen()) return
-      const idx = items.findIndex((h) => h.id === cursorId)
+      const idx = items.findIndex((h) => rowKey(h) === cursorId)
       const cur = idx >= 0 ? items[idx] : undefined
       switch (e.key) {
         case 'j':
-          if (items.length) setCursor(items[Math.min(idx + 1, items.length - 1)]!.id)
+          if (items.length) setCursor(rowKey(items[Math.min(idx + 1, items.length - 1)]!))
           break
         case 'k':
-          if (items.length) setCursor(items[Math.max(idx - 1, 0)]!.id)
+          if (items.length) setCursor(rowKey(items[Math.max(idx - 1, 0)]!))
           break
         case 'Enter':
+          // A focused row or link already handles Enter natively.
+          if (e.target instanceof HTMLElement && ['BUTTON', 'A'].includes(e.target.tagName)) return
           if (cur) {
             open(cur)
             threadRef.current?.focus()
@@ -70,7 +76,10 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
         case 'e':
         case 'u':
           if (cur?.mailbox === 'operator') {
-            if (e.key === 'e') setCursor((items[idx + 1] ?? items[idx - 1])?.id)
+            if (e.key === 'e') {
+              const nxt = items[idx + 1] ?? items[idx - 1]
+              setCursor(nxt ? rowKey(nxt) : undefined)
+            }
             const next = e.key === 'u' ? 'unread' : state === 'archived' ? 'unarchived' : 'archived'
             mark.mutate({ ids: [cur.id], state: next })
           }
@@ -78,7 +87,7 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
         case 'r':
           if (cur) {
             e.preventDefault()
-            setCursor(cur.id)
+            setCursor(rowKey(cur))
             onSearch({ thread: cur.thread_id })
             setReplying(true)
           }
@@ -103,7 +112,9 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
   return (
     <>
       <MessageList
-        title={search.mailbox ?? VIEW_TITLES[view ?? 'operator']}
+        title={VIEW_TITLES[view ?? 'operator']}
+        titleAddress={search.mailbox}
+        showMailbox={view !== 'operator' && view !== 'archived'}
         items={items}
         state={state as MailState}
         lockedState={view === 'unread' || view === 'archived'}
