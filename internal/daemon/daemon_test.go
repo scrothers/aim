@@ -307,3 +307,24 @@ func TestHalfClosedClientStillGetsResponse(t *testing.T) {
 	}
 	r.stop(t)
 }
+
+func TestDaemonScheduledBackup(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	bdir := filepath.Join(dir, "backups")
+	r := start(t, daemon.Config{
+		DBPath: filepath.Join(dir, "aim.db"), BackupDir: bdir, MaintenanceInterval: time.Hour,
+	})
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		ents, _ := os.ReadDir(bdir)
+		if len(ents) == 1 && strings.HasPrefix(ents[0].Name(), "aim-") && strings.HasSuffix(ents[0].Name(), ".db") {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("no scheduled backup in %s", bdir)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	r.stop(t)
+}

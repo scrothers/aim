@@ -18,6 +18,7 @@ import (
 
 	"github.com/scrothers/aim/internal/httpapi"
 	"github.com/scrothers/aim/internal/mail"
+	"github.com/scrothers/aim/internal/maintenance"
 	"github.com/scrothers/aim/internal/mcpserver"
 	"github.com/scrothers/aim/internal/presence"
 	"github.com/scrothers/aim/internal/store"
@@ -56,6 +57,13 @@ type Config struct {
 	// ShutdownTimeout bounds the wait for connections to drain on shutdown;
 	// zero means 10 seconds.
 	ShutdownTimeout time.Duration
+	// BackupDir is the default scheduled-backup directory, used when the
+	// backup settings name none. Empty (with no settings dir) turns scheduled
+	// backups off.
+	BackupDir string
+	// MaintenanceInterval is how often retention and backups are checked;
+	// zero means hourly.
+	MaintenanceInterval time.Duration
 	// Ready, if set, is called once all listeners are bound.
 	Ready func(Addrs)
 }
@@ -68,6 +76,7 @@ type daemon struct {
 	logger *slog.Logger
 	svc    *mail.Service
 	reg    *presence.Registry
+	maint  *maintenance.Runner
 
 	mu    sync.Mutex
 	conns map[net.Conn]struct{}
@@ -112,6 +121,13 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) (err error) {
 		if cerr := st.Close(); cerr != nil {
 			err = errors.Join(err, fmt.Errorf("daemon: close store: %w", cerr))
 		}
+	}()
+
+	mctx, stopMaint := context.WithCancel(ctx)
+	maintDone := d.startMaintenance(mctx, st)
+	defer func() { // registered after the store close, so it runs before it
+		stopMaint()
+		<-maintDone
 	}()
 
 	var addrs Addrs

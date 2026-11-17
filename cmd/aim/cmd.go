@@ -68,7 +68,7 @@ func newRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	root.AddCommand(newDaemonCmd(), newMCPCmd(), newOpenAPICmd())
+	root.AddCommand(newDaemonCmd(), newMCPCmd(), newOpenAPICmd(), newBackupCmd(), newMaintenanceCmd())
 	return root
 }
 
@@ -100,6 +100,7 @@ func newDaemonCmd() *cobra.Command {
 	f.StringVar(&cfg.HTTP, "http", envSet("AIM_HTTP", ":7172"), "HTTP listen address; empty disables (AIM_HTTP)")
 	f.StringSliceVar(&cfg.HTTPAllowedHosts, "http-allowed-hosts", splitList(os.Getenv("AIM_HTTP_ALLOWED_HOSTS")),
 		"extra Host header values the HTTP listener accepts, comma-separated (AIM_HTTP_ALLOWED_HOSTS)")
+	f.StringVar(&cfg.BackupDir, "backup-dir", envOr(os.Getenv, "AIM_BACKUP_DIR", defaultBackupDir()), "default scheduled-backup directory (AIM_BACKUP_DIR)")
 	f.StringVar(&level, "log-level", "info", "log level: debug, info, warn, error")
 	return cmd
 }
