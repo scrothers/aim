@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Archive, ChevronDown, ChevronRight, MailOpen, Reply } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronDown, ChevronRight, MailOpen, Reply } from 'lucide-react'
 import { threadQuery, useMark, useReadMessage, type MessageView } from '@/api/mail'
 import { OPERATOR } from '@/lib/address'
 import { parseAddress, runtimeFor } from '@/lib/identity'
@@ -55,6 +55,8 @@ function MessageHeader({ m }: { m: MessageView }) {
 
 export interface ThreadViewProps {
   threadId?: string
+  /** The list is showing archived mail: offer Unarchive instead of Archive. */
+  archived?: boolean
   replying: boolean
   onReplying: (v: boolean) => void
   /** Called after the thread's operator deliveries were archived. */
@@ -62,7 +64,7 @@ export interface ThreadViewProps {
 }
 
 export const ThreadView = forwardRef<HTMLElement, ThreadViewProps>(function ThreadView(
-  { threadId, replying, onReplying, onArchived },
+  { threadId, archived, replying, onReplying, onArchived },
   ref,
 ) {
   const q = useQuery({ ...threadQuery(threadId ?? ''), enabled: !!threadId })
@@ -122,15 +124,27 @@ export const ThreadView = forwardRef<HTMLElement, ThreadViewProps>(function Thre
             </Button>
             {mine.length > 0 && (
               <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={mark.isPending}
-                  onClick={() => mark.mutate({ ids: mine.map((m) => m.id), state: 'archived' }, { onSuccess: onArchived })}
-                >
-                  <Archive aria-hidden="true" />
-                  Archive
-                </Button>
+                {archived ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={mark.isPending}
+                    onClick={() => mark.mutate({ ids: mine.map((m) => m.id), state: 'unarchived' }, { onSuccess: onArchived })}
+                  >
+                    <ArchiveRestore aria-hidden="true" />
+                    Unarchive
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={mark.isPending}
+                    onClick={() => mark.mutate({ ids: mine.map((m) => m.id), state: 'archived' }, { onSuccess: onArchived })}
+                  >
+                    <Archive aria-hidden="true" />
+                    Archive
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"

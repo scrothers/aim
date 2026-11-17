@@ -98,7 +98,7 @@ export function useMark() {
     mutationFn: async ({ ids, state }: { ids: string[]; state: MarkState }) =>
       unwrap(await api.POST('/api/marks', { body: { message_ids: ids, state } })),
     onSuccess: (_d, v) => {
-      if (v.state !== 'read') toast.success(v.state === 'archived' ? 'Archived' : v.state === 'unread' ? 'Marked unread' : 'Updated')
+      if (v.state !== 'read') toast.success({ archived: 'Archived', unarchived: 'Unarchived', unread: 'Marked unread' }[v.state] ?? 'Updated')
       void invalidate()
     },
     onError: (e) => toast.error(e instanceof ApiError ? e.message : 'Could not update messages'),

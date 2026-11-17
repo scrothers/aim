@@ -75,7 +75,8 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
         case 'u':
           if (cur?.mailbox === 'operator') {
             if (e.key === 'e') setCursor((items[idx + 1] ?? items[idx - 1])?.id)
-            mark.mutate({ ids: [cur.id], state: e.key === 'e' ? 'archived' : 'unread' })
+            const next = e.key === 'u' ? 'unread' : state === 'archived' ? 'unarchived' : 'archived'
+            mark.mutate({ ids: [cur.id], state: next })
           }
           break
         case 'r':
@@ -96,7 +97,7 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [items, cursorId, open, onSearch, mark])
+  }, [items, cursorId, state, open, onSearch, mark])
 
   const rangeNote =
     state === 'archived'
@@ -125,6 +126,7 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
       <ThreadView
         ref={threadRef}
         threadId={search.thread}
+        archived={state === 'archived'}
         replying={replying}
         onReplying={setReplying}
         onArchived={() => onSearch({ thread: undefined })}

@@ -29,6 +29,7 @@ const hdr = (id: string, extra: Partial<Header> = {}): Header => ({
   cc: [],
   mailbox: 'operator',
   kind: 'message',
+  thread_count: 1,
   ...extra,
 })
 
@@ -83,8 +84,8 @@ describe('MessageList', () => {
     routes({
       list: () => ({
         items: [
-          hdr('1', { thread_id: 't-a' }),
-          hdr('2', { thread_id: 't-a', read_at: '2026-11-17T09:00:00Z' }),
+          hdr('1', { thread_id: 't-a', thread_count: 2, from_client: 'codex-cli' }),
+          hdr('2', { thread_id: 't-a', thread_count: 2, read_at: '2026-11-17T09:00:00Z' }),
           hdr('3', { read_at: '2026-11-17T09:00:00Z' }),
         ],
       }),
@@ -96,6 +97,7 @@ describe('MessageList', () => {
     expect(rows[1]).toHaveAttribute('data-unread', 'false')
     expect(screen.getAllByRole('img', { name: 'Unread' })).toHaveLength(1)
     expect(screen.getAllByLabelText('2 messages in thread')).toHaveLength(2)
+    expect(within(rows[0]!).getByAltText('Codex')).toBeInTheDocument()
     expect(calls(mocks.GET, '/api/messages')[0]![1].params.query).toMatchObject({ address: 'operator', state: 'all' })
   })
 
@@ -188,6 +190,18 @@ describe('ThreadView', () => {
     await user.click(screen.getByRole('button', { name: 'Archive' }))
     await waitFor(() => expect(onArchived).toHaveBeenCalled())
     expect(calls(mocks.POST, '/api/marks')[1]![1].body).toEqual({ message_ids: ['1', '2', '3'], state: 'archived' })
+  })
+
+  it('offers Unarchive when viewing archived mail', async () => {
+    const user = userEvent.setup()
+    routes({ thread })
+    const onArchived = vi.fn()
+    wrap(view({ onArchived, archived: true }))
+    await screen.findByText('html 3')
+    expect(screen.queryByRole('button', { name: 'Archive' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Unarchive' }))
+    await waitFor(() => expect(onArchived).toHaveBeenCalled())
+    expect(calls(mocks.POST, '/api/marks')[0]![1].body).toEqual({ message_ids: ['1', '2', '3'], state: 'unarchived' })
   })
 
   it('renders sanitized HTML in the prose container', async () => {

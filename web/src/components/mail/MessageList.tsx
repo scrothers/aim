@@ -28,8 +28,6 @@ export interface MessageListProps {
 }
 
 export function MessageList(p: MessageListProps) {
-  const counts = new Map<string, number>()
-  for (const h of p.items) counts.set(h.thread_id, (counts.get(h.thread_id) ?? 0) + 1)
   const cursorRef = useRef<HTMLLIElement | null>(null)
   useEffect(() => {
     cursorRef.current?.scrollIntoView?.({ block: 'nearest' })
@@ -67,7 +65,7 @@ export function MessageList(p: MessageListProps) {
             const unread = p.showUnread && !h.read_at && !h.archived_at
             const selected = h.thread_id === p.selectedThread
             const isCursor = h.id === p.cursorId
-            const n = counts.get(h.thread_id) ?? 1
+            const n = h.thread_count
             const who = parseAddress(h.from)
             return (
               <li key={h.id} ref={isCursor ? cursorRef : undefined}>
@@ -86,7 +84,7 @@ export function MessageList(p: MessageListProps) {
                   <span className="flex w-2 shrink-0 justify-center pt-3.5">
                     {unread && <span aria-label="Unread" role="img" className="size-2 rounded-full bg-brand" />}
                   </span>
-                  <AgentAvatar name={who.identity ?? who.path} />
+                  <AgentAvatar name={who.identity ?? who.path} client={h.from_client} />
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="flex items-baseline gap-2">
                       <AddressChip address={h.from} className={cn('min-w-0 truncate', unread && 'font-bold')} />
