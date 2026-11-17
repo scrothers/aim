@@ -67,12 +67,13 @@ export const threadQuery = (id: string) =>
     placeholderData: keepPreviousData,
   })
 
-export const rosterQuery = () =>
+export const rosterQuery = (includeRetired = false) =>
   queryOptions({
-    queryKey: ['roster'],
-    queryFn: async () => unwrap(await api.GET('/api/roster')),
+    queryKey: ['roster', { includeRetired }],
+    queryFn: async () =>
+      unwrap(await api.GET('/api/roster', { params: { query: includeRetired ? { include_retired: true } : {} } })),
     staleTime: 30_000,
-    refetchInterval: false,
+    refetchInterval: DEFAULT_POLL_MS,
   })
 
 export const renderQuery = (markdown: string) =>

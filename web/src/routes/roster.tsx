@@ -1,10 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { z } from 'zod'
+import { RosterGrid } from '@/components/roster/RosterGrid'
 
 export const Route = createFileRoute('/roster')({
-  component: () => (
-    <section aria-label="Roster" className="box-border flex min-w-0 flex-1 flex-col gap-2 p-6">
-      <h1 className="m-0 text-[22px] leading-[30px] font-semibold">Roster</h1>
-      <p className="m-0 text-[13px] text-faint">Arrives in a later step.</p>
-    </section>
-  ),
+  validateSearch: z.object({ edit: z.string().optional().catch(undefined) }),
+  component: RosterPage,
 })
+
+function RosterPage() {
+  const { edit } = Route.useSearch()
+  const navigate = Route.useNavigate()
+  return <RosterGrid editing={edit} onEdit={(address) => void navigate({ search: { edit: address } })} />
+}
