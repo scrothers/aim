@@ -63,15 +63,13 @@ func TestWaitToolTimeoutAndValidation(t *testing.T) {
 	}
 }
 
-// TestWaitToolProgress is not parallel: it shortens a package-level interval.
 func TestWaitToolProgress(t *testing.T) {
-	defer mcpserver.SetProgressInterval(50 * time.Millisecond)()
 	e := newEnv(t)
 	ctx := context.Background()
 	entry := e.reg.Add("conn-p", wire.Preamble{V: wire.Version, SessionID: "sess-p", Machine: "box"}, time.Now())
 	t.Cleanup(func() { e.reg.Remove("conn-p") })
 	ct, st := mcp.NewInMemoryTransports()
-	ss, err := mcpserver.New(e.svc, entry, "test").Connect(ctx, st, nil)
+	ss, err := mcpserver.New(e.svc, entry, "test", mcpserver.WithProgressInterval(50*time.Millisecond)).Connect(ctx, st, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

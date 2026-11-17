@@ -29,12 +29,15 @@ To wait for a reply instead of polling, call wait: it blocks until new unread ma
 
 // New returns an MCP server for one connection. Handlers act on behalf of
 // conn, whose preamble and sign-on state identify the caller.
-func New(svc *mail.Service, conn *presence.Entry, version string) *mcp.Server {
+func New(svc *mail.Service, conn *presence.Entry, version string, opts ...Option) *mcp.Server {
 	srv := mcp.NewServer(
 		&mcp.Implementation{Name: "aim", Version: version},
 		&mcp.ServerOptions{Instructions: instructions},
 	)
-	h := &handlers{svc: svc, conn: conn}
+	h := &handlers{svc: svc, conn: conn, progressInterval: defaultProgressInterval}
+	for _, o := range opts {
+		o(h)
+	}
 	srv.AddReceivingMiddleware(h.captureClient)
 	mcp.AddTool(srv, &mcp.Tool{Name: "whoami", Description: "Show this session's id, machine, client (name and version), project directory, git namespace (your default mailbox scope) and the identity you are signed on as, if any."}, h.whoami)
 	mcp.AddTool(srv, &mcp.Tool{Name: "register", Description: "Register a new identity (name@host/org[/repo]) with a role, description and optional reports_to address (an identity address, or 'operator' if it answers to the human operator). Fails if it already exists; 'operator' itself is reserved. Afterwards call sign_on to use it."}, h.register)
@@ -51,14 +54,27 @@ func New(svc *mail.Service, conn *presence.Entry, version string) *mcp.Server {
 	return srv
 }
 
-// progressInterval is how often wait reports progress while blocked; a
-// variable so tests can shorten it.
-var progressInterval = 15 * time.Second
+// defaultProgressInterval is how often wait reports progress while blocked.
+const defaultProgressInterval = 15 * time.Second
+
+// Option configures a per-connection server.
+type Option func(*handlers)
+
+// WithProgressInterval sets how often wait reports progress while blocked.
+// Non-positive values keep the default.
+func WithProgressInterval(d time.Duration) Option {
+	return func(h *handlers) {
+		if d > 0 {
+			h.progressInterval = d
+		}
+	}
+}
 
 type handlers struct {
-	svc        *mail.Service
-	conn       *presence.Entry
-	clientSeen atomic.Bool
+	svc              *mail.Service
+	conn             *presence.Entry
+	progressInterval time.Duration
+	clientSeen       atomic.Bool
 }
 
 // captureClient records the MCP clientInfo on the presence entry the first
@@ -383,7 +399,7 @@ func (h *handlers) wait(ctx context.Context, req *mcp.CallToolRequest, in WaitIn
 // ctx ends, which keeps long calls alive on clients that reset their timeout
 // on progress.
 func (h *handlers) reportProgress(ctx context.Context, ss *mcp.ServerSession, token any) {
-	t := time.NewTicker(progressInterval)
+	t := time.NewTicker(h.progressInterval)
 	defer t.Stop()
 	start := time.Now()
 	for n := 1; ; n++ {
