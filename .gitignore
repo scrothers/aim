@@ -5,3 +5,5 @@ coverage.html
 *.db
 *.db-wal
 *.db-shm
+internal/webui/dist/*
+!internal/webui/dist/.gitkeep

@@ -21,6 +21,7 @@ import (
 	"github.com/scrothers/aim/internal/mcpserver"
 	"github.com/scrothers/aim/internal/presence"
 	"github.com/scrothers/aim/internal/store"
+	"github.com/scrothers/aim/internal/webui"
 	"github.com/scrothers/aim/internal/wire"
 )
 
@@ -43,12 +44,15 @@ type Addrs struct {
 
 // Config configures Run. Empty Socket, Listen or HTTP disable that listener.
 type Config struct {
-	DBPath          string
-	Socket          string
-	Listen          string
-	HTTP            string
-	Version         string
-	PreambleTimeout time.Duration
+	DBPath string
+	Socket string
+	Listen string
+	HTTP   string
+	// HTTPAllowedHosts extends the default Host header allowlist of the HTTP
+	// listener (localhost, loopback addresses and this machine's hostname).
+	HTTPAllowedHosts []string
+	Version          string
+	PreambleTimeout  time.Duration
 	// ShutdownTimeout bounds the wait for connections to drain on shutdown;
 	// zero means 10 seconds.
 	ShutdownTimeout time.Duration
@@ -152,7 +156,8 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) (err error) {
 		addrs.HTTP = l.Addr().String()
 		hs = &http.Server{
 			Handler: httpapi.New(httpapi.Deps{
-				Pinger: st, Mail: d.svc, Presence: d.reg, Version: cfg.Version, Logger: logger,
+				Pinger: st, Mail: d.svc, Presence: d.reg, Static: webui.FS(),
+				Version: cfg.Version, Logger: logger, AllowedHosts: cfg.HTTPAllowedHosts,
 			}),
 			ReadHeaderTimeout: 5 * time.Second,
 			ReadTimeout:       15 * time.Second,

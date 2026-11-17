@@ -35,10 +35,35 @@ func TestParseLevel(t *testing.T) {
 	}
 }
 
+func TestSplitList(t *testing.T) {
+	t.Parallel()
+	got := splitList(" a.lan, ,b.lan:9000,")
+	if len(got) != 2 || got[0] != "a.lan" || got[1] != "b.lan:9000" {
+		t.Errorf("splitList = %q", got)
+	}
+	if splitList("") != nil {
+		t.Error("empty list should be nil")
+	}
+}
+
+func TestOpenAPICmd(t *testing.T) {
+	t.Parallel()
+	root := newRootCmd()
+	var out strings.Builder
+	root.SetOut(&out)
+	root.SetArgs([]string{"openapi"})
+	if err := root.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), `"openapi":"3.1`) || !strings.Contains(out.String(), `"operationId":"getViews"`) {
+		t.Errorf("unexpected spec: %.200s", out.String())
+	}
+}
+
 func TestRootCmd(t *testing.T) {
 	t.Parallel()
 	root := newRootCmd()
-	if len(root.Commands()) != 2 {
+	if len(root.Commands()) != 3 {
 		t.Fatalf("commands = %d", len(root.Commands()))
 	}
 	root.SetArgs([]string{"daemon", "--log-level", "loud"})

@@ -5,14 +5,18 @@
 package mail_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -112,6 +116,36 @@ func (d *daemon) healthz() int {
 		return 0
 	}
 	defer resp.Body.Close()
+	return resp.StatusCode
+}
+
+// api calls the HTTP API, with the browser guard headers when guarded, and
+// decodes a JSON response into out (if non-nil). It returns the status code.
+func (d *daemon) api(ctx context.Context, method, path string, body any, guarded bool, out any) int {
+	var rd io.Reader = http.NoBody
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			return 0
+		}
+		rd = bytes.NewReader(b)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, "http://"+d.web+path, rd)
+	if err != nil {
+		return 0
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if guarded {
+		req.Header.Set("X-AIM-Request", "1")
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0
+	}
+	defer resp.Body.Close()
+	if out != nil && resp.StatusCode < 300 {
+		_ = json.NewDecoder(resp.Body).Decode(out)
+	}
 	return resp.StatusCode
 }
 
@@ -281,6 +315,38 @@ func TestMailFlow(t *testing.T) {
 	a.call(ctx, "search", map[string]any{"address": org, "query": "zebra"}, &hits)
 	if len(hits.Hits) == 0 || hits.Hits[0].MessageID != sent.ID {
 		t.Fatalf("search hits = %+v", hits.Hits)
+	}
+
+	// The agent escalates to the operator, who sees it over HTTP and replies.
+	var esc message
+	a.call(ctx, "send", map[string]any{
+		"to": []string{"operator"}, "subject": "need a decision", "body": "ship the **zebra** patch?",
+	}, &esc)
+	var inbox listOut
+	status := d.api(ctx, http.MethodGet, "/api/messages?address=operator", nil, true, &inbox)
+	if status != http.StatusOK || len(inbox.Items) != 1 || inbox.Items[0].ID != esc.ID {
+		t.Fatalf("operator inbox: status=%d items=%+v, want %s", status, inbox.Items, esc.ID)
+	}
+	var shown struct {
+		message
+		BodyHTML string `json:"body_html"`
+	}
+	if status := d.api(ctx, http.MethodGet, "/api/messages/"+esc.ID, nil, true, &shown); status != http.StatusOK ||
+		!strings.Contains(shown.BodyHTML, "<strong>zebra</strong>") || shown.From != coord {
+		t.Fatalf("operator message: status=%d %+v", status, shown)
+	}
+	req := map[string]any{"to": []string{coord}, "subject": "Re: need a decision", "body": "approved", "in_reply_to": esc.ID}
+	var opReply message
+	if status := d.api(ctx, http.MethodPost, "/api/messages", req, true, &opReply); status != http.StatusCreated || opReply.From != "operator" {
+		t.Fatalf("operator send: status=%d %+v", status, opReply)
+	}
+	var coordInbox listOut
+	a.call(ctx, "list", map[string]any{"address": coord}, &coordInbox)
+	if !slices.ContainsFunc(coordInbox.Items, func(h header) bool { return h.ID == opReply.ID && h.From == "operator" }) {
+		t.Fatalf("coordinator inbox = %+v, want %s", coordInbox.Items, opReply.ID)
+	}
+	if status := d.api(ctx, http.MethodPost, "/api/messages", req, false, nil); status != http.StatusForbidden {
+		t.Fatalf("POST without X-AIM-Request = %d, want 403", status)
 	}
 
 	// B's process exits; the daemon should notice and show reviewer offline.

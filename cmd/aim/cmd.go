@@ -7,10 +7,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/scrothers/aim/internal/daemon"
+	"github.com/scrothers/aim/internal/httpapi"
 	"github.com/scrothers/aim/internal/shim"
 )
 
@@ -66,7 +68,7 @@ func newRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	root.AddCommand(newDaemonCmd(), newMCPCmd())
+	root.AddCommand(newDaemonCmd(), newMCPCmd(), newOpenAPICmd())
 	return root
 }
 
@@ -96,8 +98,39 @@ func newDaemonCmd() *cobra.Command {
 	})), "unix socket path; empty disables (AIM_SOCKET)")
 	f.StringVar(&cfg.Listen, "listen", envSet("AIM_LISTEN", ":7171"), "TCP listen address; empty disables (AIM_LISTEN)")
 	f.StringVar(&cfg.HTTP, "http", envSet("AIM_HTTP", ":7172"), "HTTP listen address; empty disables (AIM_HTTP)")
+	f.StringSliceVar(&cfg.HTTPAllowedHosts, "http-allowed-hosts", splitList(os.Getenv("AIM_HTTP_ALLOWED_HOSTS")),
+		"extra Host header values the HTTP listener accepts, comma-separated (AIM_HTTP_ALLOWED_HOSTS)")
 	f.StringVar(&level, "log-level", "info", "log level: debug, info, warn, error")
 	return cmd
+}
+
+// splitList splits a comma-separated list, dropping blanks.
+func splitList(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func newOpenAPICmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "openapi",
+		Short: "Print the HTTP API's OpenAPI 3.1 document to stdout",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			spec, err := httpapi.OpenAPI(version())
+			if err != nil {
+				return err
+			}
+			if _, err := cmd.OutOrStdout().Write(append(spec, '\n')); err != nil {
+				return fmt.Errorf("write openapi: %w", err)
+			}
+			return nil
+		},
+	}
 }
 
 func newMCPCmd() *cobra.Command {
