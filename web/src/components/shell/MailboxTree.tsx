@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 import type { components } from '@/api/schema'
 import { ago, parseAddress } from '@/lib/identity'
 import { cn } from '@/lib/utils'
+import { PresenceDot } from '@/components/shared/PresenceDot'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { Sparkline } from '@/components/shared/Sparkline'
 
@@ -67,7 +68,7 @@ function Unread({ n }: { n: number }) {
   )
 }
 
-function IdentityRow({ node, indent }: { node: MailboxNode; indent: string }) {
+function IdentityRow({ node, indent, idle }: { node: MailboxNode; indent: string; idle?: ReadonlySet<string> }) {
   const name = parseAddress(node.address).identity ?? node.address
   return (
     <Link
@@ -80,11 +81,7 @@ function IdentityRow({ node, indent }: { node: MailboxNode; indent: string }) {
         node.retired && 'opacity-50',
       )}
     >
-      <span
-        role="img"
-        aria-label={node.online > 0 ? 'online' : 'offline'}
-        className={cn('size-2 shrink-0 rounded-full', node.online > 0 ? 'bg-online' : 'bg-border')}
-      />
+      <PresenceDot online={node.online > 0} idle={idle?.has(node.address)} />
       <RobotAvatar address={node.address} size={18} />
       <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-muted-foreground">{name}@</span>
       <span className="text-[11px] text-faint">{ago(node.last_activity)}</span>
@@ -93,7 +90,7 @@ function IdentityRow({ node, indent }: { node: MailboxNode; indent: string }) {
   )
 }
 
-export function MailboxTree({ orgs, now }: { orgs: ReadonlyArray<OrgNode>; now?: number }) {
+export function MailboxTree({ orgs, now, idle }: { orgs: ReadonlyArray<OrgNode>; now?: number; idle?: ReadonlySet<string> }) {
   const [query, setQuery] = useState('')
   // Repo/org expansion: explicit user choices override the defaults.
   const [repoOpen, setRepoOpen] = useState<Record<string, boolean>>({})
@@ -175,7 +172,7 @@ export function MailboxTree({ orgs, now }: { orgs: ReadonlyArray<OrgNode>; now?:
             {open && (
               <>
                 {identities.map((m) => (
-                  <IdentityRow key={m.address} node={m} indent="pl-3.5" />
+                  <IdentityRow key={m.address} node={m} indent="pl-3.5" idle={idle} />
                 ))}
                 {repos.map(({ repo, identities: ids }) => {
                   const ropen = filtering || (repoOpen[repo.address] ?? repo.unread > 0)
@@ -201,7 +198,7 @@ export function MailboxTree({ orgs, now }: { orgs: ReadonlyArray<OrgNode>; now?:
                           <Unread n={repo.unread} />
                         </Link>
                       </div>
-                      {ropen && ids.map((m) => <IdentityRow key={m.address} node={m} indent="pl-[34px]" />)}
+                      {ropen && ids.map((m) => <IdentityRow key={m.address} node={m} indent="pl-[34px]" idle={idle} />)}
                     </div>
                   )
                 })}

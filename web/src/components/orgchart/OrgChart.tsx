@@ -5,7 +5,7 @@ import { orgChartQuery, type OrgChartNode } from '@/api/roster'
 import { OPERATOR } from '@/lib/address'
 import { layoutOrgChart } from '@/lib/orgchart'
 import { parseAddress } from '@/lib/identity'
-import { cn } from '@/lib/utils'
+import { PresenceDot } from '@/components/shared/PresenceDot'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
 
 function NodeCard({ node }: { node: OrgChartNode }) {
@@ -16,11 +16,7 @@ function NodeCard({ node }: { node: OrgChartNode }) {
       <RobotAvatar address={node.address} size={32} />
       <span className="flex min-w-0 flex-col items-center gap-0.5">
         <span className="flex items-center gap-1.5">
-          <span
-            role="img"
-            aria-label={online.length ? 'online' : 'offline'}
-            className={cn('size-2 rounded-full border', online.length ? 'border-online bg-online' : 'border-faint bg-transparent')}
-          />
+          <PresenceDot online={online.length > 0} idle={online.length > 0 && online.every((o) => o.state === 'idle')} />
           <b className="truncate">{who.identity ?? node.address}</b>
         </span>
         <span className="max-w-full truncate font-mono text-xs text-muted-foreground">

@@ -21,6 +21,7 @@
   --online: #15803d;
   --online-soft: #dcfce7;
   --online-text: #14532d;
+  --idle: #b45309;
   --code: #f4f4f5;
   --hover: #f4f4f6;
 
@@ -59,6 +60,7 @@
   --online: #22c55e;
   --online-soft: #0f2a1a;
   --online-text: #86efac;
+  --idle: #fbbf24;
   --code: #1c1c22;
   --hover: #1b1b21;
   --destructive: #f87171;
@@ -115,6 +117,7 @@
   --color-online: var(--online);
   --color-online-soft: var(--online-soft);
   --color-online-text: var(--online-text);
+  --color-idle: var(--idle);
   --color-code: var(--code);
   --color-hover: var(--hover);
 

@@ -1,6 +1,7 @@
+import { useMemo } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Archive, CalendarDays, Circle, Inbox, Network, PenLine, Send, Users, type LucideIcon } from 'lucide-react'
-import { useTree, useViews } from '@/api/queries'
+import { Archive, CalendarDays, Circle, Inbox, Network, PenLine, Send, Settings, Users, type LucideIcon } from 'lucide-react'
+import { usePresence, useTree, useViews } from '@/api/queries'
 import { composeStore } from '@/lib/compose'
 import { cn } from '@/lib/utils'
 import { DaemonFooter } from './DaemonFooter'
@@ -43,6 +44,14 @@ function ViewLink({
 export function LeftNav() {
   const views = useViews().data
   const tree = useTree()
+  const presence = usePresence().data
+  const idle = useMemo(
+    () =>
+      new Set(
+        (presence?.groups ?? []).flatMap((g) => (g.buddies ?? []).filter((b) => b.online && b.state === 'idle').map((b) => b.address)),
+      ),
+    [presence],
+  )
   return (
     <nav aria-label="Mailboxes" className="box-border flex flex-[1_1_232px] flex-col gap-5 border-r bg-panel px-3 py-4">
       <button
@@ -61,7 +70,7 @@ export function LeftNav() {
         <ViewLink view="archived" label="Archived" icon={Archive} />
       </div>
       {tree.data ? (
-        <MailboxTree orgs={tree.data.orgs ?? []} />
+        <MailboxTree orgs={tree.data.orgs ?? []} idle={idle} />
       ) : (
         <p className="m-0 px-2.5 text-[13px] text-faint">{tree.isError ? 'Mailboxes unavailable.' : 'Loading…'}</p>
       )}
@@ -74,6 +83,10 @@ export function LeftNav() {
         <Link to="/org-chart" className={cn(rowCls, 'h-[34px]')}>
           <Network aria-hidden="true" className="size-4" />
           <span>Org chart</span>
+        </Link>
+        <Link to="/settings" className={cn(rowCls, 'h-[34px]')}>
+          <Settings aria-hidden="true" className="size-4" />
+          <span>Settings</span>
         </Link>
       </div>
       <DaemonFooter />

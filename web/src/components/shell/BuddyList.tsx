@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, Monitor } from 'lucide-react'
 import type { components } from '@/api/schema'
-import { clock, parseAddress, runtimeFor } from '@/lib/identity'
+import { ago, clock, parseAddress, runtimeFor } from '@/lib/identity'
 import { cn } from '@/lib/utils'
 import { PresenceDot } from '@/components/shared/PresenceDot'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
@@ -21,19 +21,26 @@ export function onlineTotal(groups: ReadonlyArray<Group>): number {
   return groups.filter((g) => !g.offline).reduce((n, g) => n + g.online, 0)
 }
 
+export function idleTotal(groups: ReadonlyArray<Group>): number {
+  return groups.filter((g) => !g.offline).reduce((n, g) => n + (g.idle ?? 0), 0)
+}
+
 function BuddyRow({ buddy }: { buddy: Buddy }) {
   const rt = runtimeFor(buddy.client)
+  const idle = buddy.online && buddy.state === 'idle'
   return (
     <li
       className={cn('flex flex-col gap-1 rounded-lg py-1 pr-1.5 pb-1.5 pl-5 hover:bg-hover', !buddy.online && 'opacity-55')}
       data-testid="buddy"
       data-online={buddy.online}
+      data-state={idle ? 'idle' : buddy.online ? 'online' : 'offline'}
     >
       <span className="flex min-w-0 items-center gap-2">
-        <PresenceDot online={buddy.online} />
+        <PresenceDot online={buddy.online} idle={idle} />
         <RobotAvatar address={buddy.address} size={24} />
         <span className="min-w-0 truncate font-semibold">{buddy.name}</span>
-        {buddy.online && <RuntimeBadge client={buddy.client} className="ml-auto" />}
+        {idle && <span className="shrink-0 text-[11px] text-idle">idle {ago(buddy.last_active).replace(/^now$/, '<5s')}</span>}
+        {buddy.online && <RuntimeBadge client={buddy.client} className={idle ? undefined : 'ml-auto'} />}
       </span>
       {buddy.online && (
         <span className="ml-4 flex min-w-0 items-center gap-1 text-[11px] leading-[14px] whitespace-nowrap text-faint">
@@ -97,7 +104,10 @@ export function BuddyList({ data }: { data: PresenceBody }) {
         >
           <Chev aria-hidden="true" className="size-3.5 text-faint" />
           <span className={g.offline ? undefined : 'font-mono text-xs'}>{g.offline ? g.name : groupLabel(g.name)}</span>
-          <span className="font-normal text-faint">({g.offline ? g.total || (g.buddies ?? []).length : `${g.online}/${g.total}`})</span>
+          <span className="font-normal text-faint">
+            ({g.offline ? g.total || (g.buddies ?? []).length : `${g.online}/${g.total}`}
+            {!g.offline && (g.idle ?? 0) > 0 && <span className="text-idle"> · {g.idle} idle</span>})
+          </span>
         </button>
         {open && (
           <ul id={id} className="m-0 flex list-none flex-col gap-2 p-0">
@@ -116,6 +126,7 @@ export function BuddyList({ data }: { data: PresenceBody }) {
         <h2 className="m-0 text-[15px] font-semibold">Buddy list</h2>
         <span className="ml-auto rounded-full bg-online-soft px-2 py-px text-xs font-semibold text-online-text">
           {onlineTotal(groups)} online
+          {idleTotal(groups) > 0 && ` · ${idleTotal(groups)} idle`}
         </span>
       </div>
       {online.map(renderGroup)}

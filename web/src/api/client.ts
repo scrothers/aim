@@ -39,6 +39,12 @@ interface ProblemBody {
   errors?: Array<{ location?: string; value?: unknown }> | null
 }
 
+/** For operations that answer 204: throws ApiError on failure, returns nothing. */
+export function unwrapVoid(res: { error?: unknown; response: Response }): void {
+  if (res.response.ok) return
+  unwrap({ error: res.error, response: res.response })
+}
+
 /** Unwraps an openapi-fetch result, throwing ApiError on failure. */
 export function unwrap<T>(res: { data?: T; error?: unknown; response: Response }): T {
   if (res.data !== undefined) return res.data

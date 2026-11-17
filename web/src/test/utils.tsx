@@ -5,7 +5,7 @@ import { RouterProvider, createMemoryHistory, createRootRoute, createRoute, crea
 /** Renders `ui` inside a memory router that knows the app's link targets. */
 export async function renderWithRouter(ui: ReactNode, initial = '/mail') {
   const root = createRootRoute({ component: () => <>{ui}</> })
-  const routes = ['/', '/mail', '/roster', '/org-chart'].map((path) =>
+  const routes = ['/', '/mail', '/roster', '/org-chart', '/settings', '/search'].map((path) =>
     createRoute({ getParentRoute: () => root, path, validateSearch: (s: Record<string, unknown>) => s }),
   )
   const router = createRouter({

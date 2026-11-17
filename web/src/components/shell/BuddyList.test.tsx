@@ -65,6 +65,22 @@ describe('BuddyList', () => {
     expect(buddyNames()).not.toContain('reviewer')
   })
 
+  it('marks idle buddies with an amber ring, idle age and group idle counts', () => {
+    const data = structuredClone(presenceFixture)
+    const g = data.groups![1]!
+    g.idle = 1
+    g.buddies![0]!.state = 'idle'
+    g.buddies![0]!.last_active = new Date(Date.now() - 25 * 60_000).toISOString()
+    render(<BuddyList data={data} />)
+    const row = screen.getAllByTestId('buddy').find((r) => r.textContent?.includes('reviewer'))!
+    expect(row).toHaveAttribute('data-state', 'idle')
+    expect(within(row as HTMLElement).getByRole('img', { name: 'idle' }).className).toContain('border-idle')
+    expect(within(row as HTMLElement).getByText('idle 25m')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^acme\/api\s*\(1\/2\s*·\s*1 idle\s*\)$/ })).toBeInTheDocument()
+    expect(screen.getByText('2 online · 1 idle')).toBeInTheDocument()
+    expect(screen.getByText('coordinator').closest('li')).toHaveAttribute('data-state', 'online')
+  })
+
   it('renders only sign-on/off events in the feed, newest first', () => {
     render(<BuddyList data={presenceFixture} />)
     const feed = screen.getAllByTestId('feed-event')
