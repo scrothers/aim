@@ -8,12 +8,15 @@ includes:
 vars:
   DEV_DIR: "{{.ROOT_DIR}}/.dev"
   DEV_SOCKET: "{{.DEV_DIR}}/aim.sock"
-  # Inspector bind address. Defaults to this host's primary IPv4 so it is
-  # reachable from the LAN; override with `task dev INSPECTOR_HOST=...`.
-  INSPECTOR_HOST:
+  # Dev services bind 0.0.0.0. These name this host for printed links, TLS
+  # SANs and Host/Origin allowlists; override with `task dev LAN_IP=...`.
+  LAN_IP:
     sh: hostname -I | awk '{print $1}'
-  INSPECTOR_FQDN:
+  FQDN:
     sh: hostname -f
+  DEV_HTTP_PORT: "17172"
+  DEV_MCP_PORT: "17171"
+  DEV_WEB_PORT: "5173"
   INSPECTOR_PORT: "6274"
   INSPECTOR_SANDBOX_PORT: "6275"
   # Pinned per run so the printed URL is known up front.
@@ -34,8 +37,28 @@ tasks:
       - go build -o bin/aim ./cmd/aim
 
   dev:
-    desc: Run a dev daemon (go run) plus the MCP web inspector, reachable remotely
-    deps: [dev:daemon, dev:inspector]
+    desc: Run dev daemon, Vite UI and MCP inspector on 0.0.0.0, printing every link
+    deps: [dev:links, dev:daemon, dev:web, dev:inspector]
+
+  dev:links:
+    desc: Print every dev URL (localhost, 127.0.0.1, LAN IP, FQDN)
+    silent: true
+    cmds:
+      - |
+        hosts="localhost 127.0.0.1 {{.LAN_IP}} {{.FQDN}}"
+        echo ""
+        echo "AIM web UI, Vite dev server with hot reload:"
+        for h in $hosts; do echo "  http://$h:{{.DEV_WEB_PORT}}/"; done
+        echo "AIM web UI, embedded in the daemon (run task web:build to refresh):"
+        for h in $hosts; do echo "  http://$h:{{.DEV_HTTP_PORT}}/"; done
+        echo "REST API docs:"
+        for h in $hosts; do echo "  http://$h:{{.DEV_HTTP_PORT}}/docs"; done
+        echo "MCP Inspector:"
+        for h in $hosts; do echo "  https://$h:{{.INSPECTOR_PORT}}/?MCP_INSPECTOR_API_TOKEN={{.INSPECTOR_TOKEN}}"; done
+        echo "MCP endpoint for agents (aim mcp):"
+        echo "  AIM_ADDR={{.DEV_SOCKET}}"
+        for h in $hosts; do echo "  AIM_ADDR=$h:{{.DEV_MCP_PORT}}"; done
+        echo ""
 
   dev:daemon:
     internal: true
@@ -45,17 +68,27 @@ tasks:
         go run ./cmd/aim daemon
         --db {{.DEV_DIR}}/aim.db
         --socket {{.DEV_SOCKET}}
-        --listen=
-        --http 127.0.0.1:17172
+        --listen 0.0.0.0:{{.DEV_MCP_PORT}}
+        --http 0.0.0.0:{{.DEV_HTTP_PORT}}
+        --http-allowed-hosts {{.LAN_IP}},{{.FQDN}}
         --log-level debug
+
+  dev:web:
+    internal: true
+    dir: web
+    env:
+      AIM_API_TARGET: "http://127.0.0.1:{{.DEV_HTTP_PORT}}"
+      AIM_DEV_ALLOWED_HOSTS: "{{.FQDN}}"
+    cmds:
+      - pnpm exec vite --host 0.0.0.0 --port {{.DEV_WEB_PORT}} --strictPort
 
   # The inspector UI needs a secure context (crypto.randomUUID), so it is
   # served over HTTPS with a self-signed cert for this host.
   dev:cert:
     internal: true
     vars:
-      CERT: "{{.DEV_DIR}}/tls-{{.INSPECTOR_HOST}}.crt"
-      KEY: "{{.DEV_DIR}}/tls-{{.INSPECTOR_HOST}}.key"
+      CERT: "{{.DEV_DIR}}/tls-{{.LAN_IP}}.crt"
+      KEY: "{{.DEV_DIR}}/tls-{{.LAN_IP}}.key"
     status:
       - test -f {{.CERT}} && test -f {{.KEY}}
     cmds:
@@ -64,25 +97,24 @@ tasks:
         openssl req -x509 -nodes -days 825
         -newkey ec -pkeyopt ec_paramgen_curve:prime256v1
         -keyout {{.KEY}} -out {{.CERT}}
-        -subj "/CN={{.INSPECTOR_FQDN}}"
-        -addext "subjectAltName=DNS:{{.INSPECTOR_FQDN}},DNS:localhost,IP:{{.INSPECTOR_HOST}},IP:127.0.0.1"
+        -subj "/CN={{.FQDN}}"
+        -addext "subjectAltName=DNS:{{.FQDN}},DNS:localhost,IP:{{.LAN_IP}},IP:127.0.0.1"
       - chmod 600 {{.KEY}}
 
   dev:inspector:
     internal: true
     deps: [dev:cert]
     env:
-      HOST: "{{.INSPECTOR_HOST}}"
+      HOST: "0.0.0.0"
       CLIENT_PORT: "{{.INSPECTOR_PORT}}"
       MCP_SANDBOX_PORT: "{{.INSPECTOR_SANDBOX_PORT}}"
-      INSPECTOR_TLS_CERT_PATH: "{{.DEV_DIR}}/tls-{{.INSPECTOR_HOST}}.crt"
-      INSPECTOR_TLS_KEY_PATH: "{{.DEV_DIR}}/tls-{{.INSPECTOR_HOST}}.key"
+      INSPECTOR_TLS_CERT_PATH: "{{.DEV_DIR}}/tls-{{.LAN_IP}}.crt"
+      INSPECTOR_TLS_KEY_PATH: "{{.DEV_DIR}}/tls-{{.LAN_IP}}.key"
       ALLOWED_ORIGINS: >-
-        https://{{.INSPECTOR_HOST}}:{{.INSPECTOR_PORT}},https://{{.INSPECTOR_FQDN}}:{{.INSPECTOR_PORT}},https://localhost:{{.INSPECTOR_PORT}},https://127.0.0.1:{{.INSPECTOR_PORT}}
+        https://{{.LAN_IP}}:{{.INSPECTOR_PORT}},https://{{.FQDN}}:{{.INSPECTOR_PORT}},https://localhost:{{.INSPECTOR_PORT}},https://127.0.0.1:{{.INSPECTOR_PORT}}
       MCP_INSPECTOR_API_TOKEN: "{{.INSPECTOR_TOKEN}}"
       MCP_AUTO_OPEN_ENABLED: "false"
     cmds:
-      - echo "Inspector → https://{{.INSPECTOR_FQDN}}:{{.INSPECTOR_PORT}}/?MCP_INSPECTOR_API_TOKEN={{.INSPECTOR_TOKEN}}"
       - >-
         npx -y @modelcontextprotocol/inspector
         --cwd {{.ROOT_DIR}}
