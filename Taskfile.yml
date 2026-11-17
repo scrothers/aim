@@ -1,5 +1,20 @@
 version: "3"
 
+vars:
+  DEV_DIR: "{{.ROOT_DIR}}/.dev"
+  DEV_SOCKET: "{{.DEV_DIR}}/aim.sock"
+  # Inspector bind address. Defaults to this host's primary IPv4 so it is
+  # reachable from the LAN; override with `task dev INSPECTOR_HOST=...`.
+  INSPECTOR_HOST:
+    sh: hostname -I | awk '{print $1}'
+  INSPECTOR_FQDN:
+    sh: hostname -f
+  INSPECTOR_PORT: "6274"
+  INSPECTOR_SANDBOX_PORT: "6275"
+  # Pinned per run so the printed URL is known up front.
+  INSPECTOR_TOKEN:
+    sh: openssl rand -hex 24
+
 tasks:
   default:
     desc: List tasks
@@ -11,6 +26,62 @@ tasks:
     cmds:
       - mkdir -p bin
       - go build -o bin/aim ./cmd/aim
+
+  dev:
+    desc: Run a dev daemon (go run) plus the MCP web inspector, reachable remotely
+    deps: [dev:daemon, dev:inspector]
+
+  dev:daemon:
+    internal: true
+    cmds:
+      - mkdir -p {{.DEV_DIR}}
+      - >-
+        go run ./cmd/aim daemon
+        --db {{.DEV_DIR}}/aim.db
+        --socket {{.DEV_SOCKET}}
+        --listen=
+        --http 127.0.0.1:17172
+        --log-level debug
+
+  # The inspector UI needs a secure context (crypto.randomUUID), so it is
+  # served over HTTPS with a self-signed cert for this host.
+  dev:cert:
+    internal: true
+    vars:
+      CERT: "{{.DEV_DIR}}/tls-{{.INSPECTOR_HOST}}.crt"
+      KEY: "{{.DEV_DIR}}/tls-{{.INSPECTOR_HOST}}.key"
+    status:
+      - test -f {{.CERT}} && test -f {{.KEY}}
+    cmds:
+      - mkdir -p {{.DEV_DIR}}
+      - >-
+        openssl req -x509 -nodes -days 825
+        -newkey ec -pkeyopt ec_paramgen_curve:prime256v1
+        -keyout {{.KEY}} -out {{.CERT}}
+        -subj "/CN={{.INSPECTOR_FQDN}}"
+        -addext "subjectAltName=DNS:{{.INSPECTOR_FQDN}},DNS:localhost,IP:{{.INSPECTOR_HOST}},IP:127.0.0.1"
+      - chmod 600 {{.KEY}}
+
+  dev:inspector:
+    internal: true
+    deps: [dev:cert]
+    env:
+      HOST: "{{.INSPECTOR_HOST}}"
+      CLIENT_PORT: "{{.INSPECTOR_PORT}}"
+      MCP_SANDBOX_PORT: "{{.INSPECTOR_SANDBOX_PORT}}"
+      INSPECTOR_TLS_CERT_PATH: "{{.DEV_DIR}}/tls-{{.INSPECTOR_HOST}}.crt"
+      INSPECTOR_TLS_KEY_PATH: "{{.DEV_DIR}}/tls-{{.INSPECTOR_HOST}}.key"
+      ALLOWED_ORIGINS: >-
+        https://{{.INSPECTOR_HOST}}:{{.INSPECTOR_PORT}},https://{{.INSPECTOR_FQDN}}:{{.INSPECTOR_PORT}},https://localhost:{{.INSPECTOR_PORT}},https://127.0.0.1:{{.INSPECTOR_PORT}}
+      MCP_INSPECTOR_API_TOKEN: "{{.INSPECTOR_TOKEN}}"
+      MCP_AUTO_OPEN_ENABLED: "false"
+    cmds:
+      - echo "Inspector → https://{{.INSPECTOR_FQDN}}:{{.INSPECTOR_PORT}}/?MCP_INSPECTOR_API_TOKEN={{.INSPECTOR_TOKEN}}"
+      - >-
+        npx -y @modelcontextprotocol/inspector
+        --cwd {{.ROOT_DIR}}
+        -e AIM_ADDR={{.DEV_SOCKET}}
+        go run ./cmd/aim mcp
 
   gen:
     desc: Generate sqlc code

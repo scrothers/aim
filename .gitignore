@@ -1,4 +1,6 @@
 bin/
+.claude/
+.dev/
 coverage.out
 coverage.html
 *.coverprofile
