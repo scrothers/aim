@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Archive, CalendarDays, Circle, FolderTree, Inbox, Keyboard, Mail, Moon, PenLine, Send } from 'lucide-react'
+import { Archive, CalendarDays, Circle, FolderTree, Inbox, Keyboard, Mail, Moon, PenLine, Search, Send } from 'lucide-react'
 import { rosterQuery, searchQuery } from '@/api/mail'
 import { useTree } from '@/api/queries'
 import { composeStore } from '@/lib/compose'
@@ -66,6 +66,14 @@ export function CommandPalette() {
       <CommandInput placeholder="Search mail, mailboxes and agents" value={text} onValueChange={setText} />
       <CommandList>
         {!(term.length >= 2 && hits.length > 0) && <CommandEmpty>No results.</CommandEmpty>}
+        {text.trim() !== '' && (
+          <CommandGroup heading="Search" forceMount>
+            <CommandItem forceMount value="search all mail" onSelect={go(() => void navigate({ to: '/search', search: { q: text.trim() } }))}>
+              <Search aria-hidden="true" />
+              <span className="truncate">Search all mail for “{text.trim()}”</span>
+            </CommandItem>
+          </CommandGroup>
+        )}
         {term.length >= 2 && hits.length > 0 && (
           // forceMount on the group too: cmdk hides a group whose items all
           // fail its text filter, even when the items are force-mounted.

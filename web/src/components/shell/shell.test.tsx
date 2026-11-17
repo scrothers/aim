@@ -113,6 +113,15 @@ describe('CommandPalette', () => {
     expect(screen.getByTestId('loc').textContent).toContain('"mailbox":"operator"')
   })
 
+  it('offers Search all mail and opens the search page with the query', async () => {
+    const user = userEvent.setup()
+    await setup()
+    act(() => paletteFlag.set(true))
+    await user.type(await screen.findByPlaceholderText(/Search mail/), 'zebra')
+    await user.click(await screen.findByText(/Search all mail for/))
+    await waitFor(() => expect(screen.getByTestId('loc').textContent).toBe('/search{"q":"zebra"}'))
+  })
+
   it('runs the Compose action', async () => {
     const user = userEvent.setup()
     await setup()

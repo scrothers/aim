@@ -58,3 +58,13 @@ export const useTree = () => useQuery(treeQuery())
 export const usePresence = () => useQuery(presenceQuery())
 export const useStats = () => useQuery(statsQuery())
 export const useHealth = () => useQuery(healthQuery())
+
+/** Every mailbox address in the tree (orgs, repos and identities), for autocomplete. */
+export function useMailboxAddresses(): string[] {
+  const tree = useTree().data
+  return (tree?.orgs ?? []).flatMap((o) => [
+    o.address,
+    ...(o.identities ?? []).map((i) => i.address),
+    ...(o.repos ?? []).flatMap((r) => [r.address, ...(r.identities ?? []).map((i) => i.address)]),
+  ])
+}

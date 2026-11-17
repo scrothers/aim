@@ -76,3 +76,20 @@ export function useDeleteFilter() {
     onError: fail,
   })
 }
+
+/** Saved searches carry a `q`; they open the search page instead of /mail. */
+export const isSearchFilter = (p: FilterParams) => !!p.q
+
+const SEARCH_STATES = ['inbox', 'unread', 'archived', 'all'] as const
+
+export function searchFromParams(p: FilterParams) {
+  const state = SEARCH_STATES.find((s) => s === p.state)
+  return {
+    q: p.q,
+    ...(p.scope ? { scope: p.scope } : {}),
+    ...(p.from ? { from: p.from } : {}),
+    ...(p.since ? { since: p.since } : {}),
+    ...(p.until ? { until: p.until } : {}),
+    ...(state ? { state } : {}),
+  }
+}

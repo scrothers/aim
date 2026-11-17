@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as MailRouteImport } from './routes/mail'
 import { Route as OrgChartRouteImport } from './routes/org-chart'
 import { Route as RosterRouteImport } from './routes/roster'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as SettingsRouteImport } from './routes/settings'
 
 const IndexRoute = IndexRouteImport.update({
@@ -35,6 +36,11 @@ const RosterRoute = RosterRouteImport.update({
   path: '/roster',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/mail': typeof MailRoute
   '/org-chart': typeof OrgChartRoute
   '/roster': typeof RosterRoute
+  '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/mail': typeof MailRoute
   '/org-chart': typeof OrgChartRoute
   '/roster': typeof RosterRoute
+  '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRoutesById {
@@ -61,14 +69,22 @@ export interface FileRoutesById {
   '/mail': typeof MailRoute
   '/org-chart': typeof OrgChartRoute
   '/roster': typeof RosterRoute
+  '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/mail' | '/org-chart' | '/roster' | '/settings'
+  fullPaths: '/' | '/mail' | '/org-chart' | '/roster' | '/search' | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/mail' | '/org-chart' | '/roster' | '/settings'
-  id: '__root__' | '/' | '/mail' | '/org-chart' | '/roster' | '/settings'
+  to: '/' | '/mail' | '/org-chart' | '/roster' | '/search' | '/settings'
+  id:
+    | '__root__'
+    | '/'
+    | '/mail'
+    | '/org-chart'
+    | '/roster'
+    | '/search'
+    | '/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,6 +92,7 @@ export interface RootRouteChildren {
   MailRoute: typeof MailRoute
   OrgChartRoute: typeof OrgChartRoute
   RosterRoute: typeof RosterRoute
+  SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRoute
 }
 
@@ -109,6 +126,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RosterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -124,6 +148,7 @@ const rootRouteChildren: RootRouteChildren = {
   MailRoute: MailRoute,
   OrgChartRoute: OrgChartRoute,
   RosterRoute: RosterRoute,
+  SearchRoute: SearchRoute,
   SettingsRoute: SettingsRoute,
 }
 export const routeTree = rootRouteImport

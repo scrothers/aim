@@ -161,3 +161,55 @@ export const searchQuery = (q: string) =>
     refetchInterval: false,
     retry: false,
   })
+
+export type SearchHit = components['schemas']['SearchHitView']
+export type SearchState = 'inbox' | 'unread' | 'archived' | 'all'
+
+/** Search page filters; since/until are local calendar dates (YYYY-MM-DD). */
+export interface SearchPageParams {
+  q: string
+  scope?: string
+  from?: string
+  since?: string
+  until?: string
+  state?: SearchState
+}
+
+/** Start of a local calendar day as RFC 3339. */
+function dayStart(date: string, plusDays = 0): string | undefined {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)
+  if (!m) return undefined
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + plusDays).toISOString()
+}
+
+export const searchPageQuery = (p: SearchPageParams) =>
+  infiniteQueryOptions({
+    queryKey: ['search-page', p],
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam }) => {
+      const since = p.since ? dayStart(p.since) : undefined
+      // The end date is inclusive: search up to the start of the next day.
+      const until = p.until ? dayStart(p.until, 1) : undefined
+      return unwrap(
+        await api.GET('/api/search', {
+          params: {
+            query: {
+              q: p.q,
+              limit: 20,
+              ...(p.scope ? { address: p.scope } : {}),
+              ...(p.from ? { from: p.from } : {}),
+              ...(since ? { since } : {}),
+              ...(until ? { until } : {}),
+              ...(p.state ? { state: p.state } : {}),
+              ...(pageParam ? { cursor: pageParam } : {}),
+            },
+          },
+        }),
+      )
+    },
+    getNextPageParam: (last) => last.next_cursor || undefined,
+    enabled: p.q.trim() !== '',
+    staleTime: 10_000,
+    refetchInterval: false,
+    retry: false,
+  })

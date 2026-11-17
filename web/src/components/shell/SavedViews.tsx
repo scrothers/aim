@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Bookmark, MoreHorizontal } from 'lucide-react'
-import { filtersQuery, mailSearchFromParams, useDeleteFilter, useRenameFilter, type SavedFilter } from '@/api/filters'
+import { Bookmark, MoreHorizontal, Search } from 'lucide-react'
+import { filtersQuery, isSearchFilter, mailSearchFromParams, searchFromParams, useDeleteFilter, useRenameFilter, type SavedFilter } from '@/api/filters'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -12,10 +12,19 @@ const rowCls =
   'flex h-8 min-w-0 flex-1 items-center gap-2.5 rounded-md px-2.5 text-muted-foreground hover:bg-hover data-[status=active]:bg-accent-soft data-[status=active]:font-semibold data-[status=active]:text-accent-text'
 
 function FilterLink({ filter }: { filter: SavedFilter }) {
-  return (
-    <Link to="/mail" search={mailSearchFromParams(filter.params)} className={rowCls}>
-      <Bookmark aria-hidden="true" className="size-4 shrink-0" />
+  const body = (
+    <>
+      {isSearchFilter(filter.params) ? <Search aria-hidden="true" className="size-4 shrink-0" /> : <Bookmark aria-hidden="true" className="size-4 shrink-0" />}
       <span className="min-w-0 flex-1 truncate">{filter.name}</span>
+    </>
+  )
+  return isSearchFilter(filter.params) ? (
+    <Link to="/search" search={searchFromParams(filter.params)} className={rowCls}>
+      {body}
+    </Link>
+  ) : (
+    <Link to="/mail" search={mailSearchFromParams(filter.params)} className={rowCls}>
+      {body}
     </Link>
   )
 }

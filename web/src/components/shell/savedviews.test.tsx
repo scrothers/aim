@@ -66,3 +66,15 @@ describe('saved views', () => {
     expect(mailSearchFromParams({ view: 'bogus', state: 'nope' })).toEqual({})
   })
 })
+
+describe('saved searches', () => {
+  it('opens the search page with the saved params', async () => {
+    mocks.GET.mockImplementation(async () => ok({ items: [{ id: 's1', name: 'Zebra', params: { q: 'zebrafish', scope: 'operator', state: 'bogus' } }] }))
+    await mount()
+    const href = (await screen.findByRole('link', { name: 'Zebra' })).getAttribute('href')!
+    expect(href).toContain('/search')
+    expect(href).toContain('q=zebrafish')
+    expect(href).toContain('scope=operator')
+    expect(href).not.toContain('state=')
+  })
+})
