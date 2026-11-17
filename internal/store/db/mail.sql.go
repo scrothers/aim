@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const countDeliveriesSince = `-- name: CountDeliveriesSince :one
+SELECT COUNT(*) FROM deliveries d JOIN messages m ON m.id = d.message_id WHERE m.created_at >= ?1
+`
+
+func (q *Queries) CountDeliveriesSince(ctx context.Context, since int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countDeliveriesSince, since)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countMessages = `-- name: CountMessages :one
 SELECT COUNT(*) FROM messages
 `

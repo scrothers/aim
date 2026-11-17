@@ -26,6 +26,7 @@ WHERE mb.host = @host AND mb.org = @org
   AND CASE CAST(@state AS TEXT)
         WHEN 'unread' THEN d.read_at IS NULL AND d.archived_at IS NULL
         WHEN 'read' THEN d.read_at IS NOT NULL AND d.archived_at IS NULL
+        WHEN 'inbox' THEN d.archived_at IS NULL
         WHEN 'archived' THEN d.archived_at IS NOT NULL
         ELSE 1
       END
@@ -49,6 +50,7 @@ WHERE mb.host = @host AND mb.org = @org AND mb.repo = @repo
   AND CASE CAST(@state AS TEXT)
         WHEN 'unread' THEN d.read_at IS NULL AND d.archived_at IS NULL
         WHEN 'read' THEN d.read_at IS NOT NULL AND d.archived_at IS NULL
+        WHEN 'inbox' THEN d.archived_at IS NULL
         WHEN 'archived' THEN d.archived_at IS NOT NULL
         ELSE 1
       END
@@ -72,6 +74,7 @@ WHERE mb.host = @host AND mb.org = @org AND mb.repo = @repo AND mb.identity = @i
   AND CASE CAST(@state AS TEXT)
         WHEN 'unread' THEN d.read_at IS NULL AND d.archived_at IS NULL
         WHEN 'read' THEN d.read_at IS NOT NULL AND d.archived_at IS NULL
+        WHEN 'inbox' THEN d.archived_at IS NULL
         WHEN 'archived' THEN d.archived_at IS NOT NULL
         ELSE 1
       END
@@ -96,6 +99,7 @@ WHERE mb.host = @host AND mb.org = @org AND mb.repo = @repo AND mb.identity = @i
   AND CASE CAST(@state AS TEXT)
         WHEN 'unread' THEN d.read_at IS NULL AND d.archived_at IS NULL
         WHEN 'read' THEN d.read_at IS NOT NULL AND d.archived_at IS NULL
+        WHEN 'inbox' THEN d.archived_at IS NULL
         WHEN 'archived' THEN d.archived_at IS NOT NULL
         ELSE 1
       END
@@ -134,6 +138,7 @@ WHERE (CAST(sqlc.narg('from_mailbox') AS TEXT) IS NULL OR m.from_mailbox = sqlc.
   AND CASE CAST(@state AS TEXT)
         WHEN 'unread' THEN d.read_at IS NULL AND d.archived_at IS NULL
         WHEN 'read' THEN d.read_at IS NOT NULL AND d.archived_at IS NULL
+        WHEN 'inbox' THEN d.archived_at IS NULL
         WHEN 'archived' THEN d.archived_at IS NOT NULL
         ELSE 1
       END

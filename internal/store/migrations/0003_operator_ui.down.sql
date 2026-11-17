@@ -2,7 +2,16 @@ PRAGMA foreign_keys = OFF;
 
 BEGIN;
 
+-- Remove everything the operator mailbox owns, in FK order. The messages_ad
+-- trigger (0002) keeps messages_fts in step with the message deletes.
+DELETE FROM deliveries WHERE message_id IN (
+    SELECT id FROM messages WHERE from_mailbox IN (SELECT id FROM mailboxes WHERE kind = 'operator')
+);
 DELETE FROM deliveries WHERE mailbox_id IN (SELECT id FROM mailboxes WHERE kind = 'operator');
+UPDATE messages SET in_reply_to = NULL WHERE in_reply_to IN (
+    SELECT id FROM messages WHERE from_mailbox IN (SELECT id FROM mailboxes WHERE kind = 'operator')
+);
+DELETE FROM messages WHERE from_mailbox IN (SELECT id FROM mailboxes WHERE kind = 'operator');
 DELETE FROM mailboxes WHERE kind = 'operator';
 
 CREATE TABLE mailboxes_old (

@@ -326,6 +326,7 @@ func TestInboxFiltersStatesPagination(t *testing.T) {
 	eq(t, inbox(t, s, store.InboxParams{State: "unread"}), []string{"msg-5", "msg-4"})
 	eq(t, inbox(t, s, store.InboxParams{State: "read"}), []string{"msg-1"})
 	eq(t, inbox(t, s, store.InboxParams{State: "archived"}), []string{"msg-3", "msg-2"})
+	eq(t, inbox(t, s, store.InboxParams{State: "inbox"}), []string{"msg-5", "msg-4", "msg-1"})
 	eq(t, inbox(t, s, store.InboxParams{State: "all"}), []string{"msg-5", "msg-4", "msg-3", "msg-2", "msg-1"})
 
 	// Clear queries restore state.
@@ -770,6 +771,67 @@ func TestMigration0003PreservesData(t *testing.T) {
 	}
 }
 
+func TestMigration0003DownRemovesOperatorMail(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "new.db")
+	h := rawHandle(t, path)
+	h.SetMaxOpenConns(1)
+	run := func(files ...string) {
+		t.Helper()
+		for _, f := range files {
+			b, err := os.ReadFile(filepath.Join("migrations", f))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := h.ExecContext(ctx, string(b)); err != nil {
+				t.Fatalf("%s: %v", f, err)
+			}
+		}
+	}
+	run("0001_init.up.sql", "0002_fts.up.sql", "0003_operator_ui.up.sql")
+	for _, q := range []string{
+		`INSERT INTO mailboxes (id, host, org, identity, kind, created_at) VALUES
+		   ('mbx-a','h','acme','alice','identity',1), ('mbx-op','','','operator','operator',2)`,
+		`INSERT INTO messages (id, thread_id, from_mailbox, subject, body, created_at, from_client, from_machine) VALUES
+		   ('msg-op','msg-op','mbx-op','zebra','stripes',5,'aim-web','devbox'),
+		   ('msg-a','msg-op','mbx-a','re','reply',6,'','')`,
+		`UPDATE messages SET in_reply_to = 'msg-op' WHERE id = 'msg-a'`,
+		`INSERT INTO deliveries (message_id, mailbox_id, kind) VALUES ('msg-op','mbx-a','to'), ('msg-a','mbx-op','to')`,
+	} {
+		if _, err := h.ExecContext(ctx, q); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	run("0003_operator_ui.down.sql")
+
+	var msgs, dels, boxes, fts int
+	for q, dst := range map[string]*int{
+		`SELECT COUNT(*) FROM messages`:                                      &msgs,
+		`SELECT COUNT(*) FROM deliveries`:                                    &dels,
+		`SELECT COUNT(*) FROM mailboxes`:                                     &boxes,
+		`SELECT COUNT(*) FROM messages_fts WHERE messages_fts MATCH 'zebra'`: &fts,
+	} {
+		if err := h.QueryRowContext(ctx, q).Scan(dst); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	if msgs != 1 || dels != 0 || boxes != 1 || fts != 0 {
+		t.Errorf("messages=%d deliveries=%d mailboxes=%d fts=%d, want 1 0 1 0", msgs, dels, boxes, fts)
+	}
+	fk, err := h.QueryContext(ctx, `PRAGMA foreign_key_check`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fk.Next() {
+		t.Error("foreign_key_check reported violations after down")
+	}
+	_ = fk.Close()
+
+	// Up again works on the downgraded database.
+	run("0003_operator_ui.up.sql")
+}
+
 func TestAggregatesAndRetire(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -804,6 +866,10 @@ func TestAggregatesAndRetire(t *testing.T) {
 	}
 	if n, err := q.CountMessagesSince(ctx, 86400000*4); err != nil || n != 1 {
 		t.Errorf("since = %d, %v", n, err)
+	}
+	// msg-1 has two deliveries but is older than the cutoff; msg-2 has one.
+	if n, err := q.CountDeliveriesSince(ctx, 86400000*3); err != nil || n != 3 {
+		t.Errorf("deliveries since = %d, %v", n, err)
 	}
 	if size, err := s.Size(ctx); err != nil || size <= 0 {
 		t.Errorf("size = %d, %v", size, err)

@@ -133,6 +133,7 @@ WHERE (CAST(?1 AS TEXT) IS NULL OR m.from_mailbox = ?1)
   AND CASE CAST(?6 AS TEXT)
         WHEN 'unread' THEN d.read_at IS NULL AND d.archived_at IS NULL
         WHEN 'read' THEN d.read_at IS NOT NULL AND d.archived_at IS NULL
+        WHEN 'inbox' THEN d.archived_at IS NULL
         WHEN 'archived' THEN d.archived_at IS NOT NULL
         ELSE 1
       END
@@ -234,6 +235,7 @@ WHERE mb.host = ?1 AND mb.org = ?2 AND mb.repo = ?3 AND mb.identity = ?4
   AND CASE CAST(?10 AS TEXT)
         WHEN 'unread' THEN d.read_at IS NULL AND d.archived_at IS NULL
         WHEN 'read' THEN d.read_at IS NOT NULL AND d.archived_at IS NULL
+        WHEN 'inbox' THEN d.archived_at IS NULL
         WHEN 'archived' THEN d.archived_at IS NOT NULL
         ELSE 1
       END
@@ -343,6 +345,7 @@ WHERE mb.host = ?1 AND mb.org = ?2
   AND CASE CAST(?8 AS TEXT)
         WHEN 'unread' THEN d.read_at IS NULL AND d.archived_at IS NULL
         WHEN 'read' THEN d.read_at IS NOT NULL AND d.archived_at IS NULL
+        WHEN 'inbox' THEN d.archived_at IS NULL
         WHEN 'archived' THEN d.archived_at IS NOT NULL
         ELSE 1
       END
@@ -448,6 +451,7 @@ WHERE mb.host = ?1 AND mb.org = ?2 AND mb.repo = ?3
   AND CASE CAST(?9 AS TEXT)
         WHEN 'unread' THEN d.read_at IS NULL AND d.archived_at IS NULL
         WHEN 'read' THEN d.read_at IS NOT NULL AND d.archived_at IS NULL
+        WHEN 'inbox' THEN d.archived_at IS NULL
         WHEN 'archived' THEN d.archived_at IS NOT NULL
         ELSE 1
       END
@@ -556,6 +560,7 @@ WHERE mb.host = ?1 AND mb.org = ?2 AND mb.repo = ?3 AND mb.identity = ?4
   AND CASE CAST(?11 AS TEXT)
         WHEN 'unread' THEN d.read_at IS NULL AND d.archived_at IS NULL
         WHEN 'read' THEN d.read_at IS NOT NULL AND d.archived_at IS NULL
+        WHEN 'inbox' THEN d.archived_at IS NULL
         WHEN 'archived' THEN d.archived_at IS NOT NULL
         ELSE 1
       END
