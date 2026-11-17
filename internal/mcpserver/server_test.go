@@ -152,7 +152,7 @@ func TestInstructionsEmbedded(t *testing.T) {
 	if got == "" || got != promptFile(t, "prompts/instructions.md") {
 		t.Fatalf("initialize instructions = %q, want prompts/instructions.md", got)
 	}
-	if !strings.Contains(got, `send to the address "operator"`) {
+	if !strings.Contains(got, "by sending to `operator`") {
 		t.Errorf("instructions lost the operator escalation guidance")
 	}
 }
