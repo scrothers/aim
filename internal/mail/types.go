@@ -1,0 +1,174 @@
+package mail
+
+import (
+	"time"
+
+	"github.com/scrothers/aim/internal/address"
+)
+
+// Presence reports which sessions are currently signed on as an identity.
+type Presence interface {
+	Online(identity address.Address) []OnlineStatus
+}
+
+// OnlineStatus describes one signed-on session of an identity.
+type OnlineStatus struct {
+	SessionID  string    `json:"session_id"`
+	Machine    string    `json:"machine"`
+	Away       string    `json:"away,omitempty"`
+	SignedOnAt time.Time `json:"signed_on_at"`
+}
+
+// Identity is a registered identity mailbox.
+type Identity struct {
+	Address     string    `json:"address"`
+	Role        string    `json:"role"`
+	Description string    `json:"description"`
+	ReportsTo   string    `json:"reports_to,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+// RegisterInput is the argument of Service.Register.
+type RegisterInput struct {
+	Address     string
+	Role        string
+	Description string
+	ReportsTo   string
+}
+
+// RosterEntry is one identity in a roster listing.
+type RosterEntry struct {
+	Address     string         `json:"address"`
+	Role        string         `json:"role"`
+	Description string         `json:"description"`
+	ReportsTo   string         `json:"reports_to,omitempty"`
+	Online      []OnlineStatus `json:"online"`
+	Subagents   []string       `json:"subagents"`
+}
+
+// SendInput is the argument of Service.Send.
+type SendInput struct {
+	To        []string
+	Cc        []string
+	Subject   string
+	Body      string
+	InReplyTo string
+	Subagent  string
+	ReplyAll  bool
+}
+
+// Message is a full message with its recipients.
+type Message struct {
+	ID        string    `json:"id"`
+	ThreadID  string    `json:"thread_id"`
+	InReplyTo string    `json:"in_reply_to,omitempty"`
+	From      string    `json:"from"`
+	Subject   string    `json:"subject"`
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"created_at"`
+	To        []string  `json:"to"`
+	Cc        []string  `json:"cc"`
+}
+
+// Header is a message summary as delivered to one mailbox.
+type Header struct {
+	ID         string     `json:"id"`
+	ThreadID   string     `json:"thread_id"`
+	InReplyTo  string     `json:"in_reply_to,omitempty"`
+	From       string     `json:"from"`
+	Subject    string     `json:"subject"`
+	CreatedAt  time.Time  `json:"created_at"`
+	To         []string   `json:"to"`
+	Cc         []string   `json:"cc"`
+	Mailbox    string     `json:"mailbox"`
+	Kind       string     `json:"kind"`
+	ReadAt     *time.Time `json:"read_at,omitempty"`
+	ArchivedAt *time.Time `json:"archived_at,omitempty"`
+}
+
+// List states.
+const (
+	StateUnread   = "unread"
+	StateRead     = "read"
+	StateArchived = "archived"
+	StateAll      = "all"
+)
+
+// Limits.
+const (
+	DefaultListLimit = 50
+	MaxListLimit     = 200
+	MaxSubjectRunes  = 200
+	MaxBodyBytes     = 65536
+)
+
+// ListInput is the argument of Service.List.
+type ListInput struct {
+	Address string
+	State   string
+	From    string
+	Since   *time.Time
+	Until   *time.Time
+	Limit   int
+	Cursor  string
+}
+
+// ListResult is one page of headers, newest first.
+type ListResult struct {
+	Items      []Header `json:"items"`
+	NextCursor string   `json:"next_cursor,omitempty"`
+}
+
+// ReadInput is the argument of Service.Read.
+type ReadInput struct {
+	MessageID string
+	Subagent  string
+	Peek      bool
+}
+
+// Mark states.
+const (
+	MarkRead       = "read"
+	MarkUnread     = "unread"
+	MarkArchived   = "archived"
+	MarkUnarchived = "unarchived"
+)
+
+// MarkInput is the argument of Service.Mark.
+type MarkInput struct {
+	MessageIDs []string
+	State      string
+	Subagent   string
+}
+
+// Search limits.
+const (
+	DefaultSearchLimit = 20
+	MaxSearchLimit     = 100
+)
+
+// SearchInput is the argument of Service.Search. Cursor is an opaque offset.
+type SearchInput struct {
+	Address string
+	Query   string
+	Limit   int
+	Cursor  string
+}
+
+// Hit is one ranked search result.
+type Hit struct {
+	MessageID string    `json:"message_id"`
+	ThreadID  string    `json:"thread_id"`
+	Subject   string    `json:"subject"`
+	Snippet   string    `json:"snippet"`
+	From      string    `json:"from"`
+	Mailbox   string    `json:"mailbox"`
+	CreatedAt time.Time `json:"created_at"`
+	Rank      float64   `json:"rank"`
+}
+
+// SearchResult is one page of hits, best first.
+type SearchResult struct {
+	Hits       []Hit  `json:"hits"`
+	NextCursor string `json:"next_cursor,omitempty"`
+}
