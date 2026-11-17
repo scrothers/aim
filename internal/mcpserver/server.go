@@ -18,14 +18,21 @@ import (
 // New returns an MCP server for one connection. Handlers act on behalf of
 // conn, whose preamble and sign-on state identify the caller.
 func New(svc *mail.Service, conn *presence.Entry, version string, opts ...Option) *mcp.Server {
-	srv := mcp.NewServer(
-		&mcp.Implementation{Name: "aim", Version: version},
-		&mcp.ServerOptions{Instructions: instructions()},
-	)
 	h := &handlers{svc: svc, conn: conn, progressInterval: defaultProgressInterval}
+	h.subs.debounce = defaultSubscribeDebounce
 	for _, o := range opts {
 		o(h)
 	}
+	srv := mcp.NewServer(
+		&mcp.Implementation{Name: "aim", Version: version},
+		&mcp.ServerOptions{
+			Instructions:       instructions(),
+			SubscribeHandler:   h.subscribe,
+			UnsubscribeHandler: h.unsubscribe,
+		},
+	)
+	h.srv = srv
+	h.registerResources(srv)
 	srv.AddReceivingMiddleware(h.captureClient)
 	// Descriptions live in prompts/tools/<name>.md (see prompts.go).
 	tool := func(name string) *mcp.Tool { return &mcp.Tool{Name: name, Description: toolDescription(name)} }
@@ -63,8 +70,10 @@ func WithProgressInterval(d time.Duration) Option {
 type handlers struct {
 	svc              *mail.Service
 	conn             *presence.Entry
+	srv              *mcp.Server
 	progressInterval time.Duration
 	clientSeen       atomic.Bool
+	subs             subscriptions
 }
 
 // captureClient records the MCP clientInfo on the presence entry the first

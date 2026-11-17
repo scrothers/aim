@@ -117,3 +117,7 @@ func (s *Service) Wait(ctx context.Context, c Caller, in WaitInput) (WaitResult,
 		}
 	}
 }
+
+// Changed returns a channel that is closed by the next committed Send or
+// Mark. Grab it before inspecting state so a change in between is not missed.
+func (s *Service) Changed() <-chan struct{} { return s.wake.wait() }

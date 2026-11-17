@@ -190,3 +190,21 @@ func TestWaitConcurrent(t *testing.T) {
 		t.Fatalf("%d waiters returned, want %d", n, waiters)
 	}
 }
+
+func TestChangedClosesOnSend(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.register(t, aliceWeb, bobWeb)
+	ch := e.svc.Changed()
+	select {
+	case <-ch:
+		t.Fatal("Changed closed before any change")
+	default:
+	}
+	e.send(t, aliceWeb, []string{bobWeb}, "hello")
+	select {
+	case <-ch:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Changed did not close after send")
+	}
+}

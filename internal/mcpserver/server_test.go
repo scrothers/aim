@@ -20,6 +20,12 @@ import (
 type env struct {
 	svc *mail.Service
 	reg *presence.Registry
+	// noNamespace makes later clients connect from a directory without a
+	// git remote.
+	noNamespace bool
+	// protocol pins the MCP protocol version the next clients negotiate;
+	// empty means the SDK's latest.
+	protocol string
 }
 
 func newEnv(t *testing.T) *env {
@@ -36,18 +42,27 @@ func newEnv(t *testing.T) *env {
 
 func (e *env) client(t *testing.T, id string) *mcp.ClientSession {
 	t.Helper()
+	return e.clientWith(t, id, nil, nil)
+}
+
+func (e *env) clientWith(t *testing.T, id string, opts []mcpserver.Option, copts *mcp.ClientOptions) *mcp.ClientSession {
+	t.Helper()
 	ctx := context.Background()
-	entry := e.reg.Add("conn-"+id, wire.Preamble{
+	pre := wire.Preamble{
 		V: wire.Version, SessionID: "sess-" + id, ProjectDir: "/p", Machine: "box",
 		GitRemote: "git@github.com:acme/api.git", Namespace: "github.com/acme/api",
-	}, time.Now())
+	}
+	if e.noNamespace {
+		pre.GitRemote, pre.Namespace = "", ""
+	}
+	entry := e.reg.Add("conn-"+id, pre, time.Now())
 	t.Cleanup(func() { e.reg.Remove("conn-" + id) })
 	ct, st := mcp.NewInMemoryTransports()
-	ss, err := mcpserver.New(e.svc, entry, "test").Connect(ctx, st, nil)
+	ss, err := mcpserver.New(e.svc, entry, "test", opts...).Connect(ctx, st, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	cs, err := mcp.NewClient(&mcp.Implementation{Name: "t", Version: "0"}, nil).Connect(ctx, ct, nil)
+	cs, err := mcp.NewClient(&mcp.Implementation{Name: "t", Version: "0"}, copts).Connect(ctx, ct, &mcp.ClientSessionOptions{ProtocolVersion: e.protocol})
 	if err != nil {
 		t.Fatal(err)
 	}
