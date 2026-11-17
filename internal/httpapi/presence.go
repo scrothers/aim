@@ -56,12 +56,17 @@ func buildPresence(roster []mail.RosterEntry, reg *presence.Registry) PresenceBo
 			continue
 		}
 		g.Online++
+		allIdle := true
 		for _, o := range r.Online {
+			allIdle = allIdle && o.State == presence.StateIdle
 			g.Buddies = append(g.Buddies, Buddy{
 				Address: r.Address, Name: name, Role: r.Role, Online: true, Away: o.Away,
 				Client: o.Client, ClientVersion: versions[o.SessionID], Machine: o.Machine,
-				Subagents: subs, SignedOnAt: o.SignedOnAt,
+				Subagents: subs, SignedOnAt: o.SignedOnAt, State: o.State, LastActive: o.LastActive,
 			})
+		}
+		if allIdle {
+			g.Idle++
 		}
 	}
 

@@ -18,6 +18,10 @@ type OnlineStatus struct {
 	Away       string    `json:"away,omitempty"`
 	SignedOnAt time.Time `json:"signed_on_at"`
 	Client     string    `json:"client,omitempty"`
+	// State is "online" or "idle" (no tool call within the idle threshold).
+	State string `json:"state,omitempty"`
+	// LastActive is the time of the session's latest tool call.
+	LastActive time.Time `json:"last_active,omitzero"`
 }
 
 // Identity is a registered identity mailbox.

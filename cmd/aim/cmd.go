@@ -8,11 +8,13 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/scrothers/aim/internal/daemon"
 	"github.com/scrothers/aim/internal/httpapi"
+	"github.com/scrothers/aim/internal/presence"
 	"github.com/scrothers/aim/internal/shim"
 )
 
@@ -28,6 +30,15 @@ func version() string {
 func envOr(getenv func(string) string, key, def string) string {
 	if v := getenv(key); v != "" {
 		return v
+	}
+	return def
+}
+
+// envDuration returns the duration in the environment value for key, or def
+// when it is unset or not a valid duration.
+func envDuration(getenv func(string) string, key string, def time.Duration) time.Duration {
+	if d, err := time.ParseDuration(getenv(key)); err == nil && d > 0 {
+		return d
 	}
 	return def
 }
@@ -105,6 +116,8 @@ func newDaemonCmd() *cobra.Command {
 	f.StringSliceVar(&cfg.HTTPAllowedHosts, "http-allowed-hosts", splitList(os.Getenv("AIM_HTTP_ALLOWED_HOSTS")),
 		"extra Host header values the HTTP listener accepts, comma-separated (AIM_HTTP_ALLOWED_HOSTS)")
 	f.StringVar(&cfg.BackupDir, "backup-dir", envOr(os.Getenv, "AIM_BACKUP_DIR", defaultBackupDir()), "default scheduled-backup directory (AIM_BACKUP_DIR)")
+	f.DurationVar(&cfg.IdleAfter, "idle-after", envDuration(os.Getenv, "AIM_IDLE_AFTER", presence.DefaultIdleAfter),
+		"report a session idle after this long without a tool call (AIM_IDLE_AFTER)")
 	f.StringVar(&level, "log-level", "info", "log level: debug, info, warn, error")
 	return cmd
 }

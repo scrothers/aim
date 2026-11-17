@@ -32,7 +32,22 @@ type Status struct {
 	ClientVersion string
 	// Identity is the signed-on address, or "" when not signed on.
 	Identity string
+	// State is StateOnline or StateIdle. A connection is idle when it has made
+	// no tool call for the registry's idle threshold.
+	State string
+	// LastActive is the time of the connection's most recent tool call, or its
+	// connection time when it has made none.
+	LastActive time.Time
 }
+
+// Connection states reported in Status.State.
+const (
+	StateOnline = "online"
+	StateIdle   = "idle"
+)
+
+// DefaultIdleAfter is the idle threshold used when none is configured.
+const DefaultIdleAfter = 10 * time.Minute
 
 // Event kinds recorded in the event log.
 const (
@@ -40,6 +55,8 @@ const (
 	EventSignedOff    = "signed_off"
 	EventConnected    = "connected"
 	EventDisconnected = "disconnected"
+	EventWentIdle     = "went_idle"
+	EventActive       = "active"
 )
 
 // maxEvents is the capacity of the event ring buffer.
@@ -63,13 +80,38 @@ func WithClock(now func() time.Time) Option {
 	return func(r *Registry) { r.now = now }
 }
 
+// WithIdleAfter sets how long a connection may go without a tool call before
+// it is reported idle. Zero or less selects DefaultIdleAfter.
+func WithIdleAfter(d time.Duration) Option {
+	return func(r *Registry) { r.idleAfter = d }
+}
+
 // Registry holds the live connections. Use New to create one.
 type Registry struct {
-	mu      sync.RWMutex
-	entries map[string]*Entry
-	now     func() time.Time
-	events  []Event // ring buffer, oldest first once full
-	next    int     // index of the slot to overwrite when full
+	mu        sync.RWMutex
+	entries   map[string]*Entry
+	now       func() time.Time
+	idleAfter time.Duration
+	events    []Event // ring buffer, oldest first once full
+	next      int     // index of the slot to overwrite when full
+}
+
+// threshold returns the idle threshold, tolerating a zero value.
+func (r *Registry) threshold() time.Duration {
+	if r.idleAfter <= 0 {
+		return DefaultIdleAfter
+	}
+	return r.idleAfter
+}
+
+// sweepLocked records went_idle for signed-on entries that have crossed the
+// idle threshold since the last look. Idle transitions are derived lazily, on
+// read, rather than by a timer. The caller must hold r.mu for writing.
+func (r *Registry) sweepLocked() {
+	now := r.clock()
+	for _, e := range r.entries {
+		e.noteIdleLocked(now)
+	}
 }
 
 // New returns an empty Registry.
@@ -94,8 +136,9 @@ func (r *Registry) record(ev Event) {
 // Events returns up to limit recorded events, newest first. A limit of zero
 // or less returns every retained event.
 func (r *Registry) Events(limit int) []Event {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.sweepLocked()
 	n := len(r.events)
 	if limit <= 0 || limit > n {
 		limit = n
@@ -112,8 +155,9 @@ func (r *Registry) Events(limit int) []Event {
 // All returns a snapshot of every registered connection, signed on or not,
 // ordered by connection time then connection ID.
 func (r *Registry) All() []Status {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.sweepLocked()
 	all := make([]*Entry, 0, len(r.entries))
 	for _, e := range r.entries {
 		all = append(all, e)
@@ -139,6 +183,7 @@ func (r *Registry) Add(connID string, p wire.Preamble, now time.Time) *Entry {
 		connID:      connID,
 		preamble:    p,
 		connectedAt: now,
+		lastActive:  now,
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -179,8 +224,9 @@ func (r *Registry) recordDisconnect(e *Entry) {
 // ordered by the time they signed on, oldest first.
 func (r *Registry) Online(identity address.Address) []Status {
 	want := identity.String()
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.sweepLocked()
 	var matches []*Entry
 	for _, e := range r.entries {
 		if e.signedOn && e.identity.String() == want {
@@ -222,6 +268,40 @@ type Entry struct {
 	away       string
 	client     string
 	clientVer  string
+	lastActive time.Time
+	// idleNoted is true once a went_idle event has been recorded for the
+	// current idle spell.
+	idleNoted bool
+}
+
+// idleLocked reports whether e has been inactive for the idle threshold at
+// now. The caller must hold reg.mu.
+func (e *Entry) idleLocked(now time.Time) bool {
+	return now.Sub(e.lastActive) >= e.reg.threshold()
+}
+
+// noteIdleLocked records went_idle once for a signed-on entry that has crossed
+// the threshold, timestamped at the moment it crossed. The caller must hold
+// reg.mu for writing.
+func (e *Entry) noteIdleLocked(now time.Time) {
+	if !e.signedOn || e.idleNoted || !e.idleLocked(now) {
+		return
+	}
+	e.idleNoted = true
+	e.reg.record(Event{Kind: EventWentIdle, Identity: e.identity.String(), Machine: e.preamble.Machine, Client: e.client, At: e.lastActive.Add(e.reg.threshold())})
+}
+
+// Touch records tool-call activity at now. A connection that had gone idle
+// becomes active again, which is logged as an active event.
+func (e *Entry) Touch(now time.Time) {
+	e.reg.mu.Lock()
+	defer e.reg.mu.Unlock()
+	e.noteIdleLocked(now)
+	if e.idleNoted {
+		e.idleNoted = false
+		e.reg.record(Event{Kind: EventActive, Identity: e.identity.String(), Machine: e.preamble.Machine, Client: e.client, At: now})
+	}
+	e.lastActive = now
 }
 
 // ConnID returns the connection ID this entry was registered under.
@@ -247,6 +327,7 @@ func (e *Entry) SignOn(identity address.Address, away string, now time.Time) err
 		e.reg.record(Event{Kind: EventSignedOff, Identity: e.identity.String(), Machine: e.preamble.Machine, Client: e.client, At: now})
 	}
 	e.signedOn = true
+	e.idleNoted = false
 	e.identity = identity
 	e.signedOnAt = now
 	e.away = away
@@ -278,6 +359,7 @@ func (e *Entry) SignOff() {
 		e.reg.record(Event{Kind: EventSignedOff, Identity: e.identity.String(), Machine: e.preamble.Machine, Client: e.client, At: e.reg.clock()})
 	}
 	e.signedOn = false
+	e.idleNoted = false
 	e.identity = address.Address{}
 	e.signedOnAt = time.Time{}
 	e.away = ""
@@ -293,8 +375,9 @@ func (e *Entry) Identity() (address.Address, bool) {
 
 // Status returns a snapshot of the connection.
 func (e *Entry) Status() Status {
-	e.reg.mu.RLock()
-	defer e.reg.mu.RUnlock()
+	e.reg.mu.Lock()
+	defer e.reg.mu.Unlock()
+	e.noteIdleLocked(e.reg.clock())
 	return e.statusLocked()
 }
 
@@ -310,6 +393,11 @@ func (e *Entry) statusLocked() Status {
 
 		Client:        e.client,
 		ClientVersion: e.clientVer,
+		State:         StateOnline,
+		LastActive:    e.lastActive,
+	}
+	if e.idleLocked(e.reg.clock()) {
+		s.State = StateIdle
 	}
 	if e.signedOn {
 		s.SignedOnAt = e.signedOnAt

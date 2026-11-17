@@ -68,6 +68,9 @@ type Config struct {
 	// NotifyWebhooks pre-seeds the notification webhooks on the first start
 	// only (AIM_NOTIFY_WEBHOOKS).
 	NotifyWebhooks []string
+	// IdleAfter is how long a session may go without a tool call before it is
+	// reported idle; zero means presence.DefaultIdleAfter.
+	IdleAfter time.Duration
 	// Ready, if set, is called once all listeners are bound.
 	Ready func(Addrs)
 }
@@ -105,7 +108,7 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) (err error) {
 		return fmt.Errorf("daemon: open store: %w", err)
 	}
 
-	reg := presence.New()
+	reg := presence.New(presence.WithIdleAfter(cfg.IdleAfter))
 	d := &daemon{
 		cfg: cfg, logger: logger, reg: reg, conns: make(map[net.Conn]struct{}),
 		svc: mail.New(st, mcpserver.NewPresence(reg)),
@@ -310,6 +313,28 @@ func (d *daemon) shutdownConns(ctx context.Context) {
 	}
 }
 
+// restoreSignon signs entry back on when its session signed on within the last
+// day, so a daemon restart or a shim reconnect keeps the identity. Failures
+// are logged and leave the connection signed off.
+func (d *daemon) restoreSignon(ctx context.Context, log *slog.Logger, entry *presence.Entry, p wire.Preamble) {
+	so, ok, err := d.svc.RestoreSignon(ctx, p.SessionID)
+	if err != nil {
+		log.LogAttrs(ctx, slog.LevelWarn, "restore sign-on failed", slog.String("error", err.Error()))
+		return
+	}
+	if !ok {
+		return
+	}
+	if err := entry.SignOn(so.Identity, so.Away, time.Now()); err != nil {
+		log.LogAttrs(ctx, slog.LevelWarn, "restore sign-on failed", slog.String("error", err.Error()))
+		return
+	}
+	if so.Client != "" {
+		entry.SetClient(so.Client, "")
+	}
+	log.LogAttrs(ctx, slog.LevelInfo, "sign-on restored", slog.String("identity", so.Identity.String()))
+}
+
 func (d *daemon) serve(ctx context.Context, c net.Conn) {
 	defer d.untrack(c)
 	defer func() { _ = c.Close() }()
@@ -330,6 +355,8 @@ func (d *daemon) serve(ctx context.Context, c net.Conn) {
 	log := d.logger.With(slog.String("conn", connID), slog.String("session", p.SessionID), slog.String("machine", p.Machine))
 	log.LogAttrs(ctx, slog.LevelInfo, "client connected")
 	defer log.LogAttrs(ctx, slog.LevelInfo, "client disconnected")
+
+	d.restoreSignon(ctx, log, entry, p)
 
 	srv := mcpserver.New(d.svc, entry, d.cfg.Version)
 	f := newInflight(halfCloseGrace)

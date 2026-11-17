@@ -58,6 +58,9 @@ type handlers struct {
 // time a tool is called on the connection.
 func (h *handlers) captureClient(next mcp.MethodHandler) mcp.MethodHandler {
 	return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
+		if method == "tools/call" {
+			h.conn.Touch(time.Now())
+		}
 		if method == "tools/call" && !h.clientSeen.Load() {
 			if ss, ok := req.GetSession().(*mcp.ServerSession); ok {
 				if ip := ss.InitializeParams(); ip != nil && ip.ClientInfo != nil {
@@ -195,6 +198,12 @@ func (h *handlers) signOn(ctx context.Context, _ *mcp.CallToolRequest, in SignOn
 	if err := h.conn.SignOn(a, in.Away, time.Now()); err != nil {
 		return nil, SignOnOutput{}, err
 	}
+	st := h.conn.Status()
+	if err := h.svc.SaveSignon(ctx, mail.Signon{
+		SessionID: st.SessionID, Identity: a, Away: in.Away, Client: st.Client, Machine: st.Machine,
+	}); err != nil {
+		return nil, SignOnOutput{}, err
+	}
 	return nil, SignOnOutput{SignedOnAs: a.String()}, nil
 }
 
@@ -203,9 +212,12 @@ type SignOffOutput struct {
 	WasSignedOn bool `json:"was_signed_on"`
 }
 
-func (h *handlers) signOff(context.Context, *mcp.CallToolRequest, struct{}) (*mcp.CallToolResult, SignOffOutput, error) {
+func (h *handlers) signOff(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, SignOffOutput, error) {
 	_, was := h.conn.Identity()
 	h.conn.SignOff()
+	if err := h.svc.ClearSignon(ctx, h.conn.Status().SessionID); err != nil {
+		return nil, SignOffOutput{}, err
+	}
 	return nil, SignOffOutput{WasSignedOn: was}, nil
 }
 

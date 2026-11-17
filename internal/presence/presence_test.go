@@ -59,7 +59,7 @@ func TestZeroValueRegistryAdd(t *testing.T) {
 
 func TestEntryAccessors(t *testing.T) {
 	t.Parallel()
-	r := New()
+	r := New(WithClock(func() time.Time { return t0 }))
 	p := preamble("s1")
 	e := r.Add("c1", p, t0)
 	if e.ConnID() != "c1" {
@@ -77,6 +77,8 @@ func TestEntryAccessors(t *testing.T) {
 		Machine:     "box-s1",
 		ProjectDir:  "/src/s1",
 		ConnectedAt: t0,
+		State:       StateOnline,
+		LastActive:  t0,
 	}
 	if got := e.Status(); got != want {
 		t.Errorf("Status() = %+v, want %+v", got, want)

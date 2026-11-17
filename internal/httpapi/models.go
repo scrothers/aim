@@ -28,6 +28,8 @@ type Buddy struct {
 	Machine       string    `json:"machine,omitempty" doc:"Hostname the session runs on."`
 	Subagents     []string  `json:"subagents" doc:"Subagent names that have mailboxes under this identity."`
 	SignedOnAt    time.Time `json:"signed_on_at,omitzero" doc:"When the session signed on."`
+	State         string    `json:"state,omitempty" enum:"online,idle" doc:"online, or idle when the session has made no tool call recently; empty for offline identities."`
+	LastActive    time.Time `json:"last_active,omitzero" doc:"Time of the session's latest tool call."`
 }
 
 // BuddyGroup is a repo or org namespace and its buddies.
@@ -35,13 +37,14 @@ type BuddyGroup struct {
 	Name    string  `json:"name" doc:"Namespace (host/org[/repo]) or Offline."`
 	Offline bool    `json:"offline" doc:"True for the group of identities with no signed-on session."`
 	Online  int     `json:"online" doc:"Identities in the namespace with at least one session."`
+	Idle    int     `json:"idle" doc:"Identities counted in online whose sessions are all idle."`
 	Total   int     `json:"total" doc:"Active identities in the namespace."`
 	Buddies []Buddy `json:"buddies"`
 }
 
 // PresenceEvent is one entry of the sign-on feed.
 type PresenceEvent struct {
-	Kind     string    `json:"kind" enum:"signed_on,signed_off,connected,disconnected" doc:"What happened."`
+	Kind     string    `json:"kind" enum:"signed_on,signed_off,connected,disconnected,went_idle,active" doc:"What happened."`
 	Identity string    `json:"identity,omitempty" doc:"Identity address, when signed on."`
 	Machine  string    `json:"machine,omitempty"`
 	Client   string    `json:"client,omitempty"`
