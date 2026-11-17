@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { ComposeSheet } from '@/components/mail/ComposeSheet'
 import { BuddyRail } from './BuddyRail'
 import { LeftNav } from './LeftNav'
 import { TopBar } from './TopBar'
@@ -11,6 +12,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <LeftNav />
         <main className="flex min-w-0 flex-[999_1_640px] flex-wrap">{children}</main>
         <BuddyRail />
+      <ComposeSheet />
       </div>
     </div>
   )

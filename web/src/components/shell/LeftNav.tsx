@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { Archive, CalendarDays, Circle, Inbox, Network, PenLine, Send, Users, type LucideIcon } from 'lucide-react'
 import { useTree, useViews } from '@/api/queries'
+import { composeStore } from '@/lib/compose'
 import { cn } from '@/lib/utils'
 import { DaemonFooter } from './DaemonFooter'
 import { MailboxTree } from './MailboxTree'
@@ -46,9 +47,8 @@ export function LeftNav() {
     <nav aria-label="Mailboxes" className="box-border flex flex-[1_1_232px] flex-col gap-5 border-r bg-panel px-3 py-4">
       <button
         type="button"
-        disabled
-        title="Composing arrives with the message views"
-        className="flex h-10 items-center justify-center gap-2 rounded-lg bg-brand font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
+        onClick={composeStore.open}
+        className="flex h-10 items-center justify-center gap-2 rounded-lg bg-brand font-semibold text-on-accent"
       >
         <PenLine aria-hidden="true" className="size-4" />
         Compose

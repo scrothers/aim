@@ -1,5 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { useCallback } from 'react'
 import { z } from 'zod'
+import { MailView } from '@/components/mail/MailView'
 
 export const mailSearchSchema = z.object({
   view: z.enum(['operator', 'unread', 'today', 'sent', 'archived']).optional().catch(undefined),
@@ -17,18 +19,10 @@ export const Route = createFileRoute('/mail')({
 
 function MailPage() {
   const search = Route.useSearch()
-  const title = search.mailbox ?? search.view ?? 'operator'
-  return (
-    <>
-      <section
-        aria-label="Message list"
-        className="box-border flex min-w-0 flex-[1_1_340px] flex-col border-r bg-panel p-4 text-[13px] text-faint"
-      >
-        Message list for <span className="font-mono">{title}</span> arrives in the next step.
-      </section>
-      <article aria-label="Thread" className="box-border flex min-w-0 flex-[999_1_420px] flex-col bg-bg p-5 text-[13px] text-faint">
-        Thread view arrives in the next step.
-      </article>
-    </>
+  const navigate = Route.useNavigate()
+  const onSearch = useCallback(
+    (patch: Partial<MailSearch>) => void navigate({ search: (prev) => ({ ...prev, ...patch }) }),
+    [navigate],
   )
+  return <MailView search={search} onSearch={onSearch} />
 }

@@ -24,15 +24,26 @@ export const api = createApi()
 
 export class ApiError extends Error {
   readonly status: number
-  constructor(status: number, message: string) {
+  /** "Did you mean" addresses from a 404 on an unknown recipient. */
+  readonly suggestions: string[]
+  constructor(status: number, message: string, suggestions: string[] = []) {
     super(message)
     this.status = status
+    this.suggestions = suggestions
   }
+}
+
+interface ProblemBody {
+  detail?: string
+  title?: string
+  errors?: Array<{ location?: string; value?: unknown }> | null
 }
 
 /** Unwraps an openapi-fetch result, throwing ApiError on failure. */
 export function unwrap<T>(res: { data?: T; error?: unknown; response: Response }): T {
   if (res.data !== undefined) return res.data
-  const e = res.error as { detail?: string; title?: string } | undefined
-  throw new ApiError(res.response.status, e?.detail ?? e?.title ?? res.response.statusText)
+  const e = res.error as ProblemBody | undefined
+  const raw = e?.errors?.find((d) => d.location === 'suggestions')?.value
+  const suggestions = Array.isArray(raw) ? raw.filter((s): s is string => typeof s === 'string') : []
+  throw new ApiError(res.response.status, e?.detail ?? e?.title ?? res.response.statusText, suggestions)
 }
