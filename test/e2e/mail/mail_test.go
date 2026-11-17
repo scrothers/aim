@@ -61,6 +61,7 @@ func freeAddr(t *testing.T) string {
 
 type daemon struct {
 	cmd              *exec.Cmd
+	dir              string
 	socket, tcp, web string
 	done             chan error
 }
@@ -69,34 +70,56 @@ func startDaemon(t *testing.T) *daemon {
 	t.Helper()
 	dir := t.TempDir()
 	d := &daemon{
+		dir:    dir,
 		socket: filepath.Join(dir, "aim.sock"),
 		tcp:    freeAddr(t),
 		web:    freeAddr(t),
 		done:   make(chan error, 1),
 	}
+	t.Cleanup(d.terminate)
+	d.launch(t)
+	return d
+}
+
+// terminate stops the daemon with SIGTERM if it is running.
+func (d *daemon) terminate() {
+	if d.cmd == nil || d.cmd.ProcessState != nil {
+		return
+	}
+	_ = d.cmd.Process.Signal(syscall.SIGTERM)
+	select {
+	case <-d.done:
+	case <-time.After(5 * time.Second):
+		_ = d.cmd.Process.Kill()
+		<-d.done
+	}
+}
+
+// restart stops the daemon and starts a new one on the same database,
+// socket and ports.
+func (d *daemon) restart(t *testing.T) {
+	t.Helper()
+	d.terminate()
+	d.launch(t)
+}
+
+// launch starts a daemon process and waits until it serves.
+func (d *daemon) launch(t *testing.T) {
+	t.Helper()
 	d.cmd = exec.Command(aimBin, "daemon",
-		"--db", filepath.Join(dir, "aim.db"),
+		"--db", filepath.Join(d.dir, "aim.db"),
 		"--socket", d.socket, "--listen", d.tcp, "--http", d.web)
 	d.cmd.Stderr = os.Stderr
 	if err := d.cmd.Start(); err != nil {
 		t.Fatalf("start daemon: %v", err)
 	}
-	go func() { d.done <- d.cmd.Wait() }()
-	t.Cleanup(func() {
-		if d.cmd.ProcessState == nil {
-			_ = d.cmd.Process.Signal(syscall.SIGTERM)
-			select {
-			case <-d.done:
-			case <-time.After(5 * time.Second):
-				_ = d.cmd.Process.Kill()
-			}
-		}
-	})
+	cmd := d.cmd
+	go func() { d.done <- cmd.Wait() }()
 	deadline := time.Now().Add(15 * time.Second)
 	for {
 		if d.healthz() == http.StatusOK {
 			if _, err := os.Stat(d.socket); err == nil {
-				return d
+				return
 			}
 		}
 		if time.Now().After(deadline) {
@@ -383,5 +406,124 @@ func TestMailFlow(t *testing.T) {
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatalf("daemon did not exit after SIGTERM")
+	}
+}
+
+// TestDaemonRestartMidSession restarts the daemon under live shims and checks
+// that they reconnect transparently: the session keeps its identity and tool
+// calls keep working, including a blocked wait that spans the restart.
+func TestDaemonRestartMidSession(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	d := startDaemon(t)
+	a := startShim(ctx, t, "sess-ra", d.socket)
+	b := startShim(ctx, t, "sess-rb", d.tcp)
+
+	const (
+		alice = "alice@github.com/acme/tool"
+		bob   = "bob@github.com/acme/tool"
+	)
+	a.call(ctx, "register", map[string]any{"address": alice, "role": "dev", "description": "d"}, nil)
+	a.call(ctx, "register", map[string]any{"address": bob, "role": "dev", "description": "d"}, nil)
+	a.call(ctx, "sign_on", map[string]any{"address": alice}, nil)
+	b.call(ctx, "sign_on", map[string]any{"address": bob}, nil)
+
+	// bob blocks in wait while the daemon goes away and comes back.
+	type waited struct {
+		Items    []header `json:"items"`
+		TimedOut bool     `json:"timed_out"`
+	}
+	waitDone := make(chan error, 1)
+	var w waited
+	go func() {
+		res, err := b.cs.CallTool(ctx, &mcp.CallToolParams{Name: "wait", Arguments: map[string]any{"timeout_seconds": 40}})
+		if err == nil {
+			// The restart fails the in-flight wait with a retryable error, as
+			// the plan specifies; callers re-issue it.
+			if res.IsError {
+				err = fmt.Errorf("tool error: %+v", res.Content)
+			}
+		}
+		waitDone <- err
+	}()
+	time.Sleep(500 * time.Millisecond)
+
+	d.restart(t)
+
+	// The in-flight wait is failed (not hung) by the restart.
+	select {
+	case err := <-waitDone:
+		if err == nil {
+			t.Fatalf("wait unexpectedly succeeded across the restart")
+		}
+		if !strings.Contains(err.Error(), "AIM daemon unavailable") {
+			t.Fatalf("wait error = %v, want the shim's retryable unavailable error", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("wait hung across the restart")
+	}
+
+	// Identity survives: a (retrying) whoami shows both sessions still signed on.
+	for name, c := range map[string]*client{alice: a, bob: b} {
+		var who struct {
+			SignedOnAs string `json:"signed_on_as"`
+		}
+		callRetry(ctx, t, c, "whoami", nil, &who)
+		if who.SignedOnAs != name {
+			t.Fatalf("whoami after restart = %q, want %q", who.SignedOnAs, name)
+		}
+	}
+
+	// bob re-issues wait; alice sends; bob wakes with the message.
+	reWait := make(chan error, 1)
+	go func() {
+		var err error
+		callRetryErr(ctx, b, "wait", map[string]any{"timeout_seconds": 30}, &w, &err)
+		reWait <- err
+	}()
+	time.Sleep(300 * time.Millisecond)
+	var sent message
+	callRetry(ctx, t, a, "send", map[string]any{"to": []string{bob}, "subject": "after restart", "body": "hello"}, &sent)
+	select {
+	case err := <-reWait:
+		if err != nil || w.TimedOut || len(w.Items) != 1 || w.Items[0].ID != sent.ID {
+			t.Fatalf("wait after restart: err=%v result=%+v, want %s", err, w, sent.ID)
+		}
+	case <-ctx.Done():
+		t.Fatal("wait after restart hung")
+	}
+}
+
+// callRetry is like client.call but retries the shim's retryable
+// unavailable error while the daemon restarts.
+func callRetry(ctx context.Context, t *testing.T, c *client, name string, args map[string]any, out any) {
+	t.Helper()
+	var err error
+	callRetryErr(ctx, c, name, args, out, &err)
+	if err != nil {
+		t.Fatalf("%s: %v", name, err)
+	}
+}
+
+func callRetryErr(ctx context.Context, c *client, name string, args map[string]any, out any, errOut *error) {
+	for {
+		res, err := c.cs.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: args})
+		switch {
+		case err != nil && strings.Contains(err.Error(), "AIM daemon unavailable") && ctx.Err() == nil:
+			time.Sleep(100 * time.Millisecond)
+			continue
+		case err != nil:
+			*errOut = err
+		case res.IsError:
+			*errOut = fmt.Errorf("tool error: %+v", res.Content)
+		case out != nil:
+			b, merr := json.Marshal(res.StructuredContent)
+			if merr == nil {
+				merr = json.Unmarshal(b, out)
+			}
+			*errOut = merr
+		}
+		return
 	}
 }
