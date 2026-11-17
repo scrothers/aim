@@ -9,3 +9,4 @@ coverage.html
 *.db-shm
 internal/webui/dist/*
 !internal/webui/dist/.gitkeep
+web/e2e/artifacts/

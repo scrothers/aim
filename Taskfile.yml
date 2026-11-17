@@ -151,6 +151,13 @@ tasks:
     cmds:
       - go test -tags=e2e ./test/e2e/...
 
+  e2e:all:
+    desc: Build, then run the Go e2e and Playwright suites
+    cmds:
+      - task: build
+      - task: test:e2e
+      - task: web:e2e
+
   cover:
     desc: Coverage report
     cmds:

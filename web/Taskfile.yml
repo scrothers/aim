@@ -34,3 +34,8 @@ tasks:
     desc: Run unit tests once
     cmds:
       - pnpm exec vitest run
+
+  e2e:
+    desc: Drive the console with Playwright against ../bin/aim (run `task build` first)
+    cmds:
+      - pnpm exec playwright test --reporter=line

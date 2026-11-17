@@ -3,3 +3,4 @@ test-results
 playwright-report
 coverage
 *.tsbuildinfo
+e2e/artifacts
