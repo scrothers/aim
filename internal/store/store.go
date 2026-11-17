@@ -141,6 +141,20 @@ func (s *Store) WithTx(ctx context.Context, fn func(q *db.Queries) error) error 
 	return nil
 }
 
+// Backup writes a consistent copy of the database to path using VACUUM INTO.
+// It refuses to overwrite an existing path.
+func (s *Store) Backup(ctx context.Context, path string) error {
+	if _, err := os.Stat(path); err == nil {
+		return fmt.Errorf("store: backup: %s already exists", path)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("store: backup: %w", err)
+	}
+	if _, err := s.writer.ExecContext(ctx, "VACUUM INTO ?", path); err != nil {
+		return fmt.Errorf("store: backup: %w", err)
+	}
+	return nil
+}
+
 // Size reports the database size in bytes (page_count * page_size).
 func (s *Store) Size(ctx context.Context) (int64, error) {
 	var n int64

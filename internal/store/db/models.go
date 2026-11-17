@@ -49,3 +49,23 @@ type MessagesFt struct {
 	Subject string
 	Body    string
 }
+
+type SessionSignon struct {
+	SessionID string
+	Identity  string
+	Away      string
+	Client    string
+	Machine   string
+	UpdatedAt int64
+}
+
+type Setting struct {
+	Key       string
+	Value     string
+	UpdatedAt int64
+}
+
+type ThreadMute struct {
+	ThreadID string
+	MutedAt  int64
+}
