@@ -1,5 +1,10 @@
 version: "3"
 
+includes:
+  web:
+    taskfile: ./web/Taskfile.yml
+    dir: ./web
+
 vars:
   DEV_DIR: "{{.ROOT_DIR}}/.dev"
   DEV_SOCKET: "{{.DEV_DIR}}/aim.sock"
@@ -22,7 +27,8 @@ tasks:
       - task --list
 
   build:
-    desc: Build aim into ./bin
+    desc: Build aim into ./bin (with the embedded web UI)
+    deps: [web:build]
     cmds:
       - mkdir -p bin
       - go build -o bin/aim ./cmd/aim
