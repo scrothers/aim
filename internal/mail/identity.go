@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/scrothers/aim/internal/address"
+	"github.com/scrothers/aim/internal/store"
 	"github.com/scrothers/aim/internal/store/db"
 )
 
@@ -102,11 +103,7 @@ func (s *Service) Roster(ctx context.Context, addr string) ([]RosterEntry, error
 	a = a.IdentityAddress()
 	sc := a.Scope()
 	q := s.store.Read()
-	rows, err := q.ListIdentitiesInScope(ctx, db.ListIdentitiesInScopeParams{
-		Host: sc.Host, Org: sc.Org,
-		MatchRepo: b2i(sc.MatchRepo), Repo: sc.Repo,
-		MatchIdentity: b2i(sc.MatchIdentity), Identity: sc.Identity,
-	})
+	rows, err := store.ListIdentitiesInScope(ctx, q, toStoreScope(sc))
 	if err != nil {
 		return nil, fmt.Errorf("mail: %s: %w", op, err)
 	}
@@ -137,9 +134,9 @@ func (s *Service) Roster(ctx context.Context, addr string) ([]RosterEntry, error
 	return out, nil
 }
 
-func b2i(b bool) int64 {
-	if b {
-		return 1
+func toStoreScope(sc address.Scope) store.Scope {
+	return store.Scope{
+		Host: sc.Host, Org: sc.Org, Repo: sc.Repo, Identity: sc.Identity, Subagent: sc.Subagent,
+		MatchRepo: sc.MatchRepo, MatchIdentity: sc.MatchIdentity, MatchSubagent: sc.MatchSubagent,
 	}
-	return 0
 }

@@ -107,33 +107,119 @@ func (q *Queries) InsertMailbox(ctx context.Context, arg InsertMailboxParams) er
 	return err
 }
 
-const listIdentitiesInScope = `-- name: ListIdentitiesInScope :many
-SELECT mb.id, mb.host, mb.org, mb.repo, mb.identity, mb.subagent, mb.kind, mb.role, mb.description, mb.reports_to, mb.created_at FROM mailboxes mb
-WHERE mb.kind = 'identity'
-  AND mb.host = ?1 AND mb.org = ?2
-  AND (CAST(?3 AS INTEGER) = 0 OR mb.repo = ?4)
-  AND (CAST(?5 AS INTEGER) = 0 OR mb.identity = ?6)
-ORDER BY mb.repo, mb.identity
+const listIdentitiesInIdentity = `-- name: ListIdentitiesInIdentity :many
+SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at FROM mailboxes
+WHERE kind = 'identity' AND host = ?1 AND org = ?2 AND repo = ?3 AND identity = ?4
+ORDER BY repo, identity
 `
 
-type ListIdentitiesInScopeParams struct {
-	Host          string
-	Org           string
-	MatchRepo     int64
-	Repo          string
-	MatchIdentity int64
-	Identity      string
+type ListIdentitiesInIdentityParams struct {
+	Host     string
+	Org      string
+	Repo     string
+	Identity string
 }
 
-func (q *Queries) ListIdentitiesInScope(ctx context.Context, arg ListIdentitiesInScopeParams) ([]Mailbox, error) {
-	rows, err := q.db.QueryContext(ctx, listIdentitiesInScope,
+func (q *Queries) ListIdentitiesInIdentity(ctx context.Context, arg ListIdentitiesInIdentityParams) ([]Mailbox, error) {
+	rows, err := q.db.QueryContext(ctx, listIdentitiesInIdentity,
 		arg.Host,
 		arg.Org,
-		arg.MatchRepo,
 		arg.Repo,
-		arg.MatchIdentity,
 		arg.Identity,
 	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Mailbox
+	for rows.Next() {
+		var i Mailbox
+		if err := rows.Scan(
+			&i.ID,
+			&i.Host,
+			&i.Org,
+			&i.Repo,
+			&i.Identity,
+			&i.Subagent,
+			&i.Kind,
+			&i.Role,
+			&i.Description,
+			&i.ReportsTo,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listIdentitiesInOrg = `-- name: ListIdentitiesInOrg :many
+SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at FROM mailboxes
+WHERE kind = 'identity' AND host = ?1 AND org = ?2
+ORDER BY repo, identity
+`
+
+type ListIdentitiesInOrgParams struct {
+	Host string
+	Org  string
+}
+
+func (q *Queries) ListIdentitiesInOrg(ctx context.Context, arg ListIdentitiesInOrgParams) ([]Mailbox, error) {
+	rows, err := q.db.QueryContext(ctx, listIdentitiesInOrg, arg.Host, arg.Org)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Mailbox
+	for rows.Next() {
+		var i Mailbox
+		if err := rows.Scan(
+			&i.ID,
+			&i.Host,
+			&i.Org,
+			&i.Repo,
+			&i.Identity,
+			&i.Subagent,
+			&i.Kind,
+			&i.Role,
+			&i.Description,
+			&i.ReportsTo,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listIdentitiesInRepo = `-- name: ListIdentitiesInRepo :many
+SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at FROM mailboxes
+WHERE kind = 'identity' AND host = ?1 AND org = ?2 AND repo = ?3
+ORDER BY repo, identity
+`
+
+type ListIdentitiesInRepoParams struct {
+	Host string
+	Org  string
+	Repo string
+}
+
+func (q *Queries) ListIdentitiesInRepo(ctx context.Context, arg ListIdentitiesInRepoParams) ([]Mailbox, error) {
+	rows, err := q.db.QueryContext(ctx, listIdentitiesInRepo, arg.Host, arg.Org, arg.Repo)
 	if err != nil {
 		return nil, err
 	}

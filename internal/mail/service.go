@@ -144,7 +144,7 @@ func notFound(ctx context.Context, q *db.Queries, a address.Address) error {
 		Address: a.String(),
 		Hint:    "Identities must be registered first (register); check the address, or register it.",
 	}
-	cands, err := q.ListIdentitiesInScope(ctx, db.ListIdentitiesInScopeParams{Host: a.Host, Org: a.Org})
+	cands, err := store.ListIdentitiesInScope(ctx, q, store.Scope{Host: a.Host, Org: a.Org})
 	if err != nil {
 		return e // suggestions are best effort
 	}

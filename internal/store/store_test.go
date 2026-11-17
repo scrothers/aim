@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/scrothers/aim/internal/store"
@@ -113,7 +114,7 @@ func send(t *testing.T, s *store.Store, id, thread, subject, body string, at int
 	}
 }
 
-func inbox(t *testing.T, s *store.Store, p db.ListInboxParams) []string {
+func inbox(t *testing.T, s *store.Store, p store.InboxParams) []string {
 	t.Helper()
 	if p.PageLimit == 0 {
 		p.PageLimit = 100
@@ -122,7 +123,7 @@ func inbox(t *testing.T, s *store.Store, p db.ListInboxParams) []string {
 		p.State = "all"
 	}
 	p.Host, p.Org = "h", "acme"
-	rows, err := s.Read().ListInbox(context.Background(), p)
+	rows, err := store.ListInbox(context.Background(), s.Read(), p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,18 +235,18 @@ func TestMailboxQueries(t *testing.T) {
 		t.Fatal("expected check violation")
 	}
 
-	ids, err := q.ListIdentitiesInScope(ctx, db.ListIdentitiesInScopeParams{Host: "h", Org: "acme"})
+	ids, err := store.ListIdentitiesInScope(ctx, q, store.Scope{Host: "h", Org: "acme"})
 	if err != nil || len(ids) != 3 {
 		t.Fatalf("org scope: %d %v", len(ids), err)
 	}
 	if ids[0].ID != "mbx-1" { // repo '' sorts first
 		t.Fatalf("order: %v", ids[0].ID)
 	}
-	ids, _ = q.ListIdentitiesInScope(ctx, db.ListIdentitiesInScopeParams{Host: "h", Org: "acme", MatchRepo: 1, Repo: "web"})
+	ids, _ = store.ListIdentitiesInScope(ctx, q, store.Scope{Host: "h", Org: "acme", MatchRepo: true, Repo: "web"})
 	if len(ids) != 2 {
 		t.Fatalf("repo scope: %d", len(ids))
 	}
-	ids, _ = q.ListIdentitiesInScope(ctx, db.ListIdentitiesInScopeParams{Host: "h", Org: "acme", MatchRepo: 1, MatchIdentity: 1, Identity: "alice"})
+	ids, _ = store.ListIdentitiesInScope(ctx, q, store.Scope{Host: "h", Org: "acme", MatchRepo: true, MatchIdentity: true, Identity: "alice"})
 	if len(ids) != 1 || ids[0].ID != "mbx-1" {
 		t.Fatalf("identity scope repo '': %v", ids)
 	}
@@ -269,16 +270,16 @@ func TestInboxScopes(t *testing.T) {
 	send(t, s, "msg-3", "msg-3", "a", "b", 30, "mbx-3")
 	send(t, s, "msg-4", "msg-4", "a", "b", 40, "mbx-4")
 
-	eq(t, inbox(t, s, db.ListInboxParams{}), []string{"msg-4", "msg-3", "msg-2", "msg-1"})
-	eq(t, inbox(t, s, db.ListInboxParams{MatchRepo: 1, Repo: "web"}), []string{"msg-4", "msg-3", "msg-2"})
-	eq(t, inbox(t, s, db.ListInboxParams{MatchRepo: 1, Repo: "web", MatchIdentity: 1, Identity: "alice"}), []string{"msg-4", "msg-2"})
+	eq(t, inbox(t, s, store.InboxParams{}), []string{"msg-4", "msg-3", "msg-2", "msg-1"})
+	eq(t, inbox(t, s, store.InboxParams{Scope: store.Scope{MatchRepo: true, Repo: "web"}}), []string{"msg-4", "msg-3", "msg-2"})
+	eq(t, inbox(t, s, store.InboxParams{Scope: store.Scope{MatchRepo: true, Repo: "web", MatchIdentity: true, Identity: "alice"}}), []string{"msg-4", "msg-2"})
 	// identity scope with repo '' excludes repo identities of the same name.
-	eq(t, inbox(t, s, db.ListInboxParams{MatchRepo: 1, MatchIdentity: 1, Identity: "alice", MatchSubagent: 1}), []string{"msg-1"})
-	eq(t, inbox(t, s, db.ListInboxParams{MatchRepo: 1, Repo: "web", MatchIdentity: 1, Identity: "alice", MatchSubagent: 1, Subagent: "helper"}), []string{"msg-4"})
-	eq(t, inbox(t, s, db.ListInboxParams{MatchRepo: 1, Repo: "web", MatchIdentity: 1, Identity: "alice", MatchSubagent: 1}), []string{"msg-2"})
+	eq(t, inbox(t, s, store.InboxParams{Scope: store.Scope{MatchRepo: true, MatchIdentity: true, Identity: "alice", MatchSubagent: true}}), []string{"msg-1"})
+	eq(t, inbox(t, s, store.InboxParams{Scope: store.Scope{MatchRepo: true, Repo: "web", MatchIdentity: true, Identity: "alice", MatchSubagent: true, Subagent: "helper"}}), []string{"msg-4"})
+	eq(t, inbox(t, s, store.InboxParams{Scope: store.Scope{MatchRepo: true, Repo: "web", MatchIdentity: true, Identity: "alice", MatchSubagent: true}}), []string{"msg-2"})
 
 	// Other host sees nothing.
-	rows, err := s.Read().ListInbox(context.Background(), db.ListInboxParams{Host: "other", Org: "acme", State: "all", PageLimit: 10})
+	rows, err := store.ListInbox(context.Background(), s.Read(), store.InboxParams{Scope: store.Scope{Host: "other", Org: "acme"}, State: "all", PageLimit: 10})
 	if err != nil || len(rows) != 0 {
 		t.Fatalf("other host: %v %v", rows, err)
 	}
@@ -322,10 +323,10 @@ func TestInboxFiltersStatesPagination(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	eq(t, inbox(t, s, db.ListInboxParams{State: "unread"}), []string{"msg-5", "msg-4"})
-	eq(t, inbox(t, s, db.ListInboxParams{State: "read"}), []string{"msg-1"})
-	eq(t, inbox(t, s, db.ListInboxParams{State: "archived"}), []string{"msg-3", "msg-2"})
-	eq(t, inbox(t, s, db.ListInboxParams{State: "all"}), []string{"msg-5", "msg-4", "msg-3", "msg-2", "msg-1"})
+	eq(t, inbox(t, s, store.InboxParams{State: "unread"}), []string{"msg-5", "msg-4"})
+	eq(t, inbox(t, s, store.InboxParams{State: "read"}), []string{"msg-1"})
+	eq(t, inbox(t, s, store.InboxParams{State: "archived"}), []string{"msg-3", "msg-2"})
+	eq(t, inbox(t, s, store.InboxParams{State: "all"}), []string{"msg-5", "msg-4", "msg-3", "msg-2", "msg-1"})
 
 	// Clear queries restore state.
 	err = s.WithTx(ctx, func(q *db.Queries) error {
@@ -338,17 +339,17 @@ func TestInboxFiltersStatesPagination(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	eq(t, inbox(t, s, db.ListInboxParams{State: "unread"}), []string{"msg-5", "msg-4", "msg-2", "msg-1"})
+	eq(t, inbox(t, s, store.InboxParams{State: "unread"}), []string{"msg-5", "msg-4", "msg-2", "msg-1"})
 
 	// Filters.
-	eq(t, inbox(t, s, db.ListInboxParams{Since: sql.NullInt64{Int64: 20, Valid: true}, Until: sql.NullInt64{Int64: 40, Valid: true}}), []string{"msg-4", "msg-3", "msg-2"})
-	eq(t, inbox(t, s, db.ListInboxParams{FromMailbox: sql.NullString{String: "mbx-3", Valid: true}, PageLimit: 2}), []string{"msg-5", "msg-4"})
-	eq(t, inbox(t, s, db.ListInboxParams{FromMailbox: sql.NullString{String: "mbx-9", Valid: true}}), nil)
+	eq(t, inbox(t, s, store.InboxParams{Since: sql.NullInt64{Int64: 20, Valid: true}, Until: sql.NullInt64{Int64: 40, Valid: true}}), []string{"msg-4", "msg-3", "msg-2"})
+	eq(t, inbox(t, s, store.InboxParams{FromMailbox: sql.NullString{String: "mbx-3", Valid: true}, PageLimit: 2}), []string{"msg-5", "msg-4"})
+	eq(t, inbox(t, s, store.InboxParams{FromMailbox: sql.NullString{String: "mbx-9", Valid: true}}), nil)
 
 	// Keyset pagination.
-	eq(t, inbox(t, s, db.ListInboxParams{PageLimit: 2}), []string{"msg-5", "msg-4"})
-	eq(t, inbox(t, s, db.ListInboxParams{PageLimit: 2, BeforeID: sql.NullString{String: "msg-4", Valid: true}}), []string{"msg-3", "msg-2"})
-	eq(t, inbox(t, s, db.ListInboxParams{PageLimit: 2, BeforeID: sql.NullString{String: "msg-2", Valid: true}}), []string{"msg-1"})
+	eq(t, inbox(t, s, store.InboxParams{PageLimit: 2}), []string{"msg-5", "msg-4"})
+	eq(t, inbox(t, s, store.InboxParams{PageLimit: 2, BeforeMessage: sql.NullString{String: "msg-4", Valid: true}, BeforeMailbox: sql.NullString{String: "mbx-0", Valid: true}}), []string{"msg-3", "msg-2"})
+	eq(t, inbox(t, s, store.InboxParams{PageLimit: 2, BeforeMessage: sql.NullString{String: "msg-2", Valid: true}, BeforeMailbox: sql.NullString{String: "mbx-0", Valid: true}}), []string{"msg-1"})
 }
 
 func TestMessageThreadAndDeliveries(t *testing.T) {
@@ -603,5 +604,86 @@ func TestOpenUnknownMigrationVersion(t *testing.T) {
 	}
 	if _, err := store.Open(context.Background(), path); err == nil {
 		t.Fatal("expected migrate error")
+	}
+}
+
+func TestInboxCompositeCursor(t *testing.T) {
+	t.Parallel()
+	s := newStore(t)
+	seed(t, s)
+	// One message delivered to two mailboxes, then an older one.
+	send(t, s, "msg-1", "msg-1", "a", "b", 10, "mbx-1")
+	send(t, s, "msg-2", "msg-2", "a", "b", 20, "mbx-1", "mbx-2")
+	page := func(p store.InboxParams) []string {
+		t.Helper()
+		p.PageLimit = 1
+		p.Host, p.Org, p.State = "h", "acme", "all"
+		rows, err := store.ListInbox(context.Background(), s.Read(), p)
+		if err != nil || len(rows) != 1 {
+			t.Fatalf("page: %v %v", rows, err)
+		}
+		return []string{rows[0].MessageID, rows[0].MailboxID}
+	}
+	got := page(store.InboxParams{})
+	eq(t, got, []string{"msg-2", "mbx-2"})
+	got = page(store.InboxParams{BeforeMessage: sql.NullString{String: got[0], Valid: true}, BeforeMailbox: sql.NullString{String: got[1], Valid: true}})
+	eq(t, got, []string{"msg-2", "mbx-1"})
+	got = page(store.InboxParams{BeforeMessage: sql.NullString{String: got[0], Valid: true}, BeforeMailbox: sql.NullString{String: got[1], Valid: true}})
+	eq(t, got, []string{"msg-1", "mbx-1"})
+}
+
+// planDB records the EXPLAIN QUERY PLAN output of every query it runs.
+type planDB struct {
+	db.DBTX
+	plan []string
+}
+
+func (p *planDB) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	rows, err := p.DBTX.QueryContext(ctx, "EXPLAIN QUERY PLAN "+query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, parent, unused int
+		var detail string
+		if err := rows.Scan(&id, &parent, &unused, &detail); err != nil {
+			return nil, err
+		}
+		p.plan = append(p.plan, detail)
+	}
+	return p.DBTX.QueryContext(ctx, "SELECT 1 WHERE 0")
+}
+
+func TestInboxUsesMailboxIndex(t *testing.T) {
+	t.Parallel()
+	_, path := newStorePath(t)
+	raw, err := sql.Open("sqlite", "file:"+path+"?_pragma=query_only(1)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = raw.Close() })
+	tests := []struct {
+		name string
+		sc   store.Scope
+		want string
+	}{
+		{"org", store.Scope{Host: "h", Org: "acme"}, "host=? AND org=?"},
+		{"repo", store.Scope{Host: "h", Org: "acme", Repo: "web", MatchRepo: true}, "repo=?"},
+		{"identity", store.Scope{Host: "h", Org: "acme", Repo: "web", Identity: "alice", MatchRepo: true, MatchIdentity: true}, "identity=?"},
+		{"subagent", store.Scope{Host: "h", Org: "acme", Repo: "web", Identity: "alice", Subagent: "helper", MatchRepo: true, MatchIdentity: true, MatchSubagent: true}, "subagent=?"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pd := &planDB{DBTX: raw}
+			_, err := store.ListInbox(context.Background(), db.New(pd), store.InboxParams{Scope: tt.sc, State: "all", PageLimit: 10})
+			if err != nil {
+				t.Fatal(err)
+			}
+			joined := strings.Join(pd.plan, "\n")
+			if !strings.Contains(joined, tt.want) || strings.Contains(joined, "SCAN mb") {
+				t.Errorf("plan lacks %q or scans mailboxes:\n%s", tt.want, joined)
+			}
+		})
 	}
 }

@@ -117,49 +117,45 @@ func (q *Queries) ListDeliveriesForMessage(ctx context.Context, messageID string
 	return items, nil
 }
 
-const listInbox = `-- name: ListInbox :many
+const listInboxIdentity = `-- name: ListInboxIdentity :many
 SELECT d.message_id, d.mailbox_id, d.kind, d.read_at, d.archived_at,
        m.thread_id, m.in_reply_to, m.from_mailbox, m.from_session, m.subject, m.created_at,
        mb.host, mb.org, mb.repo, mb.identity, mb.subagent
 FROM deliveries d
 JOIN messages m ON m.id = d.message_id
 JOIN mailboxes mb ON mb.id = d.mailbox_id
-WHERE mb.host = ?1 AND mb.org = ?2
-  AND (CAST(?3 AS INTEGER) = 0 OR mb.repo = ?4)
-  AND (CAST(?5 AS INTEGER) = 0 OR mb.identity = ?6)
-  AND (CAST(?7 AS INTEGER) = 0 OR mb.subagent = ?8)
-  AND (CAST(?9 AS TEXT) IS NULL OR m.from_mailbox = ?9)
-  AND (CAST(?10 AS INTEGER) IS NULL OR m.created_at >= ?10)
-  AND (CAST(?11 AS INTEGER) IS NULL OR m.created_at <= ?11)
-  AND (CAST(?12 AS TEXT) IS NULL OR m.id < ?12)
-  AND CASE CAST(?13 AS TEXT)
+WHERE mb.host = ?1 AND mb.org = ?2 AND mb.repo = ?3 AND mb.identity = ?4
+  AND (CAST(?5 AS TEXT) IS NULL OR m.from_mailbox = ?5)
+  AND (CAST(?6 AS INTEGER) IS NULL OR m.created_at >= ?6)
+  AND (CAST(?7 AS INTEGER) IS NULL OR m.created_at <= ?7)
+  AND (CAST(?8 AS TEXT) IS NULL
+       OR m.id < ?8
+       OR (m.id = ?8 AND d.mailbox_id < ?9))
+  AND CASE CAST(?10 AS TEXT)
         WHEN 'unread' THEN d.read_at IS NULL AND d.archived_at IS NULL
         WHEN 'read' THEN d.read_at IS NOT NULL AND d.archived_at IS NULL
         WHEN 'archived' THEN d.archived_at IS NOT NULL
         ELSE 1
       END
-ORDER BY m.id DESC
-LIMIT ?14
+ORDER BY m.id DESC, d.mailbox_id DESC
+LIMIT ?11
 `
 
-type ListInboxParams struct {
+type ListInboxIdentityParams struct {
 	Host          string
 	Org           string
-	MatchRepo     int64
 	Repo          string
-	MatchIdentity int64
 	Identity      string
-	MatchSubagent int64
-	Subagent      string
 	FromMailbox   sql.NullString
 	Since         sql.NullInt64
 	Until         sql.NullInt64
-	BeforeID      sql.NullString
+	BeforeMessage sql.NullString
+	BeforeMailbox sql.NullString
 	State         string
 	PageLimit     int64
 }
 
-type ListInboxRow struct {
+type ListInboxIdentityRow struct {
 	MessageID   string
 	MailboxID   string
 	Kind        string
@@ -178,20 +174,17 @@ type ListInboxRow struct {
 	Subagent    string
 }
 
-func (q *Queries) ListInbox(ctx context.Context, arg ListInboxParams) ([]ListInboxRow, error) {
-	rows, err := q.db.QueryContext(ctx, listInbox,
+func (q *Queries) ListInboxIdentity(ctx context.Context, arg ListInboxIdentityParams) ([]ListInboxIdentityRow, error) {
+	rows, err := q.db.QueryContext(ctx, listInboxIdentity,
 		arg.Host,
 		arg.Org,
-		arg.MatchRepo,
 		arg.Repo,
-		arg.MatchIdentity,
 		arg.Identity,
-		arg.MatchSubagent,
-		arg.Subagent,
 		arg.FromMailbox,
 		arg.Since,
 		arg.Until,
-		arg.BeforeID,
+		arg.BeforeMessage,
+		arg.BeforeMailbox,
 		arg.State,
 		arg.PageLimit,
 	)
@@ -199,9 +192,333 @@ func (q *Queries) ListInbox(ctx context.Context, arg ListInboxParams) ([]ListInb
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListInboxRow
+	var items []ListInboxIdentityRow
 	for rows.Next() {
-		var i ListInboxRow
+		var i ListInboxIdentityRow
+		if err := rows.Scan(
+			&i.MessageID,
+			&i.MailboxID,
+			&i.Kind,
+			&i.ReadAt,
+			&i.ArchivedAt,
+			&i.ThreadID,
+			&i.InReplyTo,
+			&i.FromMailbox,
+			&i.FromSession,
+			&i.Subject,
+			&i.CreatedAt,
+			&i.Host,
+			&i.Org,
+			&i.Repo,
+			&i.Identity,
+			&i.Subagent,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listInboxOrg = `-- name: ListInboxOrg :many
+SELECT d.message_id, d.mailbox_id, d.kind, d.read_at, d.archived_at,
+       m.thread_id, m.in_reply_to, m.from_mailbox, m.from_session, m.subject, m.created_at,
+       mb.host, mb.org, mb.repo, mb.identity, mb.subagent
+FROM deliveries d
+JOIN messages m ON m.id = d.message_id
+JOIN mailboxes mb ON mb.id = d.mailbox_id
+WHERE mb.host = ?1 AND mb.org = ?2
+  AND (CAST(?3 AS TEXT) IS NULL OR m.from_mailbox = ?3)
+  AND (CAST(?4 AS INTEGER) IS NULL OR m.created_at >= ?4)
+  AND (CAST(?5 AS INTEGER) IS NULL OR m.created_at <= ?5)
+  AND (CAST(?6 AS TEXT) IS NULL
+       OR m.id < ?6
+       OR (m.id = ?6 AND d.mailbox_id < ?7))
+  AND CASE CAST(?8 AS TEXT)
+        WHEN 'unread' THEN d.read_at IS NULL AND d.archived_at IS NULL
+        WHEN 'read' THEN d.read_at IS NOT NULL AND d.archived_at IS NULL
+        WHEN 'archived' THEN d.archived_at IS NOT NULL
+        ELSE 1
+      END
+ORDER BY m.id DESC, d.mailbox_id DESC
+LIMIT ?9
+`
+
+type ListInboxOrgParams struct {
+	Host          string
+	Org           string
+	FromMailbox   sql.NullString
+	Since         sql.NullInt64
+	Until         sql.NullInt64
+	BeforeMessage sql.NullString
+	BeforeMailbox sql.NullString
+	State         string
+	PageLimit     int64
+}
+
+type ListInboxOrgRow struct {
+	MessageID   string
+	MailboxID   string
+	Kind        string
+	ReadAt      sql.NullInt64
+	ArchivedAt  sql.NullInt64
+	ThreadID    string
+	InReplyTo   sql.NullString
+	FromMailbox string
+	FromSession string
+	Subject     string
+	CreatedAt   int64
+	Host        string
+	Org         string
+	Repo        string
+	Identity    string
+	Subagent    string
+}
+
+func (q *Queries) ListInboxOrg(ctx context.Context, arg ListInboxOrgParams) ([]ListInboxOrgRow, error) {
+	rows, err := q.db.QueryContext(ctx, listInboxOrg,
+		arg.Host,
+		arg.Org,
+		arg.FromMailbox,
+		arg.Since,
+		arg.Until,
+		arg.BeforeMessage,
+		arg.BeforeMailbox,
+		arg.State,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListInboxOrgRow
+	for rows.Next() {
+		var i ListInboxOrgRow
+		if err := rows.Scan(
+			&i.MessageID,
+			&i.MailboxID,
+			&i.Kind,
+			&i.ReadAt,
+			&i.ArchivedAt,
+			&i.ThreadID,
+			&i.InReplyTo,
+			&i.FromMailbox,
+			&i.FromSession,
+			&i.Subject,
+			&i.CreatedAt,
+			&i.Host,
+			&i.Org,
+			&i.Repo,
+			&i.Identity,
+			&i.Subagent,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listInboxRepo = `-- name: ListInboxRepo :many
+SELECT d.message_id, d.mailbox_id, d.kind, d.read_at, d.archived_at,
+       m.thread_id, m.in_reply_to, m.from_mailbox, m.from_session, m.subject, m.created_at,
+       mb.host, mb.org, mb.repo, mb.identity, mb.subagent
+FROM deliveries d
+JOIN messages m ON m.id = d.message_id
+JOIN mailboxes mb ON mb.id = d.mailbox_id
+WHERE mb.host = ?1 AND mb.org = ?2 AND mb.repo = ?3
+  AND (CAST(?4 AS TEXT) IS NULL OR m.from_mailbox = ?4)
+  AND (CAST(?5 AS INTEGER) IS NULL OR m.created_at >= ?5)
+  AND (CAST(?6 AS INTEGER) IS NULL OR m.created_at <= ?6)
+  AND (CAST(?7 AS TEXT) IS NULL
+       OR m.id < ?7
+       OR (m.id = ?7 AND d.mailbox_id < ?8))
+  AND CASE CAST(?9 AS TEXT)
+        WHEN 'unread' THEN d.read_at IS NULL AND d.archived_at IS NULL
+        WHEN 'read' THEN d.read_at IS NOT NULL AND d.archived_at IS NULL
+        WHEN 'archived' THEN d.archived_at IS NOT NULL
+        ELSE 1
+      END
+ORDER BY m.id DESC, d.mailbox_id DESC
+LIMIT ?10
+`
+
+type ListInboxRepoParams struct {
+	Host          string
+	Org           string
+	Repo          string
+	FromMailbox   sql.NullString
+	Since         sql.NullInt64
+	Until         sql.NullInt64
+	BeforeMessage sql.NullString
+	BeforeMailbox sql.NullString
+	State         string
+	PageLimit     int64
+}
+
+type ListInboxRepoRow struct {
+	MessageID   string
+	MailboxID   string
+	Kind        string
+	ReadAt      sql.NullInt64
+	ArchivedAt  sql.NullInt64
+	ThreadID    string
+	InReplyTo   sql.NullString
+	FromMailbox string
+	FromSession string
+	Subject     string
+	CreatedAt   int64
+	Host        string
+	Org         string
+	Repo        string
+	Identity    string
+	Subagent    string
+}
+
+func (q *Queries) ListInboxRepo(ctx context.Context, arg ListInboxRepoParams) ([]ListInboxRepoRow, error) {
+	rows, err := q.db.QueryContext(ctx, listInboxRepo,
+		arg.Host,
+		arg.Org,
+		arg.Repo,
+		arg.FromMailbox,
+		arg.Since,
+		arg.Until,
+		arg.BeforeMessage,
+		arg.BeforeMailbox,
+		arg.State,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListInboxRepoRow
+	for rows.Next() {
+		var i ListInboxRepoRow
+		if err := rows.Scan(
+			&i.MessageID,
+			&i.MailboxID,
+			&i.Kind,
+			&i.ReadAt,
+			&i.ArchivedAt,
+			&i.ThreadID,
+			&i.InReplyTo,
+			&i.FromMailbox,
+			&i.FromSession,
+			&i.Subject,
+			&i.CreatedAt,
+			&i.Host,
+			&i.Org,
+			&i.Repo,
+			&i.Identity,
+			&i.Subagent,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listInboxSubagent = `-- name: ListInboxSubagent :many
+SELECT d.message_id, d.mailbox_id, d.kind, d.read_at, d.archived_at,
+       m.thread_id, m.in_reply_to, m.from_mailbox, m.from_session, m.subject, m.created_at,
+       mb.host, mb.org, mb.repo, mb.identity, mb.subagent
+FROM deliveries d
+JOIN messages m ON m.id = d.message_id
+JOIN mailboxes mb ON mb.id = d.mailbox_id
+WHERE mb.host = ?1 AND mb.org = ?2 AND mb.repo = ?3 AND mb.identity = ?4
+  AND mb.subagent = ?5
+  AND (CAST(?6 AS TEXT) IS NULL OR m.from_mailbox = ?6)
+  AND (CAST(?7 AS INTEGER) IS NULL OR m.created_at >= ?7)
+  AND (CAST(?8 AS INTEGER) IS NULL OR m.created_at <= ?8)
+  AND (CAST(?9 AS TEXT) IS NULL
+       OR m.id < ?9
+       OR (m.id = ?9 AND d.mailbox_id < ?10))
+  AND CASE CAST(?11 AS TEXT)
+        WHEN 'unread' THEN d.read_at IS NULL AND d.archived_at IS NULL
+        WHEN 'read' THEN d.read_at IS NOT NULL AND d.archived_at IS NULL
+        WHEN 'archived' THEN d.archived_at IS NOT NULL
+        ELSE 1
+      END
+ORDER BY m.id DESC, d.mailbox_id DESC
+LIMIT ?12
+`
+
+type ListInboxSubagentParams struct {
+	Host          string
+	Org           string
+	Repo          string
+	Identity      string
+	Subagent      string
+	FromMailbox   sql.NullString
+	Since         sql.NullInt64
+	Until         sql.NullInt64
+	BeforeMessage sql.NullString
+	BeforeMailbox sql.NullString
+	State         string
+	PageLimit     int64
+}
+
+type ListInboxSubagentRow struct {
+	MessageID   string
+	MailboxID   string
+	Kind        string
+	ReadAt      sql.NullInt64
+	ArchivedAt  sql.NullInt64
+	ThreadID    string
+	InReplyTo   sql.NullString
+	FromMailbox string
+	FromSession string
+	Subject     string
+	CreatedAt   int64
+	Host        string
+	Org         string
+	Repo        string
+	Identity    string
+	Subagent    string
+}
+
+func (q *Queries) ListInboxSubagent(ctx context.Context, arg ListInboxSubagentParams) ([]ListInboxSubagentRow, error) {
+	rows, err := q.db.QueryContext(ctx, listInboxSubagent,
+		arg.Host,
+		arg.Org,
+		arg.Repo,
+		arg.Identity,
+		arg.Subagent,
+		arg.FromMailbox,
+		arg.Since,
+		arg.Until,
+		arg.BeforeMessage,
+		arg.BeforeMailbox,
+		arg.State,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListInboxSubagentRow
+	for rows.Next() {
+		var i ListInboxSubagentRow
 		if err := rows.Scan(
 			&i.MessageID,
 			&i.MailboxID,

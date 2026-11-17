@@ -145,52 +145,53 @@ func ptrMS(t *time.Time) sql.NullInt64 {
 	return sql.NullInt64{Int64: t.UnixMilli(), Valid: true}
 }
 
-func (s *Service) listParams(ctx context.Context, in ListInput) (db.ListInboxParams, bool, error) {
+func (s *Service) listParams(ctx context.Context, in ListInput) (store.InboxParams, bool, error) {
 	const op = "list"
 	a, err := parseAddr(op, in.Address)
 	if err != nil {
-		return db.ListInboxParams{}, false, err
+		return store.InboxParams{}, false, err
 	}
 	state := in.State
 	if state == "" {
 		state = StateUnread
 	}
 	if !slices.Contains([]string{StateUnread, StateRead, StateArchived, StateAll}, state) {
-		return db.ListInboxParams{}, false, invalidf(op, "state %q is not one of unread, read, archived, all", state)
+		return store.InboxParams{}, false, invalidf(op, "state %q is not one of unread, read, archived, all", state)
 	}
 	if state == StateArchived {
 		if in.Since == nil || in.Until == nil {
-			return db.ListInboxParams{}, false, invalidf(op, "state=archived requires both since and until to bound the window")
+			return store.InboxParams{}, false, invalidf(op, "state=archived requires both since and until to bound the window")
 		}
 	}
 	if in.Since != nil && in.Until != nil && in.Until.Before(*in.Since) {
-		return db.ListInboxParams{}, false, invalidf(op, "until must not be before since")
+		return store.InboxParams{}, false, invalidf(op, "until must not be before since")
 	}
 	if in.Limit < 0 {
-		return db.ListInboxParams{}, false, invalidf(op, "limit must not be negative")
+		return store.InboxParams{}, false, invalidf(op, "limit must not be negative")
 	}
-	if in.Cursor != "" && !strings.HasPrefix(in.Cursor, prefixMessage) {
-		return db.ListInboxParams{}, false, invalidf(op, "cursor %q is not valid; pass next_cursor from the previous page", in.Cursor)
-	}
-	sc := a.Scope()
-	p := db.ListInboxParams{
-		Host: sc.Host, Org: sc.Org, MatchRepo: b2i(sc.MatchRepo), Repo: sc.Repo,
-		MatchIdentity: b2i(sc.MatchIdentity), Identity: sc.Identity,
-		MatchSubagent: b2i(sc.MatchSubagent), Subagent: sc.Subagent,
+	p := store.InboxParams{
+		Scope: toStoreScope(a.Scope()),
 		Since: ptrMS(in.Since), Until: ptrMS(in.Until), State: state,
-		BeforeID: sql.NullString{String: in.Cursor, Valid: in.Cursor != ""},
+	}
+	if in.Cursor != "" {
+		msgID, mbxID, ok := parseCursor(in.Cursor)
+		if !ok {
+			return store.InboxParams{}, false, invalidf(op, "cursor %q is not valid; pass next_cursor from the previous page", in.Cursor)
+		}
+		p.BeforeMessage = sql.NullString{String: msgID, Valid: true}
+		p.BeforeMailbox = sql.NullString{String: mbxID, Valid: true}
 	}
 	if in.From != "" {
 		fa, err := parseAddr(op, in.From)
 		if err != nil {
-			return db.ListInboxParams{}, false, err
+			return store.InboxParams{}, false, err
 		}
 		m, err := s.store.Read().GetMailboxByKey(ctx, keyOf(fa))
 		if errors.Is(err, sql.ErrNoRows) {
 			return p, true, nil // nobody by that address has sent anything
 		}
 		if err != nil {
-			return db.ListInboxParams{}, false, fmt.Errorf("mail: %s: from: %w", op, err)
+			return store.InboxParams{}, false, fmt.Errorf("mail: %s: from: %w", op, err)
 		}
 		p.FromMailbox = sql.NullString{String: m.ID, Valid: true}
 	}
@@ -214,20 +215,15 @@ func (s *Service) List(ctx context.Context, in ListInput) (ListResult, error) {
 	limit = min(limit, MaxListLimit)
 	p.PageLimit = int64(limit) + 1
 	q := s.store.Read()
-	rows, err := q.ListInbox(ctx, p)
+	rows, err := store.ListInbox(ctx, q, p)
 	if err != nil {
 		return ListResult{}, fmt.Errorf("mail: %s: %w", op, err)
 	}
 	next := ""
 	if len(rows) > limit {
-		extra := rows[limit].MessageID
 		rows = rows[:limit]
-		// Cursor is a message id, so a message must not straddle pages: drop
-		// the trailing message's rows when more of them follow on the next page.
-		if extra == rows[limit-1].MessageID && trailingRun(rows, extra) < len(rows) {
-			rows = rows[:len(rows)-trailingRun(rows, extra)]
-		}
-		next = rows[len(rows)-1].MessageID
+		last := rows[limit-1]
+		next = last.MessageID + cursorSep + last.MailboxID
 	}
 	items, err := s.headers(ctx, q, rows)
 	if err != nil {
@@ -236,12 +232,14 @@ func (s *Service) List(ctx context.Context, in ListInput) (ListResult, error) {
 	return ListResult{Items: items, NextCursor: next}, nil
 }
 
-func trailingRun(rows []db.ListInboxRow, id string) int {
-	n := 0
-	for i := len(rows) - 1; i >= 0 && rows[i].MessageID == id; i-- {
-		n++
-	}
-	return n
+// cursorSep joins the message and mailbox ids in a list cursor, which is the
+// keyset (message_id, mailbox_id) of the last delivery on the previous page.
+const cursorSep = "/"
+
+func parseCursor(c string) (msgID, mbxID string, ok bool) {
+	msgID, mbxID, ok = strings.Cut(c, cursorSep)
+	ok = ok && strings.HasPrefix(msgID, prefixMessage) && strings.HasPrefix(mbxID, prefixMailbox)
+	return msgID, mbxID, ok
 }
 
 func mailboxIndex(ctx context.Context, q *db.Queries, ids []string) (map[string]address.Address, error) {
@@ -260,7 +258,7 @@ func mailboxIndex(ctx context.Context, q *db.Queries, ids []string) (map[string]
 	return idx, nil
 }
 
-func (s *Service) headers(ctx context.Context, q *db.Queries, rows []db.ListInboxRow) ([]Header, error) {
+func (s *Service) headers(ctx context.Context, q *db.Queries, rows []store.InboxRow) ([]Header, error) {
 	froms := make([]string, len(rows))
 	for i, r := range rows {
 		froms[i] = r.FromMailbox

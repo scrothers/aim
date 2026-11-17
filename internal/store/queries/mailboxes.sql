@@ -9,13 +9,20 @@ SELECT * FROM mailboxes WHERE id = @id;
 INSERT INTO mailboxes (id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at)
 VALUES (@id, @host, @org, @repo, @identity, @subagent, @kind, @role, @description, @reports_to, @created_at);
 
--- name: ListIdentitiesInScope :many
-SELECT mb.* FROM mailboxes mb
-WHERE mb.kind = 'identity'
-  AND mb.host = @host AND mb.org = @org
-  AND (CAST(@match_repo AS INTEGER) = 0 OR mb.repo = @repo)
-  AND (CAST(@match_identity AS INTEGER) = 0 OR mb.identity = @identity)
-ORDER BY mb.repo, mb.identity;
+-- name: ListIdentitiesInOrg :many
+SELECT * FROM mailboxes
+WHERE kind = 'identity' AND host = @host AND org = @org
+ORDER BY repo, identity;
+
+-- name: ListIdentitiesInRepo :many
+SELECT * FROM mailboxes
+WHERE kind = 'identity' AND host = @host AND org = @org AND repo = @repo
+ORDER BY repo, identity;
+
+-- name: ListIdentitiesInIdentity :many
+SELECT * FROM mailboxes
+WHERE kind = 'identity' AND host = @host AND org = @org AND repo = @repo AND identity = @identity
+ORDER BY repo, identity;
 
 -- name: ListSubagentsOf :many
 SELECT * FROM mailboxes

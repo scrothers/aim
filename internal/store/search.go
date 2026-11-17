@@ -36,12 +36,25 @@ type SearchHit struct {
 	MailboxID     string
 }
 
-const scopeClause = `mb.host = @host AND mb.org = @org
-  AND (@match_repo = 0 OR mb.repo = @repo)
-  AND (@match_identity = 0 OR mb.identity = @identity)
-  AND (@match_subagent = 0 OR mb.subagent = @subagent)`
+// scopeClause builds the mailbox predicate for alias, using only the
+// equalities the scope depth needs so SQLite can walk the full UNIQUE index.
+// The text is assembled from fixed fragments; all values stay bound.
+func scopeClause(alias string, p SearchParams) string {
+	c := alias + ".host = @host AND " + alias + ".org = @org"
+	if p.MatchRepo || p.MatchIdentity || p.MatchSubagent {
+		c += " AND " + alias + ".repo = @repo"
+	}
+	if p.MatchIdentity || p.MatchSubagent {
+		c += " AND " + alias + ".identity = @identity"
+	}
+	if p.MatchSubagent {
+		c += " AND " + alias + ".subagent = @subagent"
+	}
+	return c
+}
 
-const searchSQL = `
+func searchSQL(p SearchParams) string {
+	return `
 SELECT m.id, m.thread_id, m.subject,
        snippet(messages_fts, 1, '[', ']', '...', 12),
        m.from_mailbox, m.created_at, bm25(messages_fts), d.mailbox_id
@@ -50,24 +63,15 @@ JOIN messages m ON m.rowid = messages_fts.rowid
 JOIN deliveries d ON d.message_id = m.id
 JOIN mailboxes mb ON mb.id = d.mailbox_id
 WHERE messages_fts MATCH @query
-  AND ` + scopeClause + `
+  AND ` + scopeClause("mb", p) + `
   AND (@since IS NULL OR m.created_at >= @since)
   AND (@until IS NULL OR m.created_at <= @until)
   AND NOT EXISTS (
     SELECT 1 FROM deliveries d2 JOIN mailboxes mb2 ON mb2.id = d2.mailbox_id
     WHERE d2.message_id = d.message_id AND d2.mailbox_id < d.mailbox_id
-      AND mb2.host = @host AND mb2.org = @org
-      AND (@match_repo = 0 OR mb2.repo = @repo)
-      AND (@match_identity = 0 OR mb2.identity = @identity)
-      AND (@match_subagent = 0 OR mb2.subagent = @subagent))
+      AND ` + scopeClause("mb2", p) + `)
 ORDER BY bm25(messages_fts), m.id DESC
 LIMIT @limit OFFSET @offset`
-
-func b2i(b bool) int64 {
-	if b {
-		return 1
-	}
-	return 0
 }
 
 func nullInt(p *int64) sql.NullInt64 {
@@ -97,16 +101,22 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]SearchHit, error)
 	if limit <= 0 {
 		limit = 20
 	}
-	rows, err := s.reader.QueryContext(ctx, searchSQL,
+	args := []any{
 		sql.Named("query", p.Query),
 		sql.Named("host", p.Host), sql.Named("org", p.Org),
-		sql.Named("repo", p.Repo), sql.Named("identity", p.Identity), sql.Named("subagent", p.Subagent),
-		sql.Named("match_repo", b2i(p.MatchRepo)),
-		sql.Named("match_identity", b2i(p.MatchIdentity)),
-		sql.Named("match_subagent", b2i(p.MatchSubagent)),
 		sql.Named("since", nullInt(p.Since)), sql.Named("until", nullInt(p.Until)),
 		sql.Named("limit", limit), sql.Named("offset", max(p.Offset, 0)),
-	)
+	}
+	if p.MatchRepo || p.MatchIdentity || p.MatchSubagent {
+		args = append(args, sql.Named("repo", p.Repo))
+	}
+	if p.MatchIdentity || p.MatchSubagent {
+		args = append(args, sql.Named("identity", p.Identity))
+	}
+	if p.MatchSubagent {
+		args = append(args, sql.Named("subagent", p.Subagent))
+	}
+	rows, err := s.reader.QueryContext(ctx, searchSQL(p), args...)
 	if err != nil {
 		return nil, searchErr(err)
 	}
