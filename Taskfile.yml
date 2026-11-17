@@ -53,8 +53,8 @@ tasks:
         for h in $hosts; do echo "  http://$h:{{.DEV_HTTP_PORT}}/"; done
         echo "REST API docs:"
         for h in $hosts; do echo "  http://$h:{{.DEV_HTTP_PORT}}/docs"; done
-        echo "MCP Inspector:"
-        for h in $hosts; do echo "  https://$h:{{.INSPECTOR_PORT}}/?MCP_INSPECTOR_API_TOKEN={{.INSPECTOR_TOKEN}}"; done
+        echo "MCP Inspector (bound to the LAN IP only; it refuses 0.0.0.0):"
+        for h in {{.LAN_IP}} {{.FQDN}}; do echo "  https://$h:{{.INSPECTOR_PORT}}/?MCP_INSPECTOR_API_TOKEN={{.INSPECTOR_TOKEN}}"; done
         echo "MCP endpoint for agents (aim mcp):"
         echo "  AIM_ADDR={{.DEV_SOCKET}}"
         for h in $hosts; do echo "  AIM_ADDR=$h:{{.DEV_MCP_PORT}}"; done
@@ -111,7 +111,10 @@ tasks:
     internal: true
     deps: [dev:cert]
     env:
-      HOST: "0.0.0.0"
+      # The inspector backend can spawn local processes, so it refuses to bind
+      # every interface. The LAN IP keeps it reachable from other machines
+      # (by IP or FQDN) without DANGEROUSLY_BIND_ALL_INTERFACES.
+      HOST: "{{.LAN_IP}}"
       CLIENT_PORT: "{{.INSPECTOR_PORT}}"
       MCP_SANDBOX_PORT: "{{.INSPECTOR_SANDBOX_PORT}}"
       INSPECTOR_TLS_CERT_PATH: "{{.DEV_DIR}}/tls-{{.LAN_IP}}.crt"
