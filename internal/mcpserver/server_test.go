@@ -135,6 +135,17 @@ func TestToolList(t *testing.T) {
 	registered := map[string]bool{}
 	for _, tool := range res.Tools {
 		registered[tool.Name] = true
+		// Type lists like ["null","array"] are legal JSON Schema but some
+		// clients reject them; schema.go rewrites them at registration.
+		for kind, schema := range map[string]any{"input": tool.InputSchema, "output": tool.OutputSchema} {
+			b, err := json.Marshal(schema)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(string(b), `"type":[`) {
+				t.Errorf("%s %s schema has a type list: %s", tool.Name, kind, b)
+			}
+		}
 		want := promptFile(t, "prompts/tools/"+tool.Name+".md")
 		if want == "" {
 			t.Errorf("prompts/tools/%s.md is empty", tool.Name)

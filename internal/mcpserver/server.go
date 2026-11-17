@@ -36,20 +36,20 @@ func New(svc *mail.Service, conn *presence.Entry, version string, opts ...Option
 	h.registerResources(srv)
 	h.registerPrompts(srv)
 	srv.AddReceivingMiddleware(h.captureClient)
-	// Descriptions live in prompts/tools/<name>.md (see prompts.go).
-	tool := func(name string) *mcp.Tool { return &mcp.Tool{Name: name, Description: toolDescription(name)} }
-	mcp.AddTool(srv, tool("whoami"), h.whoami)
-	mcp.AddTool(srv, tool("register"), h.register)
-	mcp.AddTool(srv, tool("roster"), h.roster)
-	mcp.AddTool(srv, tool("sign_on"), h.signOn)
-	mcp.AddTool(srv, tool("sign_off"), h.signOff)
-	mcp.AddTool(srv, tool("send"), h.send)
-	mcp.AddTool(srv, tool("list"), h.list)
-	mcp.AddTool(srv, tool("read"), h.read)
-	mcp.AddTool(srv, tool("thread"), h.thread)
-	mcp.AddTool(srv, tool("mark"), h.mark)
-	mcp.AddTool(srv, tool("search"), h.search)
-	mcp.AddTool(srv, tool("wait"), h.wait)
+	// Descriptions live in prompts/tools/<name>.md (see prompts.go); schemas
+	// are made portable across clients (see schema.go).
+	addTool(srv, "whoami", h.whoami)
+	addTool(srv, "register", h.register)
+	addTool(srv, "roster", h.roster)
+	addTool(srv, "sign_on", h.signOn)
+	addTool(srv, "sign_off", h.signOff)
+	addTool(srv, "send", h.send)
+	addTool(srv, "list", h.list)
+	addTool(srv, "read", h.read)
+	addTool(srv, "thread", h.thread)
+	addTool(srv, "mark", h.mark)
+	addTool(srv, "search", h.search)
+	addTool(srv, "wait", h.wait)
 	return srv
 }
 
