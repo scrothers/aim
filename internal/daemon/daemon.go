@@ -1,0 +1,279 @@
+package daemon
+
+import (
+	"bufio"
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"path/filepath"
+	"sync"
+	"time"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/oklog/ulid/v2"
+
+	"github.com/scrothers/aim/internal/httpapi"
+	"github.com/scrothers/aim/internal/mail"
+	"github.com/scrothers/aim/internal/mcpserver"
+	"github.com/scrothers/aim/internal/presence"
+	"github.com/scrothers/aim/internal/store"
+	"github.com/scrothers/aim/internal/wire"
+)
+
+// Defaults and bounds.
+const (
+	DefaultPreambleTimeout = 5 * time.Second
+	shutdownTimeout        = 10 * time.Second
+	dialProbeTimeout       = time.Second
+)
+
+// ErrAlreadyRunning is returned when another daemon answers on the socket.
+var ErrAlreadyRunning = errors.New("daemon already running")
+
+// Addrs holds the bound listener addresses; unused listeners are empty.
+type Addrs struct {
+	Socket string
+	TCP    string
+	HTTP   string
+}
+
+// Config configures Run. Empty Socket, Listen or HTTP disable that listener.
+type Config struct {
+	DBPath          string
+	Socket          string
+	Listen          string
+	HTTP            string
+	Version         string
+	PreambleTimeout time.Duration
+	// Ready, if set, is called once all listeners are bound.
+	Ready func(Addrs)
+}
+
+type daemon struct {
+	cfg    Config
+	logger *slog.Logger
+	svc    *mail.Service
+	reg    *presence.Registry
+
+	mu    sync.Mutex
+	conns map[net.Conn]struct{}
+	wg    sync.WaitGroup
+}
+
+// Run serves until ctx is canceled or a listener fails, then shuts down in
+// reverse order: listeners, connections, HTTP, store.
+func Run(ctx context.Context, cfg Config, logger *slog.Logger) (err error) {
+	if cfg.PreambleTimeout <= 0 {
+		cfg.PreambleTimeout = DefaultPreambleTimeout
+	}
+	if cfg.Version == "" {
+		cfg.Version = "dev"
+	}
+	st, err := store.Open(ctx, cfg.DBPath)
+	if err != nil {
+		return fmt.Errorf("daemon: open store: %w", err)
+	}
+	defer func() {
+		if cerr := st.Close(); cerr != nil {
+			err = errors.Join(err, fmt.Errorf("daemon: close store: %w", cerr))
+		}
+	}()
+
+	reg := presence.New()
+	d := &daemon{
+		cfg: cfg, logger: logger, reg: reg, conns: make(map[net.Conn]struct{}),
+		svc: mail.New(st, mcpserver.NewPresence(reg)),
+	}
+
+	var addrs Addrs
+	var lns []net.Listener
+	closeLns := func() {
+		for _, l := range lns {
+			_ = l.Close()
+		}
+	}
+	var lc net.ListenConfig
+	if cfg.Socket != "" {
+		l, lerr := listenUnix(ctx, &lc, cfg.Socket)
+		if lerr != nil {
+			return lerr
+		}
+		defer func() { _ = os.Remove(cfg.Socket) }()
+		lns = append(lns, l)
+		addrs.Socket = cfg.Socket
+		go d.accept(ctx, l)
+	}
+	if cfg.Listen != "" {
+		l, lerr := lc.Listen(ctx, "tcp", cfg.Listen)
+		if lerr != nil {
+			closeLns()
+			d.shutdownConns(ctx)
+			return fmt.Errorf("daemon: listen tcp %s: %w", cfg.Listen, lerr)
+		}
+		lns = append(lns, l)
+		addrs.TCP = l.Addr().String()
+		go d.accept(ctx, l)
+	}
+
+	var hs *http.Server
+	httpErr := make(chan error, 1)
+	if cfg.HTTP != "" {
+		l, lerr := lc.Listen(ctx, "tcp", cfg.HTTP)
+		if lerr != nil {
+			closeLns()
+			d.shutdownConns(ctx)
+			return fmt.Errorf("daemon: listen http %s: %w", cfg.HTTP, lerr)
+		}
+		addrs.HTTP = l.Addr().String()
+		hs = &http.Server{
+			Handler:           httpapi.New(st, cfg.Version, logger),
+			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       15 * time.Second,
+			WriteTimeout:      30 * time.Second,
+			IdleTimeout:       60 * time.Second,
+		}
+		go func() {
+			if serr := hs.Serve(l); serr != nil && !errors.Is(serr, http.ErrServerClosed) {
+				httpErr <- serr
+			}
+		}()
+	}
+
+	logger.LogAttrs(ctx, slog.LevelInfo, "daemon started",
+		slog.String("socket", addrs.Socket), slog.String("tcp", addrs.TCP), slog.String("http", addrs.HTTP))
+	if cfg.Ready != nil {
+		cfg.Ready(addrs)
+	}
+
+	select {
+	case <-ctx.Done():
+	case herr := <-httpErr:
+		err = fmt.Errorf("daemon: http server: %w", herr)
+	}
+
+	logger.LogAttrs(ctx, slog.LevelInfo, "daemon shutting down")
+	closeLns()
+	d.shutdownConns(ctx)
+	if hs != nil {
+		sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownTimeout)
+		defer cancel()
+		if serr := hs.Shutdown(sctx); serr != nil {
+			err = errors.Join(err, fmt.Errorf("daemon: http shutdown: %w", serr))
+		}
+	}
+	return err
+}
+
+func listenUnix(ctx context.Context, lc *net.ListenConfig, path string) (net.Listener, error) {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return nil, fmt.Errorf("daemon: create socket dir: %w", err)
+	}
+	if fi, err := os.Lstat(path); err == nil {
+		if fi.Mode()&os.ModeSocket == 0 {
+			return nil, fmt.Errorf("daemon: %s exists and is not a socket", path)
+		}
+		dctx, cancel := context.WithTimeout(ctx, dialProbeTimeout)
+		defer cancel()
+		var dialer net.Dialer
+		if c, derr := dialer.DialContext(dctx, "unix", path); derr == nil {
+			_ = c.Close()
+			return nil, fmt.Errorf("daemon: %w at %s", ErrAlreadyRunning, path)
+		}
+		if rerr := os.Remove(path); rerr != nil {
+			return nil, fmt.Errorf("daemon: remove stale socket: %w", rerr)
+		}
+	}
+	l, err := lc.Listen(ctx, "unix", path)
+	if err != nil {
+		return nil, fmt.Errorf("daemon: listen unix %s: %w", path, err)
+	}
+	return l, nil
+}
+
+func (d *daemon) accept(ctx context.Context, l net.Listener) {
+	for {
+		c, err := l.Accept()
+		if err != nil {
+			if !errors.Is(err, net.ErrClosed) {
+				d.logger.LogAttrs(ctx, slog.LevelError, "accept failed", slog.String("error", err.Error()))
+			}
+			return
+		}
+		if !d.track(c) {
+			_ = c.Close()
+			return
+		}
+		go d.serve(ctx, c)
+	}
+}
+
+// track registers a live conn; it reports false once shutdown has begun.
+func (d *daemon) track(c net.Conn) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.conns == nil {
+		return false
+	}
+	d.conns[c] = struct{}{}
+	d.wg.Add(1)
+	return true
+}
+
+func (d *daemon) untrack(c net.Conn) {
+	d.mu.Lock()
+	delete(d.conns, c)
+	d.mu.Unlock()
+	d.wg.Done()
+}
+
+// shutdownConns refuses new conns, closes live ones and waits for handlers.
+func (d *daemon) shutdownConns(ctx context.Context) {
+	d.mu.Lock()
+	live := d.conns
+	d.conns = nil
+	d.mu.Unlock()
+	for c := range live {
+		_ = c.Close()
+	}
+	done := make(chan struct{})
+	go func() { d.wg.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(shutdownTimeout):
+		d.logger.LogAttrs(ctx, slog.LevelWarn, "timed out waiting for connections")
+	}
+}
+
+func (d *daemon) serve(ctx context.Context, c net.Conn) {
+	defer d.untrack(c)
+	defer func() { _ = c.Close() }()
+
+	br := bufio.NewReader(c)
+	_ = c.SetReadDeadline(time.Now().Add(d.cfg.PreambleTimeout))
+	p, err := wire.ReadPreamble(br)
+	if err != nil {
+		d.logger.LogAttrs(ctx, slog.LevelWarn, "rejected connection",
+			slog.String("remote", c.RemoteAddr().String()), slog.String("error", err.Error()))
+		return
+	}
+	_ = c.SetReadDeadline(time.Time{})
+
+	connID := "conn-" + ulid.Make().String()
+	entry := d.reg.Add(connID, p, time.Now())
+	defer d.reg.Remove(connID)
+	log := d.logger.With(slog.String("conn", connID), slog.String("session", p.SessionID), slog.String("machine", p.Machine))
+	log.LogAttrs(ctx, slog.LevelInfo, "client connected")
+	defer log.LogAttrs(ctx, slog.LevelInfo, "client disconnected")
+
+	srv := mcpserver.New(d.svc, entry, d.cfg.Version)
+	ss, err := srv.Connect(ctx, &mcp.IOTransport{Reader: wire.BufferedConn(br, c), Writer: c}, nil)
+	if err != nil {
+		log.LogAttrs(ctx, slog.LevelError, "mcp connect failed", slog.String("error", err.Error()))
+		return
+	}
+	_ = ss.Wait()
+}
