@@ -402,6 +402,7 @@ export interface components {
             mailbox: string;
             /** Format: date-time */
             read_at?: string;
+            snippet: string;
             subject: string;
             /** Format: int64 */
             thread_count: number;
@@ -515,6 +516,8 @@ export interface components {
             from_machine?: string;
             id: string;
             in_reply_to?: string;
+            /** @description Plain-text preview of the body with Markdown syntax removed. */
+            snippet: string;
             subject: string;
             thread_id: string;
             to: string[] | null;
@@ -876,8 +879,8 @@ export interface operations {
             query?: {
                 /** @description Mailbox address; empty lists every mailbox. */
                 address?: string;
-                /** @description Delivery state filter (default unread). */
-                state?: "unread" | "read" | "archived" | "all";
+                /** @description Delivery state filter (default unread). inbox is read or unread, not archived. */
+                state?: "unread" | "read" | "archived" | "inbox" | "all";
                 /** @description Only messages from this address. */
                 from?: string;
                 /** @description Only messages created after this time, RFC 3339. */

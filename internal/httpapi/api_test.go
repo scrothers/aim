@@ -164,6 +164,13 @@ func TestMailFlow(t *testing.T) {
 	if msg["body"] != sent.Body || msg["from"] != alice {
 		t.Errorf("message = %v", msg)
 	}
+	if msg["snippet"] != "please alert(1)" {
+		t.Errorf("message snippet = %q, want plain text", msg["snippet"])
+	}
+	items := decode[obj](t, e.do(t, http.MethodGet, "/api/messages?address=operator&state=inbox", nil), http.StatusOK)["items"].([]any)
+	if len(items) != 1 || items[0].(obj)["snippet"] != "please alert(1)" {
+		t.Errorf("inbox list = %v", items)
+	}
 	if got := decode[obj](t, e.do(t, http.MethodGet, "/api/views", nil), http.StatusOK); got["operator_unread"] != float64(1) {
 		t.Errorf("peek marked read: %v", got)
 	}

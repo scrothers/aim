@@ -10,7 +10,11 @@ import (
 type MessageView struct {
 	mail.Message
 	BodyHTML string `json:"body_html" doc:"Body rendered from Markdown to sanitized HTML; safe to inject."`
+	Snippet  string `json:"snippet" doc:"Plain-text preview of the body with Markdown syntax removed."`
 }
+
+// snippetRunes is the length of a plain-text preview.
+const snippetRunes = 140
 
 // Buddy is one signed-on session (or, in the offline group, one identity).
 type Buddy struct {

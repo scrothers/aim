@@ -45,7 +45,7 @@ type (
 	}
 	listInput struct {
 		Address string    `query:"address" doc:"Mailbox address; empty lists every mailbox."`
-		State   string    `query:"state" enum:"unread,read,archived,all" doc:"Delivery state filter (default unread)."`
+		State   string    `query:"state" enum:"unread,read,archived,inbox,all" doc:"Delivery state filter (default unread). inbox is read or unread, not archived."`
 		From    string    `query:"from" doc:"Only messages from this address."`
 		Since   time.Time `query:"since" doc:"Only messages created after this time, RFC 3339."`
 		Until   time.Time `query:"until" doc:"Only messages created before this time, RFC 3339."`
@@ -128,7 +128,7 @@ func (h *handlers) view(m mail.Message) (MessageView, error) {
 	if err != nil {
 		return MessageView{}, huma.NewError(http.StatusInternalServerError, "render failed", err)
 	}
-	return MessageView{Message: m, BodyHTML: html}, nil
+	return MessageView{Message: m, BodyHTML: html, Snippet: h.render.Snippet(m.Body, snippetRunes)}, nil
 }
 
 func (h *handlers) views(ctx context.Context, in *viewsInput) (*out[mail.ViewCounts], error) {
