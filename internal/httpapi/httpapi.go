@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"time"
@@ -10,11 +11,28 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+
+	"github.com/scrothers/aim/internal/mail"
+	"github.com/scrothers/aim/internal/presence"
+	"github.com/scrothers/aim/internal/render"
 )
 
 // Pinger reports whether a backing dependency is healthy.
 type Pinger interface {
 	Ping(ctx context.Context) error
+}
+
+// Deps are the collaborators of the HTTP API.
+type Deps struct {
+	Pinger   Pinger
+	Mail     *mail.Service
+	Presence *presence.Registry
+	// Static serves the web UI; nil disables static serving.
+	Static  fs.FS
+	Version string
+	Logger  *slog.Logger
+	// AllowedHosts extends the default Host header allowlist.
+	AllowedHosts []string
 }
 
 // HealthOutput is the body of a successful health check.
@@ -24,26 +42,52 @@ type HealthOutput struct {
 	}
 }
 
-// New returns the HTTP handler for the aim API.
-func New(p Pinger, version string, logger *slog.Logger) http.Handler {
+// New returns the HTTP handler for the aim API and web UI.
+func New(d Deps) http.Handler {
+	logger := d.Logger
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
 	router := chi.NewRouter()
-	router.Use(middleware.RequestID, middleware.Recoverer, requestLogger(logger))
+	router.Use(middleware.RequestID, middleware.Recoverer, requestLogger(logger), guards(d.AllowedHosts))
 
-	api := humachi.New(router, huma.DefaultConfig("AIM", version))
+	api := humachi.New(router, config(d.Version))
+	register(api, d)
+	mountStatic(router, d.Static)
+	return router
+}
+
+func config(version string) huma.Config {
+	return huma.DefaultConfig("AIM", version)
+}
+
+// register adds every operation to api. Handlers only touch d when invoked,
+// so a zero Deps is enough to describe the API.
+func register(api huma.API, d Deps) {
 	huma.Register(api, huma.Operation{
 		OperationID: "healthz",
 		Method:      http.MethodGet,
 		Path:        "/healthz",
 		Summary:     "Health check",
 	}, func(ctx context.Context, _ *struct{}) (*HealthOutput, error) {
-		if err := p.Ping(ctx); err != nil {
+		if err := d.Pinger.Ping(ctx); err != nil {
 			return nil, huma.Error503ServiceUnavailable("unhealthy", err)
 		}
 		out := &HealthOutput{}
 		out.Body.Status = "ok"
 		return out, nil
 	})
-	return router
+	registerOperations(api, newHandlers(d))
+}
+
+func newHandlers(d Deps) *handlers {
+	return &handlers{
+		mail:     d.Mail,
+		presence: d.Presence,
+		render:   render.New(),
+		version:  d.Version,
+		caller:   operatorCaller(),
+	}
 }
 
 type statusRecorder struct {

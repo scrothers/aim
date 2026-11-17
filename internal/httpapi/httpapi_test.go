@@ -21,6 +21,7 @@ func (f fakePinger) Ping(context.Context) error { return f.err }
 func get(t *testing.T, h http.Handler, path string) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, path, nil)
+	req.Host = "localhost"
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	return rec
@@ -29,7 +30,7 @@ func get(t *testing.T, h http.Handler, path string) *httptest.ResponseRecorder {
 func TestHealthzOK(t *testing.T) {
 	t.Parallel()
 	var logs bytes.Buffer
-	h := httpapi.New(fakePinger{}, "test", slog.New(slog.NewTextHandler(&logs, nil)))
+	h := httpapi.New(httpapi.Deps{Pinger: fakePinger{}, Version: "test", Logger: slog.New(slog.NewTextHandler(&logs, nil))})
 	rec := get(t, h, "/healthz")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d", rec.Code)
@@ -46,7 +47,7 @@ func TestHealthzOK(t *testing.T) {
 
 func TestHealthzUnhealthy(t *testing.T) {
 	t.Parallel()
-	h := httpapi.New(fakePinger{err: errors.New("db down")}, "test", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h := httpapi.New(httpapi.Deps{Pinger: fakePinger{err: errors.New("db down")}, Version: "test", Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	rec := get(t, h, "/healthz")
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
@@ -55,7 +56,7 @@ func TestHealthzUnhealthy(t *testing.T) {
 
 func TestOpenAPIAndDocs(t *testing.T) {
 	t.Parallel()
-	h := httpapi.New(fakePinger{}, "1.2.3", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h := httpapi.New(httpapi.Deps{Pinger: fakePinger{}, Version: "1.2.3"})
 	rec := get(t, h, "/openapi.json")
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"operationId":"healthz"`) {
 		t.Errorf("openapi: %d %s", rec.Code, rec.Body.String())

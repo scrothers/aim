@@ -151,7 +151,9 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) (err error) {
 		}
 		addrs.HTTP = l.Addr().String()
 		hs = &http.Server{
-			Handler:           httpapi.New(st, cfg.Version, logger),
+			Handler: httpapi.New(httpapi.Deps{
+				Pinger: st, Mail: d.svc, Presence: d.reg, Version: cfg.Version, Logger: logger,
+			}),
 			ReadHeaderTimeout: 5 * time.Second,
 			ReadTimeout:       15 * time.Second,
 			WriteTimeout:      30 * time.Second,
