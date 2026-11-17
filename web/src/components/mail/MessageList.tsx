@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
+import { BellOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ago } from '@/lib/identity'
 import { rowKey, type Header, type MailState } from '@/api/mail'
@@ -26,6 +27,16 @@ export interface MessageListProps {
   hasNext: boolean
   loadingMore: boolean
   now?: number
+  /** Row keys (see rowKey) ticked for a bulk action. */
+  selected: ReadonlySet<string>
+  onToggle: (h: Header, shift: boolean) => void
+  onToggleAll: (checked: boolean) => void
+  /** Bulk action buttons, shown while rows are selected. */
+  bulkActions?: ReactNode
+  /** Extra header controls, e.g. "Save view". */
+  headerActions?: ReactNode
+  /** "Show muted" toggle (operator inbox only). */
+  mutedToggle?: { checked: boolean; onChange: (v: boolean) => void }
   onSelect: (h: Header) => void
   onState: (s: MailState) => void
   onLoadMore: () => void
@@ -43,9 +54,18 @@ export function MessageList(p: MessageListProps) {
       className="box-border flex min-w-0 flex-[1_1_340px] flex-col border-r bg-panel text-[13px]"
     >
       <header className="flex flex-col gap-2 border-b px-4 pt-3 pb-2">
-        <h2 className="m-0 min-w-0 truncate text-sm font-semibold">
-          {p.titleAddress ? <AddressChip address={p.titleAddress} /> : p.title}
-        </h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="m-0 min-w-0 flex-1 truncate text-sm font-semibold">
+            {p.titleAddress ? <AddressChip address={p.titleAddress} /> : p.title}
+          </h2>
+          {p.mutedToggle && (
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground max-md:min-h-11">
+              <input type="checkbox" checked={p.mutedToggle.checked} onChange={(e) => p.mutedToggle?.onChange(e.target.checked)} />
+              Show muted
+            </label>
+          )}
+          {p.headerActions}
+        </div>
         {!p.lockedState && (
           <Tabs value={p.state} onValueChange={(v) => p.onState(v as MailState)}>
             <TabsList>
@@ -57,6 +77,22 @@ export function MessageList(p: MessageListProps) {
           </Tabs>
         )}
         {p.rangeNote && <p className="m-0 text-xs text-faint">{p.rangeNote}</p>}
+        {p.items.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" data-testid="bulk-bar">
+            <label className="flex items-center gap-2 max-md:min-h-11">
+              <input
+                type="checkbox"
+                ref={(el) => {
+                  if (el) el.indeterminate = p.selected.size > 0 && p.selected.size < p.items.length
+                }}
+                checked={p.selected.size > 0 && p.selected.size === p.items.length}
+                onChange={(e) => p.onToggleAll(e.target.checked)}
+              />
+              {p.selected.size > 0 ? `${p.selected.size} selected` : 'Select all in view'}
+            </label>
+            {p.selected.size > 0 && p.bulkActions}
+          </div>
+        )}
       </header>
       {p.error ? (
         <p role="alert" className="m-0 p-4 text-destructive">
@@ -75,7 +111,15 @@ export function MessageList(p: MessageListProps) {
             const isCursor = key === p.cursorId
             const n = h.thread_count
             return (
-              <li key={key} ref={isCursor ? cursorRef : undefined}>
+              <li key={key} ref={isCursor ? cursorRef : undefined} data-selected={p.selected.has(key) || undefined} className="flex border-b">
+                <label className="flex w-10 shrink-0 cursor-pointer items-start justify-center pt-4 hover:bg-hover max-md:w-11">
+                  <input
+                    type="checkbox"
+                    aria-label={`Select ${h.subject}`}
+                    checked={p.selected.has(key)}
+                    onChange={(e) => p.onToggle(h, (e.nativeEvent as MouseEvent).shiftKey === true)}
+                  />
+                </label>
                 <button
                   type="button"
                   data-unread={unread}
@@ -83,8 +127,9 @@ export function MessageList(p: MessageListProps) {
                   data-cursor={isCursor || undefined}
                   onClick={() => p.onSelect(h)}
                   className={cn(
-                    'flex w-full items-start gap-3 border-b px-4 py-3 text-left hover:bg-hover',
-                    selected && 'bg-accent-soft',
+                    'flex min-w-0 flex-1 items-start gap-3 py-3 pr-4 pl-1 text-left hover:bg-hover max-md:min-h-11',
+                    (selected || p.selected.has(key)) && 'bg-accent-soft',
+                    h.muted && 'opacity-70',
                     isCursor && 'ring-2 ring-ring/50 ring-inset',
                   )}
                 >
@@ -102,6 +147,17 @@ export function MessageList(p: MessageListProps) {
                       <span className={cn('min-w-0 flex-1 truncate', unread ? 'font-bold text-text' : 'text-muted-foreground')}>
                         {h.subject}
                       </span>
+                      {h.muted && (
+                        <span
+                          aria-label="Muted"
+                          role="img"
+                          title="Muted thread"
+                          className="flex items-center gap-1 rounded-full bg-code px-1.5 text-xs text-muted-foreground"
+                        >
+                          <BellOff aria-hidden="true" className="size-3" />
+                          muted
+                        </span>
+                      )}
                       {n > 1 && (
                         <span aria-label={`${n} messages in thread`} className="rounded-full bg-code px-1.5 text-xs text-muted-foreground">
                           {n}

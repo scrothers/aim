@@ -9,6 +9,7 @@ const SHORTCUTS: Array<[string, string]> = [
   ['c', 'Compose a new message'],
   ['j / k', 'Next / previous message'],
   ['Enter', 'Open the selected thread'],
+  ['x', 'Select / deselect the message for bulk actions'],
   ['r', 'Reply'],
   ['e', 'Archive (Unarchive in the archive view)'],
   ['u', 'Mark unread'],

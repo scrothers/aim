@@ -17,6 +17,8 @@ export interface MailSearch {
   mailbox?: string
   state?: MailState
   thread?: string
+  /** Operator inbox: also list muted threads. */
+  muted?: boolean
 }
 
 export interface ListParams {
@@ -25,6 +27,7 @@ export interface ListParams {
   state: 'unread' | 'read' | 'archived' | 'inbox' | 'all'
   since?: string
   until?: string
+  include_muted?: boolean
 }
 
 export const ARCHIVE_DAYS = 30
@@ -37,6 +40,7 @@ export function listParamsFor(search: MailSearch, now = new Date()): ListParams 
   if (view === 'archived') state = 'archived'
   if (view === 'unread') state = 'unread'
   const p: ListParams = { state }
+  if (search.muted) p.include_muted = true
   if (search.mailbox) p.address = search.mailbox
   else if (view === 'operator' || view === 'archived') p.address = 'operator'
   else if (view === 'sent') p.from = 'operator'
@@ -107,6 +111,26 @@ export function useMark() {
       void invalidate()
     },
     onError: (e) => toast.error(e instanceof ApiError ? e.message : 'Could not update messages'),
+  })
+}
+
+/** Mutes or unmutes whole threads for the operator. */
+export function useMute() {
+  const invalidate = useInvalidateMail()
+  return useMutation({
+    mutationFn: async ({ threadIds, muted }: { threadIds: string[]; muted: boolean }) => {
+      await Promise.all(
+        threadIds.map(async (thread_id) => {
+          const params = { params: { query: { thread_id } } }
+          unwrap(muted ? await api.POST('/api/threads/mute', params) : await api.POST('/api/threads/unmute', params))
+        }),
+      )
+    },
+    onSuccess: (_d, v) => {
+      toast.success(v.muted ? (v.threadIds.length > 1 ? 'Threads muted' : 'Thread muted') : v.threadIds.length > 1 ? 'Threads unmuted' : 'Thread unmuted')
+      void invalidate()
+    },
+    onError: (e) => toast.error(e instanceof ApiError ? e.message : 'Could not update mute'),
   })
 }
 

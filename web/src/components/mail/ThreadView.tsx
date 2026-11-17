@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Archive, ArchiveRestore, ChevronDown, ChevronRight, MailOpen, Reply } from 'lucide-react'
-import { threadQuery, useMark, useReadMessage, type MessageView } from '@/api/mail'
+import { Archive, ArchiveRestore, Bell, BellOff, ChevronDown, ChevronRight, MailOpen, Reply } from 'lucide-react'
+import { threadQuery, useMark, useMute, useReadMessage, type MessageView } from '@/api/mail'
 import { OPERATOR } from '@/lib/address'
 import { runtimeFor } from '@/lib/identity'
 import { AddressChip } from '@/components/shared/AddressChip'
@@ -65,6 +65,7 @@ export const ThreadView = forwardRef<HTMLElement, ThreadViewProps>(function Thre
 ) {
   const q = useQuery({ ...threadQuery(threadId ?? ''), enabled: !!threadId })
   const mark = useMark()
+  const mute = useMute()
   const read = useReadMessage()
   const readRef = useRef(new Set<string>())
   const [toggled, setToggled] = useState<Record<string, boolean>>({})
@@ -115,6 +116,12 @@ export const ThreadView = forwardRef<HTMLElement, ThreadViewProps>(function Thre
             <span className="text-xs text-faint">
               {messages.length} {messages.length === 1 ? 'message' : 'messages'}
             </span>
+            {latest.muted && (
+              <span className="flex items-center gap-1 rounded-full bg-code px-2 text-xs text-muted-foreground">
+                <BellOff aria-hidden="true" className="size-3" />
+                Muted
+              </span>
+            )}
             <Button variant="outline" size="sm" onClick={() => onReplying(true)}>
               <Reply aria-hidden="true" />
               Reply
@@ -142,6 +149,15 @@ export const ThreadView = forwardRef<HTMLElement, ThreadViewProps>(function Thre
                     Archive
                   </Button>
                 )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={mute.isPending}
+                  onClick={() => mute.mutate({ threadIds: [threadId], muted: !latest.muted })}
+                >
+                  {latest.muted ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
+                  {latest.muted ? 'Unmute' : 'Mute'}
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"

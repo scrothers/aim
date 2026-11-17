@@ -6,6 +6,7 @@ import { composeStore } from '@/lib/compose'
 import { cn } from '@/lib/utils'
 import { DaemonFooter } from './DaemonFooter'
 import { MailboxTree } from './MailboxTree'
+import { SavedViews } from './SavedViews'
 
 type ViewKey = 'operator' | 'unread' | 'today' | 'sent' | 'archived'
 
@@ -62,12 +63,13 @@ export function LeftNav() {
         <PenLine aria-hidden="true" className="size-4" />
         Compose
       </button>
-      <div className="flex flex-col gap-px">
+      <div className="flex flex-col gap-px" role="group" aria-label="Views">
         <ViewLink view="operator" label="Operator inbox" icon={Inbox} count={views?.operator_unread} pill />
         <ViewLink view="unread" label="Unread everywhere" icon={Circle} count={views?.unread_everywhere} />
         <ViewLink view="today" label="Today" icon={CalendarDays} count={views?.today} />
         <ViewLink view="sent" label="Sent" icon={Send} />
         <ViewLink view="archived" label="Archived" icon={Archive} />
+        <SavedViews />
       </div>
       {tree.data ? (
         <MailboxTree orgs={tree.data.orgs ?? []} idle={idle} />

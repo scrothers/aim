@@ -8,6 +8,7 @@ export const mailSearchSchema = z.object({
   mailbox: z.string().optional().catch(undefined),
   state: z.enum(['inbox', 'unread', 'all', 'archived']).optional().catch(undefined),
   thread: z.string().optional().catch(undefined),
+  muted: z.boolean().optional().catch(undefined),
 })
 
 export type MailSearch = z.infer<typeof mailSearchSchema>

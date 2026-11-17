@@ -1,7 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useInfiniteQuery } from '@tanstack/react-query'
+import { Archive, ArchiveRestore, Bell, BellOff, Mail, MailOpen } from 'lucide-react'
 import { ApiError } from '@/api/client'
-import { ARCHIVE_DAYS, listParamsFor, messagesQuery, rowKey, useMark, type Header, type MailSearch, type MailState } from '@/api/mail'
+import { mailFilterParams } from '@/api/filters'
+import {
+  ARCHIVE_DAYS,
+  listParamsFor,
+  messagesQuery,
+  rowKey,
+  useMark,
+  useMute,
+  type Header,
+  type MailSearch,
+  type MailState,
+  type MarkState,
+} from '@/api/mail'
+import { Button } from '@/components/ui/button'
+import { SaveFilterButton } from './SaveFilter'
 import { composeStore } from '@/lib/compose'
 import { helpFlag, isTyping, paletteFlag } from '@/lib/flag'
 import { MessageList } from './MessageList'
@@ -21,13 +36,52 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
   const view = search.mailbox ? undefined : (search.view ?? 'operator')
   // Range bounds are computed once per list identity so the query key stays stable between polls.
   const params = useMemo(
-    () => listParamsFor({ view: search.view, mailbox: search.mailbox, state: search.state }),
-    [search.view, search.mailbox, search.state],
+    () => listParamsFor({ view: search.view, mailbox: search.mailbox, state: search.state, muted: search.muted }),
+    [search.view, search.mailbox, search.state, search.muted],
   )
   const q = useInfiniteQuery(messagesQuery(params))
   const items = useMemo(() => q.data?.pages.flatMap((p) => p.items ?? []) ?? [], [q.data])
   const mark = useMark()
+  const mute = useMute()
   const [cursor, setCursor] = useState<string | undefined>()
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set())
+  const [anchor, setAnchor] = useState<string | undefined>()
+  // A different list (view, mailbox, state, muted) starts with nothing selected.
+  const listKey = JSON.stringify(params)
+  const [prevList, setPrevList] = useState(listKey)
+  if (prevList !== listKey) {
+    setPrevList(listKey)
+    setPicked(new Set())
+    setAnchor(undefined)
+  }
+  // Rows that disappeared (archived, polled away) fall out of the selection.
+  const selected = useMemo(() => {
+    const keys = new Set(items.map(rowKey))
+    return new Set([...picked].filter((k) => keys.has(k)))
+  }, [picked, items])
+  const clearSelection = useCallback(() => {
+    setPicked(new Set())
+    setAnchor(undefined)
+  }, [])
+
+  const toggleRow = useCallback(
+    (h: Header, shift: boolean) => {
+      const k = rowKey(h)
+      const checked = !selected.has(k)
+      const idx = items.findIndex((x) => rowKey(x) === k)
+      const from = shift && anchor ? items.findIndex((x) => rowKey(x) === anchor) : -1
+      const [lo, hi] = from >= 0 ? [Math.min(from, idx), Math.max(from, idx)] : [idx, idx]
+      const next = new Set(selected)
+      for (const x of items.slice(lo, hi + 1)) {
+        if (checked) next.add(rowKey(x))
+        else next.delete(rowKey(x))
+      }
+      setAnchor(k)
+      setPicked(next)
+    },
+    [items, selected, anchor],
+  )
+  const toggleAll = useCallback((checked: boolean) => setPicked(checked ? new Set(items.map(rowKey)) : new Set()), [items])
   const [replying, setReplying] = useState(false)
   const threadRef = useRef<HTMLElement>(null)
 
@@ -53,6 +107,7 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
       if (e.key === 'Escape') {
         setReplying(false)
         composeStore.close()
+        clearSelection()
         return
       }
       if (isTyping(e.target) || composeStore.isOpen()) return
@@ -72,6 +127,9 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
             open(cur)
             threadRef.current?.focus()
           }
+          break
+        case 'x':
+          if (cur) toggleRow(cur, false)
           break
         case 'e':
         case 'u':
@@ -102,7 +160,43 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [items, cursorId, state, open, onSearch, mark])
+  }, [items, cursorId, state, open, onSearch, mark, toggleRow, clearSelection])
+
+  const chosen = items.filter((h) => selected.has(rowKey(h)))
+  const operatorIds = [...new Set(chosen.filter((h) => h.mailbox === 'operator').map((h) => h.id))]
+  const threadIds = [...new Set(chosen.map((h) => h.thread_id))]
+  const allMuted = chosen.length > 0 && chosen.every((h) => h.muted)
+  const bulk = (s: MarkState) => mark.mutate({ ids: operatorIds, state: s }, { onSuccess: clearSelection })
+  const btn = 'max-md:h-11'
+  const bulkActions = (
+    <div className="flex flex-wrap items-center gap-1.5" role="toolbar" aria-label="Bulk actions">
+      <Button variant="outline" size="sm" className={btn} disabled={!operatorIds.length || mark.isPending} onClick={() => bulk(state === 'archived' ? 'unarchived' : 'archived')}>
+        {state === 'archived' ? <ArchiveRestore aria-hidden="true" /> : <Archive aria-hidden="true" />}
+        {state === 'archived' ? 'Unarchive' : 'Archive'}
+      </Button>
+      <Button variant="outline" size="sm" className={btn} disabled={!operatorIds.length || mark.isPending} onClick={() => bulk('read')}>
+        <MailOpen aria-hidden="true" />
+        Mark read
+      </Button>
+      <Button variant="outline" size="sm" className={btn} disabled={!operatorIds.length || mark.isPending} onClick={() => bulk('unread')}>
+        <Mail aria-hidden="true" />
+        Mark unread
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className={btn}
+        disabled={mute.isPending}
+        onClick={() => mute.mutate({ threadIds, muted: !allMuted }, { onSuccess: clearSelection })}
+      >
+        {allMuted ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
+        {allMuted ? 'Unmute' : 'Mute'}
+      </Button>
+      <Button variant="ghost" size="sm" className={btn} onClick={clearSelection}>
+        Clear
+      </Button>
+    </div>
+  )
 
   const rangeNote =
     state === 'archived'
@@ -126,6 +220,12 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
         error={q.isError ? (q.error instanceof ApiError ? q.error.message : 'Could not load messages.') : undefined}
         hasNext={!!q.hasNextPage}
         loadingMore={q.isFetchingNextPage}
+        selected={selected}
+        onToggle={toggleRow}
+        onToggleAll={toggleAll}
+        bulkActions={bulkActions}
+        headerActions={<SaveFilterButton params={mailFilterParams(search)} suggestion={search.mailbox ?? VIEW_TITLES[view ?? 'operator']} />}
+        mutedToggle={view === 'operator' ? { checked: !!search.muted, onChange: (v) => onSearch({ muted: v || undefined }) } : undefined}
         onSelect={open}
         onState={(s) => onSearch({ state: s })}
         onLoadMore={() => void q.fetchNextPage()}
