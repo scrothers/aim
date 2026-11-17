@@ -29,6 +29,9 @@ type Preamble struct {
 	Machine    string `json:"machine"`
 	GitRemote  string `json:"git_remote,omitempty"`
 	Namespace  string `json:"namespace,omitempty"`
+	// Resume is set by the shim when it redials after losing the daemon
+	// connection and replays its MCP handshake.
+	Resume bool `json:"resume,omitempty"`
 }
 
 // WritePreamble writes p as a single JSON line. V is forced to Version.

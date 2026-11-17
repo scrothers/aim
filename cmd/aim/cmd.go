@@ -153,15 +153,19 @@ func newOpenAPICmd() *cobra.Command {
 
 func newMCPCmd() *cobra.Command {
 	var addr string
+	var reconnect time.Duration
 	cmd := &cobra.Command{
 		Use:   "mcp",
 		Short: "Run the stdio MCP shim (connects to the daemon)",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			p := shim.BuildPreamble(ctx, os.Getenv, shim.GitRemote)
-			return shim.Run(ctx, shim.Config{Addr: addr}, p, cmd.InOrStdin(), cmd.OutOrStdout())
+			cfg := shim.Config{Addr: addr, ReconnectTimeout: reconnect, Logger: newLogger(cmd.ErrOrStderr(), slog.LevelInfo)}
+			return shim.Run(ctx, cfg, p, cmd.InOrStdin(), cmd.OutOrStdout())
 		},
 	}
 	cmd.Flags().StringVar(&addr, "addr", shim.DefaultAddr(os.Getenv), "daemon address: unix socket path or host:port (AIM_ADDR)")
+	cmd.Flags().DurationVar(&reconnect, "reconnect-timeout", envDuration(os.Getenv, "AIM_RECONNECT_TIMEOUT", shim.DefaultReconnectTimeout),
+		"how long a request waits for the daemon to come back before failing (AIM_RECONNECT_TIMEOUT)")
 	return cmd
 }

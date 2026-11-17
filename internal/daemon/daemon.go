@@ -332,7 +332,7 @@ func (d *daemon) restoreSignon(ctx context.Context, log *slog.Logger, entry *pre
 	if so.Client != "" {
 		entry.SetClient(so.Client, "")
 	}
-	log.LogAttrs(ctx, slog.LevelInfo, "sign-on restored", slog.String("identity", so.Identity.String()))
+	log.LogAttrs(ctx, slog.LevelInfo, "sign-on restored", slog.String("identity", so.Identity.String()), slog.Bool("resume", p.Resume))
 }
 
 func (d *daemon) serve(ctx context.Context, c net.Conn) {

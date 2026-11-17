@@ -2,15 +2,14 @@ package shim
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
-	"net"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/scrothers/aim/internal/wire"
 )
@@ -19,6 +18,16 @@ import (
 type Config struct {
 	// Addr is a unix socket path (absolute, or "unix:/path") or "host:port".
 	Addr string
+	// ReconnectTimeout bounds how long a request waits for the daemon to come
+	// back before failing with a JSON-RPC unavailable error; zero means
+	// DefaultReconnectTimeout.
+	ReconnectTimeout time.Duration
+	// BackoffMin and BackoffMax bound the redial delay, which doubles from
+	// the first to the second; zero means 100ms and 2s.
+	BackoffMin time.Duration
+	BackoffMax time.Duration
+	// Logger receives reconnect diagnostics (stderr in the CLI); nil discards.
+	Logger *slog.Logger
 }
 
 // DefaultAddr returns AIM_ADDR, else $XDG_RUNTIME_DIR/aim/aim.sock, else
@@ -82,35 +91,3 @@ func network(addr string) (string, string) {
 }
 
 type closeWriter interface{ CloseWrite() error }
-
-// Run dials the daemon, sends p, and pipes stdin to the daemon and the daemon
-// to stdout. It returns when the daemon closes the connection or ctx ends.
-func Run(ctx context.Context, cfg Config, p wire.Preamble, stdin io.Reader, stdout io.Writer) error {
-	nw, addr := network(cfg.Addr)
-	var d net.Dialer
-	conn, err := d.DialContext(ctx, nw, addr)
-	if err != nil {
-		return fmt.Errorf("aim daemon not reachable at %s: %w", cfg.Addr, err)
-	}
-	defer func() { _ = conn.Close() }()
-
-	// Unblock the copy below when ctx is canceled.
-	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
-	defer stop()
-
-	if err := wire.WritePreamble(conn, p); err != nil {
-		return fmt.Errorf("shim: %w", err)
-	}
-
-	go func() {
-		_, _ = io.Copy(conn, stdin)
-		if cw, ok := conn.(closeWriter); ok {
-			_ = cw.CloseWrite()
-		}
-	}()
-
-	if _, err := io.Copy(stdout, conn); err != nil && ctx.Err() == nil && !errors.Is(err, net.ErrClosed) {
-		return fmt.Errorf("shim: copy from daemon: %w", err)
-	}
-	return ctx.Err()
-}
