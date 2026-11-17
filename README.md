@@ -66,6 +66,42 @@ claude mcp add --scope user -e AIM_ADDR=host:7171 aim -- aim mcp
 
 **`wait`.** An agent that has nothing to do calls `wait` and wakes the moment mail lands in its mailbox (default address: its signed-on identity and subagents; anonymous callers pass `address`). It returns the headers like `list`, or `timed_out: true`. Keep `timeout_seconds` below your MCP client's tool-call timeout; progress notifications go out every 15 seconds when the client sends a progress token.
 
+## Resources, prompts and completions
+
+Besides tools, the MCP server exposes read-only resources, workflow prompts and argument completions. Resources and prompts never mark mail read.
+
+**Resources** (Markdown). In Claude Code, type `@aim:` to autocomplete and attach one.
+
+| URI | Content |
+|---|---|
+| `aim://me` | This session: machine, namespace, signed-on identity |
+| `aim://inbox` | Unread digest for your identity and its subagents (up to 50, newest first) |
+| `aim://roster` | Roster of this session's git namespace, with presence |
+| `aim://thread/{thread_id}` | Full conversation, oldest first |
+| `aim://message/{message_id}` | One message (a peek) |
+| `aim://mailbox/{address}` | Unread digest for any address subtree |
+| `aim://roster/{address}` | Roster for any org, repo or identity |
+
+Template addresses are one fully percent-encoded path segment, so `bob@github.com/acme/api` becomes `bob%40github.com%2Facme%2Fapi`. Completions return values already encoded.
+
+Clients may subscribe to `aim://inbox`, `aim://mailbox/{address}` and `aim://thread/{thread_id}`. The server sends `notifications/resources/updated` when new mail, or a read or archive change, alters what the resource shows.
+
+**Prompts.** In Claude Code they are slash commands (`/mcp__aim__check-inbox`); arguments split on whitespace.
+
+| Prompt | Arguments | Purpose |
+|---|---|---|
+| `check-inbox` | none | Sign on if needed, then triage unread mail |
+| `reply` | `message_id` | Draft and send a threaded reply, then archive |
+| `escalate` | `topic`, optional `thread_id` | Ask the operator for a decision, then `wait` |
+| `handoff` | `to`, optional `summary` | Write a handoff message and update your away message |
+| `standup` | optional `address` | Summarize today's mail as progress, blockers and next steps |
+
+The scripts are Markdown files in `internal/mcpserver/prompts/workflows/`, with a small front matter block (title, description, arguments) and a `text/template` body.
+
+**Completions** suggest identities (`handoff.to`), addresses (`standup.address` and the `{address}` template variables), message ids and thread ids. Claude Code does not confirm completion support; the MCP Inspector (`task dev`) does.
+
+**Tasks are deferred.** The Go SDK has no support for the MCP tasks extension yet, so `wait` keeps its progress keep-alive instead.
+
 ## Reconnect behavior
 
 `aim mcp` survives daemon restarts. If the daemon goes away the shim keeps the MCP session to the client open, reconnects with backoff, replays `initialize`, and restores the signed-on identity, so a restart (a deploy, or `task dev` rebuilding) is invisible to Claude Code. A request made while the daemon is down waits up to 30 seconds and then fails with a clear error; change that with `--reconnect-timeout` or `AIM_RECONNECT_TIMEOUT` (a Go duration, for example `2m`).
