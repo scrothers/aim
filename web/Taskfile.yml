@@ -1,0 +1,36 @@
+version: "3"
+
+# Standalone frontend tasks. Run from web/ (`task -d web <task>`) or include
+# from the root Taskfile as `web:`.
+tasks:
+  install:
+    desc: Install frontend dependencies
+    cmds:
+      - pnpm install --frozen-lockfile
+
+  gen:
+    desc: Regenerate openapi.json and src/api/schema.d.ts from the Go API
+    cmds:
+      - go run ../cmd/aim openapi > openapi.json
+      - pnpm exec openapi-typescript openapi.json -o src/api/schema.d.ts
+
+  dev:
+    desc: Run the Vite dev server (proxies /api to AIM_API_TARGET or 127.0.0.1:7172)
+    cmds:
+      - pnpm exec vite
+
+  build:
+    desc: Build the SPA into ../internal/webui/dist
+    cmds:
+      - pnpm run build
+
+  lint:
+    desc: ESLint and type-check
+    cmds:
+      - pnpm exec eslint .
+      - pnpm exec tsc --noEmit
+
+  test:
+    desc: Run unit tests once
+    cmds:
+      - pnpm exec vitest run
