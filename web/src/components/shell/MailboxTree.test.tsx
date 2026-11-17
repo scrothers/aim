@@ -64,6 +64,22 @@ describe('MailboxTree', () => {
     expect(r[0]!.repos).toHaveLength(2)
   })
 
+  it('filterTree does not match every mailbox on host substrings', () => {
+    for (const q of ['co', 'git', 'hub', 'com']) {
+      const r = filterTree(treeFixture, q)
+      const all = r.flatMap((o) => [...o.identities, ...o.repos.flatMap((x) => x.identities)])
+      expect(all.every((m) => (m.address.split('@')[0] ?? '').includes(q))).toBe(true)
+    }
+  })
+
+  it('filterTree matches full addresses when the query looks like one', () => {
+    const r = filterTree(treeFixture, 'acme/api')
+    expect(r).toHaveLength(1)
+    expect(r[0]!.repos.map((x) => x.repo.name)).toEqual(['api'])
+    const host = filterTree(treeFixture, 'github.com')
+    expect(host.length).toBeGreaterThan(0)
+  })
+
   it('links mailboxes with search params', async () => {
     await renderWithRouter(ui())
     const link = await screen.findByTitle('reviewer@github.com/acme/api')

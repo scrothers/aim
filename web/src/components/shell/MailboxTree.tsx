@@ -23,6 +23,18 @@ function matches(text: string, q: string) {
   return text.toLowerCase().includes(q)
 }
 
+// Every address shares a host like "github.com", so matching short queries
+// against the full address hits everything ("co", "git", "hub"). Match names
+// only, unless the query itself looks like an address fragment.
+function looksLikeAddress(q: string) {
+  return /[@/.]/.test(q)
+}
+
+function identityHit(m: MailboxNode, q: string) {
+  if (looksLikeAddress(q)) return matches(m.address, q)
+  return matches(parseAddress(m.address).identity ?? m.address, q)
+}
+
 interface FilteredOrg {
   org: OrgNode
   identities: MailboxNode[]
@@ -33,12 +45,13 @@ export function filterTree(orgs: ReadonlyArray<OrgNode>, query: string): Filtere
   const q = query.trim().toLowerCase()
   const out: FilteredOrg[] = []
   for (const org of orgs) {
-    const orgHit = q === '' || matches(org.address, q) || matches(org.org, q)
-    const identities = (org.identities ?? []).filter((m) => orgHit || matches(m.address, q))
+    const addr = looksLikeAddress(q)
+    const orgHit = q === '' || matches(org.org, q) || (addr && matches(org.address, q))
+    const identities = (org.identities ?? []).filter((m) => orgHit || identityHit(m, q))
     const repos: FilteredOrg['repos'] = []
     for (const repo of org.repos ?? []) {
-      const repoHit = orgHit || matches(repo.address, q) || matches(repo.name, q)
-      const ids = (repo.identities ?? []).filter((m) => repoHit || matches(m.address, q))
+      const repoHit = orgHit || matches(repo.name, q) || (addr && matches(repo.address, q))
+      const ids = (repo.identities ?? []).filter((m) => repoHit || identityHit(m, q))
       if (repoHit || ids.length > 0) repos.push({ repo, identities: ids })
     }
     if (orgHit || identities.length > 0 || repos.length > 0) out.push({ org, identities, repos })
