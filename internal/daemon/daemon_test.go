@@ -269,3 +269,41 @@ func TestSocketOnly(t *testing.T) {
 	}
 	r.stop(t)
 }
+
+// TestHalfClosedClientStillGetsResponse covers a shim that writes its
+// preamble and one request, then half-closes: the response must still arrive.
+func TestHalfClosedClientStillGetsResponse(t *testing.T) {
+	t.Parallel()
+	r := start(t, testCfg(t))
+	for _, network := range []string{"unix", "tcp"} {
+		addr := r.addrs.Socket
+		if network == "tcp" {
+			addr = r.addrs.TCP
+		}
+		c, err := net.Dial(network, addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := wire.WritePreamble(c, wire.Preamble{SessionID: "half", Machine: "box", ProjectDir: "/p"}); err != nil {
+			t.Fatal(err)
+		}
+		const initReq = `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}` + "\n"
+		if _, err := io.WriteString(c, initReq); err != nil {
+			t.Fatal(err)
+		}
+		cw, ok := c.(interface{ CloseWrite() error })
+		if !ok {
+			t.Fatalf("%s conn has no CloseWrite", network)
+		}
+		if err := cw.CloseWrite(); err != nil {
+			t.Fatal(err)
+		}
+		_ = c.SetReadDeadline(time.Now().Add(5 * time.Second))
+		got, err := io.ReadAll(c)
+		if err != nil || !strings.Contains(string(got), `"id":1`) || !strings.Contains(string(got), "serverInfo") {
+			t.Errorf("%s: response after half-close = %q, %v", network, got, err)
+		}
+		_ = c.Close()
+	}
+	r.stop(t)
+}

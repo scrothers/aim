@@ -49,12 +49,18 @@ type Config struct {
 	HTTP            string
 	Version         string
 	PreambleTimeout time.Duration
+	// ShutdownTimeout bounds the wait for connections to drain on shutdown;
+	// zero means 10 seconds.
+	ShutdownTimeout time.Duration
 	// Ready, if set, is called once all listeners are bound.
 	Ready func(Addrs)
 }
 
 type daemon struct {
-	cfg    Config
+	cfg Config
+	// leaked is set when connections outlived the shutdown timeout, so
+	// handlers may still be using the store.
+	leaked bool
 	logger *slog.Logger
 	svc    *mail.Service
 	reg    *presence.Registry
@@ -73,21 +79,31 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) (err error) {
 	if cfg.Version == "" {
 		cfg.Version = "dev"
 	}
+	if cfg.ShutdownTimeout <= 0 {
+		cfg.ShutdownTimeout = shutdownTimeout
+	}
 	st, err := store.Open(ctx, cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("daemon: open store: %w", err)
 	}
-	defer func() {
-		if cerr := st.Close(); cerr != nil {
-			err = errors.Join(err, fmt.Errorf("daemon: close store: %w", cerr))
-		}
-	}()
 
 	reg := presence.New()
 	d := &daemon{
 		cfg: cfg, logger: logger, reg: reg, conns: make(map[net.Conn]struct{}),
 		svc: mail.New(st, mcpserver.NewPresence(reg)),
 	}
+
+	defer func() {
+		// Closing the store under a live handler would fail its in-flight
+		// queries; if conns did not drain, leave it for process exit.
+		if d.leakedConns() {
+			logger.LogAttrs(ctx, slog.LevelWarn, "leaving store open: connection handlers still running")
+			return
+		}
+		if cerr := st.Close(); cerr != nil {
+			err = errors.Join(err, fmt.Errorf("daemon: close store: %w", cerr))
+		}
+	}()
 
 	var addrs Addrs
 	var lns []net.Listener
@@ -159,7 +175,7 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) (err error) {
 	closeLns()
 	d.shutdownConns(ctx)
 	if hs != nil {
-		sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownTimeout)
+		sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cfg.ShutdownTimeout)
 		defer cancel()
 		if serr := hs.Shutdown(sctx); serr != nil {
 			err = errors.Join(err, fmt.Errorf("daemon: http shutdown: %w", serr))
@@ -230,7 +246,14 @@ func (d *daemon) untrack(c net.Conn) {
 	d.wg.Done()
 }
 
-// shutdownConns refuses new conns, closes live ones and waits for handlers.
+func (d *daemon) leakedConns() bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.leaked
+}
+
+// shutdownConns refuses new conns, closes live ones and waits for handlers;
+// when they do not finish in time it records the leak.
 func (d *daemon) shutdownConns(ctx context.Context) {
 	d.mu.Lock()
 	live := d.conns
@@ -243,7 +266,10 @@ func (d *daemon) shutdownConns(ctx context.Context) {
 	go func() { d.wg.Wait(); close(done) }()
 	select {
 	case <-done:
-	case <-time.After(shutdownTimeout):
+	case <-time.After(d.cfg.ShutdownTimeout):
+		d.mu.Lock()
+		d.leaked = true
+		d.mu.Unlock()
 		d.logger.LogAttrs(ctx, slog.LevelWarn, "timed out waiting for connections")
 	}
 }
@@ -270,7 +296,8 @@ func (d *daemon) serve(ctx context.Context, c net.Conn) {
 	defer log.LogAttrs(ctx, slog.LevelInfo, "client disconnected")
 
 	srv := mcpserver.New(d.svc, entry, d.cfg.Version)
-	ss, err := srv.Connect(ctx, &mcp.IOTransport{Reader: wire.BufferedConn(br, c), Writer: c}, nil)
+	f := newInflight(halfCloseGrace)
+	ss, err := srv.Connect(ctx, &mcp.IOTransport{Reader: f.reader(br, c), Writer: f.writer(c)}, nil)
 	if err != nil {
 		log.LogAttrs(ctx, slog.LevelError, "mcp connect failed", slog.String("error", err.Error()))
 		return
