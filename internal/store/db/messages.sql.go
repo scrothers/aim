@@ -11,7 +11,7 @@ import (
 )
 
 const getMessageByID = `-- name: GetMessageByID :one
-SELECT m.id, m.thread_id, m.in_reply_to, m.from_mailbox, m.from_session, m.subject, m.body, m.created_at,
+SELECT m.id, m.thread_id, m.in_reply_to, m.from_mailbox, m.from_session, m.from_client, m.from_machine, m.subject, m.body, m.created_at,
        f.host AS from_host, f.org AS from_org, f.repo AS from_repo,
        f.identity AS from_identity, f.subagent AS from_subagent
 FROM messages m
@@ -25,6 +25,8 @@ type GetMessageByIDRow struct {
 	InReplyTo    sql.NullString
 	FromMailbox  string
 	FromSession  string
+	FromClient   string
+	FromMachine  string
 	Subject      string
 	Body         string
 	CreatedAt    int64
@@ -44,6 +46,8 @@ func (q *Queries) GetMessageByID(ctx context.Context, id string) (GetMessageByID
 		&i.InReplyTo,
 		&i.FromMailbox,
 		&i.FromSession,
+		&i.FromClient,
+		&i.FromMachine,
 		&i.Subject,
 		&i.Body,
 		&i.CreatedAt,
@@ -57,8 +61,8 @@ func (q *Queries) GetMessageByID(ctx context.Context, id string) (GetMessageByID
 }
 
 const insertMessage = `-- name: InsertMessage :exec
-INSERT INTO messages (id, thread_id, in_reply_to, from_mailbox, from_session, subject, body, created_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+INSERT INTO messages (id, thread_id, in_reply_to, from_mailbox, from_session, from_client, from_machine, subject, body, created_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
 `
 
 type InsertMessageParams struct {
@@ -67,6 +71,8 @@ type InsertMessageParams struct {
 	InReplyTo   sql.NullString
 	FromMailbox string
 	FromSession string
+	FromClient  string
+	FromMachine string
 	Subject     string
 	Body        string
 	CreatedAt   int64
@@ -79,6 +85,8 @@ func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) er
 		arg.InReplyTo,
 		arg.FromMailbox,
 		arg.FromSession,
+		arg.FromClient,
+		arg.FromMachine,
 		arg.Subject,
 		arg.Body,
 		arg.CreatedAt,
@@ -87,7 +95,7 @@ func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) er
 }
 
 const listThread = `-- name: ListThread :many
-SELECT m.id, m.thread_id, m.in_reply_to, m.from_mailbox, m.from_session, m.subject, m.body, m.created_at,
+SELECT m.id, m.thread_id, m.in_reply_to, m.from_mailbox, m.from_session, m.from_client, m.from_machine, m.subject, m.body, m.created_at,
        f.host AS from_host, f.org AS from_org, f.repo AS from_repo,
        f.identity AS from_identity, f.subagent AS from_subagent
 FROM messages m
@@ -102,6 +110,8 @@ type ListThreadRow struct {
 	InReplyTo    sql.NullString
 	FromMailbox  string
 	FromSession  string
+	FromClient   string
+	FromMachine  string
 	Subject      string
 	Body         string
 	CreatedAt    int64
@@ -127,6 +137,8 @@ func (q *Queries) ListThread(ctx context.Context, threadID string) ([]ListThread
 			&i.InReplyTo,
 			&i.FromMailbox,
 			&i.FromSession,
+			&i.FromClient,
+			&i.FromMachine,
 			&i.Subject,
 			&i.Body,
 			&i.CreatedAt,

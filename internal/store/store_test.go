@@ -687,3 +687,154 @@ func TestInboxUsesMailboxIndex(t *testing.T) {
 		})
 	}
 }
+
+func TestMigration0003PreservesData(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "old.db")
+	h := rawHandle(t, path)
+	for _, f := range []string{"0001_init.up.sql", "0002_fts.up.sql"} {
+		b, err := os.ReadFile(filepath.Join("migrations", f))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := h.ExecContext(ctx, string(b)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stmts := []string{
+		`CREATE TABLE schema_migrations (version uint64, dirty bool)`,
+		`CREATE UNIQUE INDEX version_unique ON schema_migrations (version)`,
+		`INSERT INTO schema_migrations (version, dirty) VALUES (2, 0)`,
+		`INSERT INTO mailboxes (id, host, org, repo, identity, subagent, kind, role, reports_to, created_at) VALUES
+		   ('mbx-a','h','acme','web','alice','','identity','dev','operator',1),
+		   ('mbx-b','h','acme','web','bob','','identity','qa','',2)`,
+		`INSERT INTO messages (id, thread_id, from_mailbox, subject, body, created_at) VALUES ('msg-1','msg-1','mbx-a','hello','world',5)`,
+		`INSERT INTO deliveries (message_id, mailbox_id, kind) VALUES ('msg-1','mbx-b','to')`,
+	}
+	for _, q := range stmts {
+		if _, err := h.ExecContext(ctx, q); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	if err := h.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := store.Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	q := s.Read()
+	bob, err := q.GetMailboxByID(ctx, "mbx-b")
+	if err != nil || bob.Role != "qa" || bob.RetiredAt.Valid {
+		t.Fatalf("bob = %+v, err %v", bob, err)
+	}
+	alice, err := q.GetMailboxByID(ctx, "mbx-a")
+	if err != nil || alice.ReportsTo != "operator" {
+		t.Fatalf("alice = %+v, err %v", alice, err)
+	}
+	m, err := q.GetMessageByID(ctx, "msg-1")
+	if err != nil || m.Body != "world" || m.FromClient != "" || m.FromMachine != "" {
+		t.Fatalf("msg = %+v, err %v", m, err)
+	}
+	rows, err := store.ListInbox(ctx, q, store.InboxParams{Scope: store.Scope{All: true}, State: "all", PageLimit: 10})
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("inbox = %v, err %v", rows, err)
+	}
+
+	// Foreign keys are intact and enforced again after the rebuild.
+	h2 := rawHandle(t, path)
+	fk, err := h2.QueryContext(ctx, `PRAGMA foreign_key_check`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fk.Next() {
+		t.Error("foreign_key_check reported violations")
+	}
+	_ = fk.Close()
+	err = s.WithTx(ctx, func(q *db.Queries) error {
+		return q.InsertDelivery(ctx, db.InsertDeliveryParams{MessageID: "msg-1", MailboxID: "mbx-missing", Kind: "to"})
+	})
+	if err == nil {
+		t.Error("foreign keys not enforced after migration")
+	}
+
+	// The widened CHECK accepts the operator kind.
+	err = s.WithTx(ctx, func(q *db.Queries) error {
+		return q.InsertMailbox(ctx, db.InsertMailboxParams{ID: "mbx-op", Identity: "operator", Kind: "operator", CreatedAt: 9})
+	})
+	if err != nil {
+		t.Fatalf("insert operator: %v", err)
+	}
+}
+
+func TestAggregatesAndRetire(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := newStore(t)
+	seed(t, s)
+	send(t, s, "msg-1", "msg-1", "s", "b", 86400000*3+5, "mbx-1", "mbx-2")
+	send(t, s, "msg-2", "msg-2", "s", "b", 86400000*4+5, "mbx-2")
+	q := s.Read()
+
+	act, err := q.MailboxActivity(ctx)
+	if err != nil || len(act) != 2 {
+		t.Fatalf("activity = %v, %v", act, err)
+	}
+	for _, a := range act {
+		if a.MailboxID == "mbx-2" && (a.Unread != 2 || a.Total != 2 || a.LastReceived != 86400000*4+5) {
+			t.Errorf("mbx-2 activity = %+v", a)
+		}
+	}
+	sent, err := q.MailboxLastSent(ctx)
+	if err != nil || len(sent) != 1 || sent[0].MailboxID != "mbx-3" {
+		t.Errorf("last sent = %v, %v", sent, err)
+	}
+	days, err := q.MailboxDailyDeliveries(ctx, 86400000*4)
+	if err != nil || len(days) != 1 || days[0].Day != 4 || days[0].N != 1 {
+		t.Errorf("days = %v, %v", days, err)
+	}
+	if n, err := q.CountUnreadDeliveries(ctx); err != nil || n != 3 {
+		t.Errorf("unread = %d, %v", n, err)
+	}
+	if n, err := q.CountMessages(ctx); err != nil || n != 2 {
+		t.Errorf("messages = %d, %v", n, err)
+	}
+	if n, err := q.CountMessagesSince(ctx, 86400000*4); err != nil || n != 1 {
+		t.Errorf("since = %d, %v", n, err)
+	}
+	if size, err := s.Size(ctx); err != nil || size <= 0 {
+		t.Errorf("size = %d, %v", size, err)
+	}
+
+	err = s.WithTx(ctx, func(q *db.Queries) error {
+		if n, err := q.UpdateIdentity(ctx, db.UpdateIdentityParams{ID: "mbx-3", Role: "r", Description: "d", ReportsTo: "operator"}); err != nil || n != 1 {
+			return fmt.Errorf("update %d: %w", n, err)
+		}
+		_, err := q.SetRetiredAt(ctx, db.SetRetiredAtParams{ID: "mbx-3", RetiredAt: sql.NullInt64{Int64: 7, Valid: true}})
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sc := store.Scope{Host: "h", Org: "acme"}
+	ids, _ := store.ListIdentitiesInScope(ctx, q, sc)
+	if len(ids) != 2 {
+		t.Errorf("active identities = %d, want 2", len(ids))
+	}
+	sc.IncludeRetired = true
+	ids, _ = store.ListIdentitiesInScope(ctx, q, sc)
+	if len(ids) != 3 {
+		t.Errorf("all identities = %d, want 3", len(ids))
+	}
+	all, err := q.ListAllIdentities(ctx)
+	if err != nil || len(all) != 3 {
+		t.Errorf("ListAllIdentities = %d, %v", len(all), err)
+	}
+	boxes, err := q.ListAllMailboxes(ctx)
+	if err != nil || len(boxes) != 4 {
+		t.Errorf("ListAllMailboxes = %d, %v", len(boxes), err)
+	}
+}

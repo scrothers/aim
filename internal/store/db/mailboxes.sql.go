@@ -7,11 +7,12 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"strings"
 )
 
 const getMailboxByID = `-- name: GetMailboxByID :one
-SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at FROM mailboxes WHERE id = ?1
+SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at, retired_at FROM mailboxes WHERE id = ?1
 `
 
 func (q *Queries) GetMailboxByID(ctx context.Context, id string) (Mailbox, error) {
@@ -29,12 +30,13 @@ func (q *Queries) GetMailboxByID(ctx context.Context, id string) (Mailbox, error
 		&i.Description,
 		&i.ReportsTo,
 		&i.CreatedAt,
+		&i.RetiredAt,
 	)
 	return i, err
 }
 
 const getMailboxByKey = `-- name: GetMailboxByKey :one
-SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at FROM mailboxes
+SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at, retired_at FROM mailboxes
 WHERE host = ?1 AND org = ?2 AND repo = ?3 AND identity = ?4 AND subagent = ?5
 `
 
@@ -67,6 +69,7 @@ func (q *Queries) GetMailboxByKey(ctx context.Context, arg GetMailboxByKeyParams
 		&i.Description,
 		&i.ReportsTo,
 		&i.CreatedAt,
+		&i.RetiredAt,
 	)
 	return i, err
 }
@@ -107,17 +110,101 @@ func (q *Queries) InsertMailbox(ctx context.Context, arg InsertMailboxParams) er
 	return err
 }
 
+const listAllIdentities = `-- name: ListAllIdentities :many
+SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at, retired_at FROM mailboxes
+WHERE kind = 'identity'
+ORDER BY org, repo, identity
+`
+
+func (q *Queries) ListAllIdentities(ctx context.Context) ([]Mailbox, error) {
+	rows, err := q.db.QueryContext(ctx, listAllIdentities)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Mailbox
+	for rows.Next() {
+		var i Mailbox
+		if err := rows.Scan(
+			&i.ID,
+			&i.Host,
+			&i.Org,
+			&i.Repo,
+			&i.Identity,
+			&i.Subagent,
+			&i.Kind,
+			&i.Role,
+			&i.Description,
+			&i.ReportsTo,
+			&i.CreatedAt,
+			&i.RetiredAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllMailboxes = `-- name: ListAllMailboxes :many
+SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at, retired_at FROM mailboxes ORDER BY org, repo, identity, subagent
+`
+
+func (q *Queries) ListAllMailboxes(ctx context.Context) ([]Mailbox, error) {
+	rows, err := q.db.QueryContext(ctx, listAllMailboxes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Mailbox
+	for rows.Next() {
+		var i Mailbox
+		if err := rows.Scan(
+			&i.ID,
+			&i.Host,
+			&i.Org,
+			&i.Repo,
+			&i.Identity,
+			&i.Subagent,
+			&i.Kind,
+			&i.Role,
+			&i.Description,
+			&i.ReportsTo,
+			&i.CreatedAt,
+			&i.RetiredAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listIdentitiesInIdentity = `-- name: ListIdentitiesInIdentity :many
-SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at FROM mailboxes
+SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at, retired_at FROM mailboxes
 WHERE kind = 'identity' AND host = ?1 AND org = ?2 AND repo = ?3 AND identity = ?4
+  AND (CAST(?5 AS INTEGER) = 1 OR retired_at IS NULL)
 ORDER BY repo, identity
 `
 
 type ListIdentitiesInIdentityParams struct {
-	Host     string
-	Org      string
-	Repo     string
-	Identity string
+	Host           string
+	Org            string
+	Repo           string
+	Identity       string
+	IncludeRetired int64
 }
 
 func (q *Queries) ListIdentitiesInIdentity(ctx context.Context, arg ListIdentitiesInIdentityParams) ([]Mailbox, error) {
@@ -126,6 +213,7 @@ func (q *Queries) ListIdentitiesInIdentity(ctx context.Context, arg ListIdentiti
 		arg.Org,
 		arg.Repo,
 		arg.Identity,
+		arg.IncludeRetired,
 	)
 	if err != nil {
 		return nil, err
@@ -146,6 +234,7 @@ func (q *Queries) ListIdentitiesInIdentity(ctx context.Context, arg ListIdentiti
 			&i.Description,
 			&i.ReportsTo,
 			&i.CreatedAt,
+			&i.RetiredAt,
 		); err != nil {
 			return nil, err
 		}
@@ -161,18 +250,20 @@ func (q *Queries) ListIdentitiesInIdentity(ctx context.Context, arg ListIdentiti
 }
 
 const listIdentitiesInOrg = `-- name: ListIdentitiesInOrg :many
-SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at FROM mailboxes
+SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at, retired_at FROM mailboxes
 WHERE kind = 'identity' AND host = ?1 AND org = ?2
+  AND (CAST(?3 AS INTEGER) = 1 OR retired_at IS NULL)
 ORDER BY repo, identity
 `
 
 type ListIdentitiesInOrgParams struct {
-	Host string
-	Org  string
+	Host           string
+	Org            string
+	IncludeRetired int64
 }
 
 func (q *Queries) ListIdentitiesInOrg(ctx context.Context, arg ListIdentitiesInOrgParams) ([]Mailbox, error) {
-	rows, err := q.db.QueryContext(ctx, listIdentitiesInOrg, arg.Host, arg.Org)
+	rows, err := q.db.QueryContext(ctx, listIdentitiesInOrg, arg.Host, arg.Org, arg.IncludeRetired)
 	if err != nil {
 		return nil, err
 	}
@@ -192,6 +283,7 @@ func (q *Queries) ListIdentitiesInOrg(ctx context.Context, arg ListIdentitiesInO
 			&i.Description,
 			&i.ReportsTo,
 			&i.CreatedAt,
+			&i.RetiredAt,
 		); err != nil {
 			return nil, err
 		}
@@ -207,19 +299,26 @@ func (q *Queries) ListIdentitiesInOrg(ctx context.Context, arg ListIdentitiesInO
 }
 
 const listIdentitiesInRepo = `-- name: ListIdentitiesInRepo :many
-SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at FROM mailboxes
+SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at, retired_at FROM mailboxes
 WHERE kind = 'identity' AND host = ?1 AND org = ?2 AND repo = ?3
+  AND (CAST(?4 AS INTEGER) = 1 OR retired_at IS NULL)
 ORDER BY repo, identity
 `
 
 type ListIdentitiesInRepoParams struct {
-	Host string
-	Org  string
-	Repo string
+	Host           string
+	Org            string
+	Repo           string
+	IncludeRetired int64
 }
 
 func (q *Queries) ListIdentitiesInRepo(ctx context.Context, arg ListIdentitiesInRepoParams) ([]Mailbox, error) {
-	rows, err := q.db.QueryContext(ctx, listIdentitiesInRepo, arg.Host, arg.Org, arg.Repo)
+	rows, err := q.db.QueryContext(ctx, listIdentitiesInRepo,
+		arg.Host,
+		arg.Org,
+		arg.Repo,
+		arg.IncludeRetired,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -239,6 +338,7 @@ func (q *Queries) ListIdentitiesInRepo(ctx context.Context, arg ListIdentitiesIn
 			&i.Description,
 			&i.ReportsTo,
 			&i.CreatedAt,
+			&i.RetiredAt,
 		); err != nil {
 			return nil, err
 		}
@@ -254,7 +354,7 @@ func (q *Queries) ListIdentitiesInRepo(ctx context.Context, arg ListIdentitiesIn
 }
 
 const listMailboxesByIDs = `-- name: ListMailboxesByIDs :many
-SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at FROM mailboxes WHERE id IN (/*SLICE:ids*/?) ORDER BY id
+SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at, retired_at FROM mailboxes WHERE id IN (/*SLICE:ids*/?) ORDER BY id
 `
 
 func (q *Queries) ListMailboxesByIDs(ctx context.Context, ids []string) ([]Mailbox, error) {
@@ -288,6 +388,7 @@ func (q *Queries) ListMailboxesByIDs(ctx context.Context, ids []string) ([]Mailb
 			&i.Description,
 			&i.ReportsTo,
 			&i.CreatedAt,
+			&i.RetiredAt,
 		); err != nil {
 			return nil, err
 		}
@@ -303,7 +404,7 @@ func (q *Queries) ListMailboxesByIDs(ctx context.Context, ids []string) ([]Mailb
 }
 
 const listSubagentsOf = `-- name: ListSubagentsOf :many
-SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at FROM mailboxes
+SELECT id, host, org, repo, identity, subagent, kind, role, description, reports_to, created_at, retired_at FROM mailboxes
 WHERE kind = 'subagent'
   AND host = ?1 AND org = ?2 AND repo = ?3 AND identity = ?4
 ORDER BY subagent
@@ -342,6 +443,7 @@ func (q *Queries) ListSubagentsOf(ctx context.Context, arg ListSubagentsOfParams
 			&i.Description,
 			&i.ReportsTo,
 			&i.CreatedAt,
+			&i.RetiredAt,
 		); err != nil {
 			return nil, err
 		}
@@ -354,4 +456,168 @@ func (q *Queries) ListSubagentsOf(ctx context.Context, arg ListSubagentsOfParams
 		return nil, err
 	}
 	return items, nil
+}
+
+const mailboxActivity = `-- name: MailboxActivity :many
+SELECT d.mailbox_id,
+       CAST(COALESCE(SUM(CASE WHEN d.read_at IS NULL AND d.archived_at IS NULL THEN 1 ELSE 0 END), 0) AS INTEGER) AS unread,
+       COUNT(*) AS total,
+       CAST(COALESCE(MAX(m.created_at), 0) AS INTEGER) AS last_received
+FROM deliveries d
+JOIN messages m ON m.id = d.message_id
+GROUP BY d.mailbox_id
+`
+
+type MailboxActivityRow struct {
+	MailboxID    string
+	Unread       int64
+	Total        int64
+	LastReceived int64
+}
+
+// Per-mailbox received counts and the newest received message time.
+func (q *Queries) MailboxActivity(ctx context.Context) ([]MailboxActivityRow, error) {
+	rows, err := q.db.QueryContext(ctx, mailboxActivity)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MailboxActivityRow
+	for rows.Next() {
+		var i MailboxActivityRow
+		if err := rows.Scan(
+			&i.MailboxID,
+			&i.Unread,
+			&i.Total,
+			&i.LastReceived,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const mailboxDailyDeliveries = `-- name: MailboxDailyDeliveries :many
+SELECT d.mailbox_id,
+       CAST(m.created_at / 86400000 AS INTEGER) AS day,
+       COUNT(*) AS n
+FROM deliveries d
+JOIN messages m ON m.id = d.message_id
+WHERE m.created_at >= ?1
+GROUP BY d.mailbox_id, day
+`
+
+type MailboxDailyDeliveriesRow struct {
+	MailboxID string
+	Day       int64
+	N         int64
+}
+
+// Deliveries per mailbox per UTC day (days since the Unix epoch) since a time.
+func (q *Queries) MailboxDailyDeliveries(ctx context.Context, since int64) ([]MailboxDailyDeliveriesRow, error) {
+	rows, err := q.db.QueryContext(ctx, mailboxDailyDeliveries, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MailboxDailyDeliveriesRow
+	for rows.Next() {
+		var i MailboxDailyDeliveriesRow
+		if err := rows.Scan(&i.MailboxID, &i.Day, &i.N); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const mailboxLastSent = `-- name: MailboxLastSent :many
+SELECT from_mailbox AS mailbox_id, CAST(MAX(created_at) AS INTEGER) AS last_sent
+FROM messages
+GROUP BY from_mailbox
+`
+
+type MailboxLastSentRow struct {
+	MailboxID string
+	LastSent  int64
+}
+
+func (q *Queries) MailboxLastSent(ctx context.Context) ([]MailboxLastSentRow, error) {
+	rows, err := q.db.QueryContext(ctx, mailboxLastSent)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MailboxLastSentRow
+	for rows.Next() {
+		var i MailboxLastSentRow
+		if err := rows.Scan(&i.MailboxID, &i.LastSent); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setRetiredAt = `-- name: SetRetiredAt :execrows
+UPDATE mailboxes SET retired_at = ?1
+WHERE id = ?2 AND kind = 'identity'
+`
+
+type SetRetiredAtParams struct {
+	RetiredAt sql.NullInt64
+	ID        string
+}
+
+func (q *Queries) SetRetiredAt(ctx context.Context, arg SetRetiredAtParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setRetiredAt, arg.RetiredAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const updateIdentity = `-- name: UpdateIdentity :execrows
+UPDATE mailboxes
+SET role = ?1, description = ?2, reports_to = ?3
+WHERE id = ?4 AND kind = 'identity'
+`
+
+type UpdateIdentityParams struct {
+	Role        string
+	Description string
+	ReportsTo   string
+	ID          string
+}
+
+func (q *Queries) UpdateIdentity(ctx context.Context, arg UpdateIdentityParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateIdentity,
+		arg.Role,
+		arg.Description,
+		arg.ReportsTo,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

@@ -73,7 +73,7 @@ func migrateUp(ctx context.Context, path string) error {
 		_ = conn.Close()
 		return fmt.Errorf("store: ping migration conn: %w", err)
 	}
-	drv, err := msqlite.WithInstance(conn, &msqlite.Config{})
+	drv, err := msqlite.WithInstance(conn, &msqlite.Config{NoTxWrap: true})
 	if err != nil {
 		_ = conn.Close()
 		return fmt.Errorf("store: migrate driver: %w", err)
@@ -139,4 +139,14 @@ func (s *Store) WithTx(ctx context.Context, fn func(q *db.Queries) error) error 
 		return fmt.Errorf("store: commit: %w", err)
 	}
 	return nil
+}
+
+// Size reports the database size in bytes (page_count * page_size).
+func (s *Store) Size(ctx context.Context) (int64, error) {
+	var n int64
+	err := s.reader.QueryRowContext(ctx, "SELECT (SELECT page_count FROM pragma_page_count) * (SELECT page_size FROM pragma_page_size)").Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("store: size: %w", err)
+	}
+	return n, nil
 }

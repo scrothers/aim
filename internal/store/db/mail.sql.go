@@ -9,6 +9,39 @@ import (
 	"context"
 )
 
+const countMessages = `-- name: CountMessages :one
+SELECT COUNT(*) FROM messages
+`
+
+func (q *Queries) CountMessages(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countMessages)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countMessagesSince = `-- name: CountMessagesSince :one
+SELECT COUNT(*) FROM messages WHERE created_at >= ?1
+`
+
+func (q *Queries) CountMessagesSince(ctx context.Context, since int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countMessagesSince, since)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countUnreadDeliveries = `-- name: CountUnreadDeliveries :one
+SELECT COUNT(*) FROM deliveries WHERE read_at IS NULL AND archived_at IS NULL
+`
+
+func (q *Queries) CountUnreadDeliveries(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUnreadDeliveries)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getDelivery = `-- name: GetDelivery :one
 SELECT message_id, mailbox_id, kind, read_at, archived_at
 FROM deliveries

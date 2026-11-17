@@ -12,6 +12,10 @@ import (
 type Scope struct {
 	Host, Org, Repo, Identity, Subagent     string
 	MatchRepo, MatchIdentity, MatchSubagent bool
+	// All selects every mailbox, ignoring the address fields (ListInbox only).
+	All bool
+	// IncludeRetired keeps retired identities in ListIdentitiesInScope.
+	IncludeRetired bool
 }
 
 // InboxParams filters ListInbox. Pagination is a keyset on (message, mailbox):
@@ -33,6 +37,13 @@ type InboxRow = db.ListInboxSubagentRow
 // query so SQLite can use the full mailbox UNIQUE index.
 func ListInbox(ctx context.Context, q *db.Queries, p InboxParams) ([]InboxRow, error) {
 	switch {
+	case p.All:
+		rows, err := q.ListInboxAll(ctx, db.ListInboxAllParams{
+			FromMailbox: p.FromMailbox, Since: p.Since, Until: p.Until,
+			BeforeMessage: p.BeforeMessage, BeforeMailbox: p.BeforeMailbox,
+			State: p.State, PageLimit: p.PageLimit,
+		})
+		return convertRows[db.ListInboxAllRow](rows, err)
 	case p.MatchSubagent:
 		return q.ListInboxSubagent(ctx, db.ListInboxSubagentParams{
 			Host: p.Host, Org: p.Org, Repo: p.Repo, Identity: p.Identity, Subagent: p.Subagent,
@@ -69,7 +80,7 @@ func ListInbox(ctx context.Context, q *db.Queries, p InboxParams) ([]InboxRow, e
 
 // convertRows maps the per-depth row types, which share one field layout,
 // onto InboxRow.
-func convertRows[T db.ListInboxOrgRow | db.ListInboxRepoRow | db.ListInboxIdentityRow](rows []T, err error) ([]InboxRow, error) {
+func convertRows[T db.ListInboxAllRow | db.ListInboxOrgRow | db.ListInboxRepoRow | db.ListInboxIdentityRow](rows []T, err error) ([]InboxRow, error) {
 	if err != nil {
 		return nil, err
 	}
@@ -83,13 +94,17 @@ func convertRows[T db.ListInboxOrgRow | db.ListInboxRepoRow | db.ListInboxIdenti
 // ListIdentitiesInScope lists identity mailboxes in scope (the subagent flag
 // is ignored), ordered by repo then identity.
 func ListIdentitiesInScope(ctx context.Context, q *db.Queries, s Scope) ([]db.Mailbox, error) {
+	var inc int64
+	if s.IncludeRetired {
+		inc = 1
+	}
 	switch {
 	case s.MatchIdentity:
 		return q.ListIdentitiesInIdentity(ctx, db.ListIdentitiesInIdentityParams{
-			Host: s.Host, Org: s.Org, Repo: s.Repo, Identity: s.Identity})
+			Host: s.Host, Org: s.Org, Repo: s.Repo, Identity: s.Identity, IncludeRetired: inc})
 	case s.MatchRepo:
-		return q.ListIdentitiesInRepo(ctx, db.ListIdentitiesInRepoParams{Host: s.Host, Org: s.Org, Repo: s.Repo})
+		return q.ListIdentitiesInRepo(ctx, db.ListIdentitiesInRepoParams{Host: s.Host, Org: s.Org, Repo: s.Repo, IncludeRetired: inc})
 	default:
-		return q.ListIdentitiesInOrg(ctx, db.ListIdentitiesInOrgParams{Host: s.Host, Org: s.Org})
+		return q.ListIdentitiesInOrg(ctx, db.ListIdentitiesInOrgParams{Host: s.Host, Org: s.Org, IncludeRetired: inc})
 	}
 }

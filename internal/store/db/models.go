@@ -28,6 +28,7 @@ type Mailbox struct {
 	Description string
 	ReportsTo   string
 	CreatedAt   int64
+	RetiredAt   sql.NullInt64
 }
 
 type Message struct {
@@ -40,6 +41,8 @@ type Message struct {
 	Subject     string
 	Body        string
 	CreatedAt   int64
+	FromClient  string
+	FromMachine string
 }
 
 type MessagesFt struct {

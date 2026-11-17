@@ -117,6 +117,106 @@ func (q *Queries) ListDeliveriesForMessage(ctx context.Context, messageID string
 	return items, nil
 }
 
+const listInboxAll = `-- name: ListInboxAll :many
+SELECT d.message_id, d.mailbox_id, d.kind, d.read_at, d.archived_at,
+       m.thread_id, m.in_reply_to, m.from_mailbox, m.from_session, m.subject, m.created_at,
+       mb.host, mb.org, mb.repo, mb.identity, mb.subagent
+FROM deliveries d
+JOIN messages m ON m.id = d.message_id
+JOIN mailboxes mb ON mb.id = d.mailbox_id
+WHERE (CAST(?1 AS TEXT) IS NULL OR m.from_mailbox = ?1)
+  AND (CAST(?2 AS INTEGER) IS NULL OR m.created_at >= ?2)
+  AND (CAST(?3 AS INTEGER) IS NULL OR m.created_at <= ?3)
+  AND (CAST(?4 AS TEXT) IS NULL
+       OR m.id < ?4
+       OR (m.id = ?4 AND d.mailbox_id < ?5))
+  AND CASE CAST(?6 AS TEXT)
+        WHEN 'unread' THEN d.read_at IS NULL AND d.archived_at IS NULL
+        WHEN 'read' THEN d.read_at IS NOT NULL AND d.archived_at IS NULL
+        WHEN 'archived' THEN d.archived_at IS NOT NULL
+        ELSE 1
+      END
+ORDER BY m.id DESC, d.mailbox_id DESC
+LIMIT ?7
+`
+
+type ListInboxAllParams struct {
+	FromMailbox   sql.NullString
+	Since         sql.NullInt64
+	Until         sql.NullInt64
+	BeforeMessage sql.NullString
+	BeforeMailbox sql.NullString
+	State         string
+	PageLimit     int64
+}
+
+type ListInboxAllRow struct {
+	MessageID   string
+	MailboxID   string
+	Kind        string
+	ReadAt      sql.NullInt64
+	ArchivedAt  sql.NullInt64
+	ThreadID    string
+	InReplyTo   sql.NullString
+	FromMailbox string
+	FromSession string
+	Subject     string
+	CreatedAt   int64
+	Host        string
+	Org         string
+	Repo        string
+	Identity    string
+	Subagent    string
+}
+
+func (q *Queries) ListInboxAll(ctx context.Context, arg ListInboxAllParams) ([]ListInboxAllRow, error) {
+	rows, err := q.db.QueryContext(ctx, listInboxAll,
+		arg.FromMailbox,
+		arg.Since,
+		arg.Until,
+		arg.BeforeMessage,
+		arg.BeforeMailbox,
+		arg.State,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListInboxAllRow
+	for rows.Next() {
+		var i ListInboxAllRow
+		if err := rows.Scan(
+			&i.MessageID,
+			&i.MailboxID,
+			&i.Kind,
+			&i.ReadAt,
+			&i.ArchivedAt,
+			&i.ThreadID,
+			&i.InReplyTo,
+			&i.FromMailbox,
+			&i.FromSession,
+			&i.Subject,
+			&i.CreatedAt,
+			&i.Host,
+			&i.Org,
+			&i.Repo,
+			&i.Identity,
+			&i.Subagent,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listInboxIdentity = `-- name: ListInboxIdentity :many
 SELECT d.message_id, d.mailbox_id, d.kind, d.read_at, d.archived_at,
        m.thread_id, m.in_reply_to, m.from_mailbox, m.from_session, m.subject, m.created_at,
