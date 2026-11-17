@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -19,7 +21,7 @@ Addresses: [subagent@][identity@]host/org[/repo]. Examples: github.com/acme (org
 
 Reading is anonymous and recursive: listing or searching an address covers it and everything below it (org > repos > identities > subagents). No sign-on is needed to read, list, search, view a roster or open a thread.
 
-Identities must be registered once (register), then you sign on (sign_on) for this connection before using send or mark. Multiple sessions may sign on as the same identity. Sending to an unknown identity fails with suggestions; namespace and subagent mailboxes are created on first send.
+Identities must be registered once (register), then you sign on (sign_on) for this connection before using send or mark. Multiple sessions may sign on as the same identity. To escalate to the human operator (approvals, decisions, blockers), send to the address "operator"; the operator is not an identity, cannot be signed on as, and replies arrive in your inbox. Sending to an unknown identity fails with suggestions; namespace and subagent mailboxes are created on first send.
 
 read marks a message read for deliveries you own; pass peek=true to read without marking. Pass subagent to act as one of your subagents (send, read, mark). list shows unread by default; state=archived needs both since and until (RFC3339 timestamps).`
 
@@ -31,12 +33,13 @@ func New(svc *mail.Service, conn *presence.Entry, version string) *mcp.Server {
 		&mcp.ServerOptions{Instructions: instructions},
 	)
 	h := &handlers{svc: svc, conn: conn}
-	mcp.AddTool(srv, &mcp.Tool{Name: "whoami", Description: "Show this session's id, machine, project directory, git namespace (your default mailbox scope) and the identity you are signed on as, if any."}, h.whoami)
-	mcp.AddTool(srv, &mcp.Tool{Name: "register", Description: "Register a new identity (name@host/org[/repo]) with a role, description and optional reports_to address. Fails if it already exists. Afterwards call sign_on to use it."}, h.register)
+	srv.AddReceivingMiddleware(h.captureClient)
+	mcp.AddTool(srv, &mcp.Tool{Name: "whoami", Description: "Show this session's id, machine, client (name and version), project directory, git namespace (your default mailbox scope) and the identity you are signed on as, if any."}, h.whoami)
+	mcp.AddTool(srv, &mcp.Tool{Name: "register", Description: "Register a new identity (name@host/org[/repo]) with a role, description and optional reports_to address (an identity address, or 'operator' if it answers to the human operator). Fails if it already exists; 'operator' itself is reserved. Afterwards call sign_on to use it."}, h.register)
 	mcp.AddTool(srv, &mcp.Tool{Name: "roster", Description: "List registered identities at or below an address with their role, description, reports_to, who is online (and away messages) and recently seen subagent names. Anonymous."}, h.roster)
 	mcp.AddTool(srv, &mcp.Tool{Name: "sign_on", Description: "Sign this connection on as a registered identity so you can send and mark. Replaces any previous sign-on on this connection. Optional away message is shown in the roster."}, h.signOn)
 	mcp.AddTool(srv, &mcp.Tool{Name: "sign_off", Description: "Sign this connection off; you appear offline in rosters and can no longer send or mark."}, h.signOff)
-	mcp.AddTool(srv, &mcp.Tool{Name: "send", Description: "Send a message from your signed-on identity (or one of its subagents via subagent) to to[] and optional cc[] addresses. Use in_reply_to to thread a reply; reply_all addresses the original sender and recipients. Requires sign_on. Sending to an unregistered identity fails with suggestions."}, h.send)
+	mcp.AddTool(srv, &mcp.Tool{Name: "send", Description: "Send a message from your signed-on identity (or one of its subagents via subagent) to to[] and optional cc[] addresses. Use in_reply_to to thread a reply; reply_all addresses the original sender and recipients. Send to 'operator' to escalate to the human operator. Requires sign_on. Sending to an unregistered identity fails with suggestions."}, h.send)
 	mcp.AddTool(srv, &mcp.Tool{Name: "list", Description: "List message headers for an address and everything below it. Anonymous. state is unread (default), read, archived or all; archived requires since and until (RFC3339). Use cursor from a previous result to page."}, h.list)
 	mcp.AddTool(srv, &mcp.Tool{Name: "read", Description: "Read one message by id. Marks the delivery read if you own it; set peek=true to avoid marking. Use subagent to read as one of your subagents."}, h.read)
 	mcp.AddTool(srv, &mcp.Tool{Name: "thread", Description: "Return every message in a thread, oldest first. Anonymous."}, h.thread)
@@ -46,13 +49,43 @@ func New(svc *mail.Service, conn *presence.Entry, version string) *mcp.Server {
 }
 
 type handlers struct {
-	svc  *mail.Service
-	conn *presence.Entry
+	svc        *mail.Service
+	conn       *presence.Entry
+	clientSeen atomic.Bool
+}
+
+// captureClient records the MCP clientInfo on the presence entry the first
+// time a tool is called on the connection.
+func (h *handlers) captureClient(next mcp.MethodHandler) mcp.MethodHandler {
+	return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
+		if method == "tools/call" && !h.clientSeen.Load() {
+			if ss, ok := req.GetSession().(*mcp.ServerSession); ok {
+				if ip := ss.InitializeParams(); ip != nil && ip.ClientInfo != nil {
+					h.conn.SetClient(ip.ClientInfo.Name, ip.ClientInfo.Version)
+					h.clientSeen.Store(true)
+				}
+			}
+		}
+		return next(ctx, method, req)
+	}
 }
 
 func (h *handlers) caller() mail.Caller {
 	id, ok := h.conn.Identity()
-	return mail.Caller{SessionID: h.conn.Preamble().SessionID, Identity: id, SignedOn: ok}
+	st := h.conn.Status()
+	return mail.Caller{
+		SessionID: st.SessionID, Identity: id, SignedOn: ok,
+		Client: st.Client, Machine: st.Machine,
+	}
+}
+
+// requireAddress rejects an empty address: unlike the operator console, agent
+// tools never read "everything".
+func requireAddress(op, addr string) error {
+	if strings.TrimSpace(addr) == "" {
+		return fmt.Errorf("mcpserver: %s: %w: address is required%s", op, mail.ErrInvalidInput, addressHint)
+	}
+	return nil
 }
 
 const addressHint = " (address grammar: [subagent@][identity@]host/org[/repo])"
@@ -89,6 +122,8 @@ type WhoamiOutput struct {
 	GitRemote  string `json:"git_remote,omitempty" jsonschema:"origin remote URL of the project"`
 	Namespace  string `json:"namespace,omitempty" jsonschema:"your git namespace host/org/repo, usable as an address"`
 	SignedOnAs string `json:"signed_on_as,omitempty" jsonschema:"identity this connection is signed on as"`
+	Client     string `json:"client,omitempty" jsonschema:"MCP client name, for example claude-code"`
+	ClientVer  string `json:"client_version,omitempty" jsonschema:"MCP client version"`
 }
 
 func (h *handlers) whoami(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, WhoamiOutput, error) {
@@ -100,6 +135,8 @@ func (h *handlers) whoami(_ context.Context, _ *mcp.CallToolRequest, _ struct{})
 	if id, ok := h.conn.Identity(); ok {
 		out.SignedOnAs = id.String()
 	}
+	st := h.conn.Status()
+	out.Client, out.ClientVer = st.Client, st.ClientVersion
 	return nil, out, nil
 }
 
@@ -129,6 +166,9 @@ type RosterOutput struct {
 }
 
 func (h *handlers) roster(ctx context.Context, _ *mcp.CallToolRequest, in AddressInput) (*mcp.CallToolResult, RosterOutput, error) {
+	if err := requireAddress("roster", in.Address); err != nil {
+		return nil, RosterOutput{Identities: []mail.RosterEntry{}}, err
+	}
 	es, err := h.svc.Roster(ctx, in.Address)
 	if es == nil {
 		es = []mail.RosterEntry{}
@@ -200,6 +240,9 @@ type ListInput struct {
 }
 
 func (h *handlers) list(ctx context.Context, _ *mcp.CallToolRequest, in ListInput) (*mcp.CallToolResult, mail.ListResult, error) {
+	if err := requireAddress("list", in.Address); err != nil {
+		return nil, mail.ListResult{Items: []mail.Header{}}, err
+	}
 	since, err := parseTime("since", in.Since)
 	if err != nil {
 		return nil, mail.ListResult{}, err
@@ -274,6 +317,9 @@ type SearchInput struct {
 }
 
 func (h *handlers) search(ctx context.Context, _ *mcp.CallToolRequest, in SearchInput) (*mcp.CallToolResult, mail.SearchResult, error) {
+	if err := requireAddress("search", in.Address); err != nil {
+		return nil, mail.SearchResult{Hits: []mail.Hit{}}, err
+	}
 	res, err := h.svc.Search(ctx, mail.SearchInput{Address: in.Address, Query: in.Query, Limit: in.Limit, Cursor: in.Cursor})
 	if res.Hits == nil {
 		res.Hits = []mail.Hit{}

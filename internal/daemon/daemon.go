@@ -93,6 +93,11 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) (err error) {
 		svc: mail.New(st, mcpserver.NewPresence(reg)),
 	}
 
+	if err := d.svc.EnsureOperator(ctx); err != nil {
+		_ = st.Close()
+		return fmt.Errorf("daemon: ensure operator mailbox: %w", err)
+	}
+
 	defer func() {
 		// Closing the store under a live handler would fail its in-flight
 		// queries; if conns did not drain, leave it for process exit.
