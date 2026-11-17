@@ -1,0 +1,7 @@
+bin/
+coverage.out
+coverage.html
+*.coverprofile
+*.db
+*.db-wal
+*.db-shm

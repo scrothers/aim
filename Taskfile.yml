@@ -1,0 +1,49 @@
+version: "3"
+
+tasks:
+  default:
+    desc: List tasks
+    cmds:
+      - task --list
+
+  build:
+    desc: Build aim into ./bin
+    cmds:
+      - mkdir -p bin
+      - go build -o bin/aim ./cmd/aim
+
+  gen:
+    desc: Generate sqlc code
+    cmds:
+      - go tool -modfile=tools/go.mod sqlc generate
+
+  fmt:
+    desc: gofmt -s -w
+    cmds:
+      - gofmt -s -w .
+
+  lint:
+    desc: golangci-lint
+    cmds:
+      - golangci-lint run ./...
+
+  lint:fix:
+    desc: golangci-lint with auto-fix
+    cmds:
+      - golangci-lint run --fix ./...
+
+  test:
+    desc: Run unit tests
+    cmds:
+      - go test -race ./...
+
+  test:e2e:
+    desc: Run e2e tests
+    cmds:
+      - go test -tags=e2e ./test/e2e/...
+
+  cover:
+    desc: Coverage report
+    cmds:
+      - go test -race -coverprofile=coverage.out ./...
+      - go tool cover -func=coverage.out | tail -1
