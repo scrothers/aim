@@ -32,6 +32,7 @@ const hdr = (id: string, extra: Partial<Header> = {}): Header => ({
   kind: 'message',
   snippet: `Snippet ${id}`,
   thread_count: 1,
+  muted: false,
   ...extra,
 })
 
@@ -48,6 +49,7 @@ const msg = (id: string, extra: Partial<MessageView> = {}): MessageView => ({
   cc: ['builder@github.com/acme/api'],
   from_client: 'claude-code',
   from_machine: 'devbox',
+  muted: false,
   ...extra,
 })
 

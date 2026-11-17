@@ -445,6 +445,51 @@ func applyMark(ctx context.Context, q *db.Queries, state string, d db.Delivery, 
 	return int(n), err
 }
 
+var markReplacer = strings.NewReplacer(store.MarkOpen, "[", store.MarkClose, "]")
+
+func bracketMarks(s string) string { return markReplacer.Replace(s) }
+
+// searchFilters validates the optional search filters. empty is true when
+// the From address has never sent anything, so no message can match.
+func (s *Service) searchFilters(ctx context.Context, in SearchInput) (sp store.SearchParams, empty bool, err error) {
+	const op = "search"
+	state := in.State
+	if state == StateAll {
+		state = ""
+	}
+	if !slices.Contains([]string{"", StateUnread, StateRead, StateArchived, StateInbox}, state) {
+		return sp, false, invalidf(op, "state %q is not one of unread, read, archived, inbox, all", in.State)
+	}
+	if in.Since != nil && in.Until != nil && in.Until.Before(*in.Since) {
+		return sp, false, invalidf(op, "until must not be before since")
+	}
+	sp.State = state
+	if in.Since != nil {
+		v := in.Since.UnixMilli()
+		sp.Since = &v
+	}
+	if in.Until != nil {
+		v := in.Until.UnixMilli()
+		sp.Until = &v
+	}
+	if in.From == "" {
+		return sp, false, nil
+	}
+	fa, err := parseAddr(op, in.From)
+	if err != nil {
+		return sp, false, err
+	}
+	m, err := s.store.Read().GetMailboxByKey(ctx, keyOf(fa))
+	if errors.Is(err, sql.ErrNoRows) {
+		return sp, true, nil
+	}
+	if err != nil {
+		return sp, false, fmt.Errorf("mail: %s: from: %w", op, err)
+	}
+	sp.FromMailbox = m.ID
+	return sp, false, nil
+}
+
 // Search runs a full-text query over messages delivered inside in.Address, or
 // everywhere when the address is empty.
 func (s *Service) Search(ctx context.Context, in SearchInput) (SearchResult, error) {
@@ -472,12 +517,18 @@ func (s *Service) Search(ctx context.Context, in SearchInput) (SearchResult, err
 			return SearchResult{}, invalidf(op, "cursor %q is not valid; pass next_cursor from the previous page", in.Cursor)
 		}
 	}
+	sp, empty, err := s.searchFilters(ctx, in)
+	if err != nil {
+		return SearchResult{}, err
+	}
+	if empty {
+		return SearchResult{Hits: []Hit{}}, nil
+	}
 	sc := a.Scope()
-	hits, err := s.store.Search(ctx, store.SearchParams{
-		Host: sc.Host, Org: sc.Org, Repo: sc.Repo, Identity: sc.Identity, Subagent: sc.Subagent,
-		All: all, MatchRepo: sc.MatchRepo, MatchIdentity: sc.MatchIdentity, MatchSubagent: sc.MatchSubagent,
-		Query: in.Query, Limit: limit + 1, Offset: offset,
-	})
+	sp.Host, sp.Org, sp.Repo, sp.Identity, sp.Subagent = sc.Host, sc.Org, sc.Repo, sc.Identity, sc.Subagent
+	sp.All, sp.MatchRepo, sp.MatchIdentity, sp.MatchSubagent = all, sc.MatchRepo, sc.MatchIdentity, sc.MatchSubagent
+	sp.Query, sp.Limit, sp.Offset = in.Query, limit+1, offset
+	hits, err := s.store.Search(ctx, sp)
 	if errors.Is(err, store.ErrBadQuery) {
 		return SearchResult{}, fmt.Errorf("mail: %s: %w (use plain words or \"quoted phrases\"): %w", op, ErrBadQuery, err)
 	}
@@ -500,7 +551,7 @@ func (s *Service) Search(ctx context.Context, in SearchInput) (SearchResult, err
 	out := make([]Hit, 0, len(hits))
 	for _, h := range hits {
 		out = append(out, Hit{
-			MessageID: h.MessageID, ThreadID: h.ThreadID, Subject: h.Subject, Snippet: h.Snippet,
+			MessageID: h.MessageID, ThreadID: h.ThreadID, Subject: h.Subject, Marked: h.Snippet, Snippet: bracketMarks(h.Snippet),
 			From: idx[h.FromMailboxID].String(), Mailbox: idx[h.MailboxID].String(),
 			CreatedAt: fromMS(h.CreatedAt), Rank: h.Rank,
 		})

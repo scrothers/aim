@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/filters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Saved console filters */
+        get: operations["listSavedFilters"];
+        put?: never;
+        /** Save a console filter */
+        post: operations["createSavedFilter"];
+        /** Delete a saved filter */
+        delete: operations["deleteSavedFilter"];
+        options?: never;
+        head?: never;
+        /** Rename or replace a saved filter */
+        patch: operations["updateSavedFilter"];
+        trace?: never;
+    };
     "/api/identities": {
         parameters: {
             query?: never;
@@ -124,6 +144,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/muted-threads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Muted threads, newest first */
+        get: operations["listMutedThreads"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/orgchart": {
         parameters: {
             query?: never;
@@ -209,6 +246,125 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Retention, backups and notification settings */
+        get: operations["getSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/backup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Write a database backup now */
+        post: operations["backupNow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/backups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set the backup schedule */
+        put: operations["updateBackups"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/notify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace webhooks and the public URL */
+        put: operations["updateNotify"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/prune": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply the retention policy now */
+        post: operations["pruneNow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/retention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set the retention policy */
+        put: operations["updateRetention"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/webhooks/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a test notification to one webhook */
+        post: operations["testWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stats": {
         parameters: {
             query?: never;
@@ -220,6 +376,40 @@ export interface paths {
         get: operations["getStats"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/threads/mute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mute a thread for the operator */
+        post: operations["muteThread"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/threads/unmute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Unmute a thread */
+        post: operations["unmuteThread"];
         delete?: never;
         options?: never;
         head?: never;
@@ -298,6 +488,64 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        BackupStatus: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/BackupStatus.json
+             */
+            readonly $schema?: string;
+            /** Format: date-time */
+            last_at?: string;
+            last_error?: string;
+            last_path?: string;
+            /** Format: int64 */
+            last_size?: number;
+            /** Format: date-time */
+            last_success_at?: string;
+        };
+        BackupsBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/BackupsBody.json
+             */
+            readonly $schema?: string;
+            /** @description Configured backup directory; empty selects the daemon default. */
+            dir: string;
+            /** @description Directory backups are written to: dir, or the daemon default when dir is empty. */
+            effective_dir: string;
+            /**
+             * Format: int64
+             * @description Hours between scheduled backups.
+             */
+            every_hours: number;
+            /**
+             * Format: int64
+             * @description Number of backups to keep.
+             */
+            keep: number;
+        };
+        BackupsRequest: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/BackupsRequest.json
+             */
+            readonly $schema?: string;
+            /** @description Absolute backup directory; empty selects the daemon default. */
+            dir?: string;
+            /**
+             * Format: int64
+             * @description Hours between scheduled backups (default 24).
+             */
+            every_hours?: number;
+            /**
+             * Format: int64
+             * @description Number of backups to keep (default 7).
+             */
+            keep?: number;
+        };
         Buddy: {
             /** @description Identity address. */
             address: string;
@@ -307,6 +555,11 @@ export interface components {
             client?: string;
             /** @description MCP client version. */
             client_version?: string;
+            /**
+             * Format: date-time
+             * @description Time of the session's latest tool call.
+             */
+            last_active?: string;
             /** @description Hostname the session runs on. */
             machine?: string;
             /** @description Identity name, the part before the first @. */
@@ -320,11 +573,21 @@ export interface components {
              * @description When the session signed on.
              */
             signed_on_at?: string;
+            /**
+             * @description online, or idle when the session has made no tool call recently; empty for offline identities.
+             * @enum {string}
+             */
+            state?: "online" | "idle";
             /** @description Subagent names that have mailboxes under this identity. */
             subagents: string[] | null;
         };
         BuddyGroup: {
             buddies: components["schemas"]["Buddy"][] | null;
+            /**
+             * Format: int64
+             * @description Identities counted in online whose sessions are all idle.
+             */
+            idle: number;
             /** @description Namespace (host/org[/repo]) or Offline. */
             name: string;
             /** @description True for the group of identities with no signed-on session. */
@@ -339,6 +602,17 @@ export interface components {
              * @description Active identities in the namespace.
              */
             total: number;
+        };
+        ConfigView: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ConfigView.json
+             */
+            readonly $schema?: string;
+            default_public_url: string;
+            public_url: string;
+            webhooks: components["schemas"]["WebhookView"][] | null;
         };
         ErrorDetail: {
             /** @description Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id' */
@@ -387,6 +661,43 @@ export interface components {
              */
             type: string;
         };
+        FilterPatch: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/FilterPatch.json
+             */
+            readonly $schema?: string;
+            /** @description New name. */
+            name?: string;
+            /** @description Replacement params. */
+            params?: {
+                [key: string]: string;
+            };
+        };
+        FilterRequest: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/FilterRequest.json
+             */
+            readonly $schema?: string;
+            /** @description Display name. */
+            name: string;
+            /** @description Console URL search params that reproduce the view. */
+            params: {
+                [key: string]: string;
+            };
+        };
+        FiltersBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/FiltersBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["SavedFilter"][] | null;
+        };
         Header: {
             /** Format: date-time */
             archived_at?: string;
@@ -400,6 +711,7 @@ export interface components {
             in_reply_to?: string;
             kind: string;
             mailbox: string;
+            muted: boolean;
             /** Format: date-time */
             read_at?: string;
             snippet: string;
@@ -421,18 +733,6 @@ export interface components {
              * @example ok
              */
             status: string;
-        };
-        Hit: {
-            /** Format: date-time */
-            created_at: string;
-            from: string;
-            mailbox: string;
-            message_id: string;
-            /** Format: double */
-            rank: number;
-            snippet: string;
-            subject: string;
-            thread_id: string;
         };
         Identity: {
             /**
@@ -516,19 +816,59 @@ export interface components {
             from_machine?: string;
             id: string;
             in_reply_to?: string;
+            muted: boolean;
             /** @description Plain-text preview of the body with Markdown syntax removed. */
             snippet: string;
             subject: string;
             thread_id: string;
             to: string[] | null;
         };
+        MuteBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/MuteBody.json
+             */
+            readonly $schema?: string;
+            muted: boolean;
+            thread_id: string;
+        };
+        MutedBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/MutedBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["MutedThread"][] | null;
+        };
+        MutedThread: {
+            /** Format: date-time */
+            muted_at: string;
+            thread_id: string;
+        };
+        NotifyRequest: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/NotifyRequest.json
+             */
+            readonly $schema?: string;
+            /** @description Console base URL used in notification links; empty selects the default. */
+            public_url?: string;
+            /** @description The complete webhook list. */
+            webhooks: components["schemas"]["WebhookInput"][] | null;
+        };
         OnlineStatus: {
             away?: string;
             client?: string;
+            /** Format: date-time */
+            last_active?: string;
             machine: string;
             session_id: string;
             /** Format: date-time */
             signed_on_at: string;
+            state?: string;
         };
         OrgChart: {
             /**
@@ -586,8 +926,22 @@ export interface components {
              * @description What happened.
              * @enum {string}
              */
-            kind: "signed_on" | "signed_off" | "connected" | "disconnected";
+            kind: "signed_on" | "signed_off" | "connected" | "disconnected" | "went_idle" | "active";
             machine?: string;
+        };
+        PruneResult: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/PruneResult.json
+             */
+            readonly $schema?: string;
+            /** Format: date-time */
+            cutoff: string;
+            dry_run: boolean;
+            enabled: boolean;
+            /** Format: int64 */
+            messages: number;
         };
         RenderBody: {
             /**
@@ -619,6 +973,27 @@ export interface components {
             /** Format: int64 */
             unread: number;
         };
+        Result: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/Result.json
+             */
+            readonly $schema?: string;
+            error?: string;
+            /** Format: int64 */
+            status: number;
+        };
+        RetentionSettings: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/RetentionSettings.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            prune_archived_after_days: number;
+        };
         RosterBody: {
             /**
              * Format: uri
@@ -638,15 +1013,48 @@ export interface components {
             role: string;
             subagents: string[] | null;
         };
-        SearchResult: {
+        SavedFilter: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/schemas/SearchResult.json
+             * @example https://example.com/schemas/SavedFilter.json
              */
             readonly $schema?: string;
-            hits: components["schemas"]["Hit"][] | null;
+            id: string;
+            name: string;
+            params: {
+                [key: string]: string;
+            };
+        };
+        SearchBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/SearchBody.json
+             */
+            readonly $schema?: string;
+            hits: components["schemas"]["SearchHitView"][] | null;
             next_cursor?: string;
+        };
+        SearchHitView: {
+            /** Format: date-time */
+            created_at: string;
+            from: string;
+            mailbox: string;
+            message_id: string;
+            /** Format: double */
+            rank: number;
+            /** @description The snippet as text runs; concatenated they equal snippet without the [brackets]. */
+            segments: components["schemas"]["Segment"][] | null;
+            snippet: string;
+            subject: string;
+            thread_id: string;
+        };
+        Segment: {
+            /** @description True when this run matched the search query. */
+            match: boolean;
+            /** @description Plain text; render as text, never as HTML. */
+            text: string;
         };
         SendRequest: {
             /**
@@ -667,6 +1075,18 @@ export interface components {
             subject: string;
             /** @description Recipient addresses. May be empty with reply_all. */
             to?: string[] | null;
+        };
+        SettingsBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/SettingsBody.json
+             */
+            readonly $schema?: string;
+            backup_status: components["schemas"]["BackupStatus"];
+            backups: components["schemas"]["BackupsBody"];
+            notify: components["schemas"]["ConfigView"];
+            retention: components["schemas"]["RetentionSettings"];
         };
         StatsBody: {
             /**
@@ -732,6 +1152,27 @@ export interface components {
             /** Format: int64 */
             unread_everywhere: number;
         };
+        WebhookInput: {
+            enabled: boolean;
+            /** @description Existing webhook id; empty adds a new webhook. */
+            id?: string;
+            /** @description Display name. */
+            name: string;
+            /** @description Discord or Slack webhook URL; write-only. Empty keeps the stored URL of an existing webhook. */
+            url?: string;
+        };
+        WebhookView: {
+            enabled: boolean;
+            id: string;
+            kind: string;
+            last_error?: string;
+            /** Format: date-time */
+            last_sent_at?: string;
+            /** Format: int64 */
+            last_status?: number;
+            name: string;
+            url: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -741,6 +1182,134 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listSavedFilters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FiltersBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    createSavedFilter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FilterRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedFilter"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    deleteSavedFilter: {
+        parameters: {
+            query: {
+                /** @description Saved filter id. */
+                id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    updateSavedFilter: {
+        parameters: {
+            query: {
+                /** @description Saved filter id. */
+                id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FilterPatch"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedFilter"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     updateIdentity: {
         parameters: {
             query: {
@@ -891,6 +1460,8 @@ export interface operations {
                 cursor?: string;
                 /** @description Page size (default 50). */
                 limit?: number;
+                /** @description Include operator mail in muted threads. */
+                include_muted?: boolean;
             };
             header?: never;
             path?: never;
@@ -1002,6 +1573,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessageView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    listMutedThreads: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MutedBody"];
                 };
             };
             /** @description Error */
@@ -1147,6 +1747,14 @@ export interface operations {
                 address?: string;
                 /** @description FTS5 query. */
                 q: string;
+                /** @description Only messages from this address. */
+                from?: string;
+                /** @description Only messages created at or after this time, RFC 3339. */
+                since?: string;
+                /** @description Only messages created at or before this time, RFC 3339. */
+                until?: string;
+                /** @description Delivery state filter (default all). */
+                state?: "unread" | "read" | "archived" | "inbox" | "all";
                 /** @description next_cursor from the previous page. */
                 cursor?: string;
                 /** @description Page size (default 20). */
@@ -1164,7 +1772,228 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SearchResult"];
+                    "application/json": components["schemas"]["SearchBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    getSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    backupNow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    updateBackups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BackupsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupsBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    updateNotify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotifyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    pruneNow: {
+        parameters: {
+            query?: {
+                /** @description Only count what would be deleted. */
+                dry_run?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PruneResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    updateRetention: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetentionSettings"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetentionSettings"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    testWebhook: {
+        parameters: {
+            query: {
+                /** @description Webhook id. */
+                id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -1194,6 +2023,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StatsBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    muteThread: {
+        parameters: {
+            query: {
+                /** @description Thread id. */
+                thread_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MuteBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    unmuteThread: {
+        parameters: {
+            query: {
+                /** @description Thread id. */
+                thread_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MuteBody"];
                 };
             };
             /** @description Error */

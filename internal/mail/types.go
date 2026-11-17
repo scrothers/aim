@@ -203,14 +203,25 @@ type SearchInput struct {
 	Query   string
 	Limit   int
 	Cursor  string
+	// From restricts hits to messages sent by this address.
+	From string
+	// Since and Until bound the message creation time (inclusive).
+	Since, Until *time.Time
+	// State restricts hits by delivery state: unread, read, archived, inbox
+	// or all; empty means all.
+	State string
 }
 
 // Hit is one ranked search result.
 type Hit struct {
-	MessageID string    `json:"message_id"`
-	ThreadID  string    `json:"thread_id"`
-	Subject   string    `json:"subject"`
-	Snippet   string    `json:"snippet"`
+	MessageID string `json:"message_id"`
+	ThreadID  string `json:"thread_id"`
+	Subject   string `json:"subject"`
+	// Snippet is the matching excerpt with matches wrapped in [brackets].
+	Snippet string `json:"snippet"`
+	// Marked is Snippet with matches wrapped in store.MarkOpen and
+	// store.MarkClose instead, for callers that render highlights.
+	Marked    string    `json:"-"`
 	From      string    `json:"from"`
 	Mailbox   string    `json:"mailbox"`
 	CreatedAt time.Time `json:"created_at"`

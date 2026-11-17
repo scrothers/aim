@@ -183,7 +183,7 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) (err error) {
 		d.setPublicURL(addrs.HTTP)
 		hs = &http.Server{
 			Handler: httpapi.New(httpapi.Deps{
-				Pinger: st, Mail: d.svc, Presence: d.reg, Static: webui.FS(),
+				Pinger: st, Mail: d.svc, Presence: d.reg, Maint: d.maint, Notify: d.notify, Static: webui.FS(),
 				Version: cfg.Version, Logger: logger, AllowedHosts: cfg.HTTPAllowedHosts,
 			}),
 			ReadHeaderTimeout: 5 * time.Second,

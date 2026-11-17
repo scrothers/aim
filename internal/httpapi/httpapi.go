@@ -27,6 +27,10 @@ type Deps struct {
 	Pinger   Pinger
 	Mail     *mail.Service
 	Presence *presence.Registry
+	// Maint runs backups and pruning; nil makes those operations return 503.
+	Maint Maintenance
+	// Notify manages webhooks; nil makes those operations return 503.
+	Notify Notifier
 	// Static serves the web UI; nil disables static serving.
 	Static  fs.FS
 	Version string
@@ -87,6 +91,8 @@ func newHandlers(d Deps) *handlers {
 		render:   render.New(),
 		version:  d.Version,
 		caller:   operatorCaller(),
+		maint:    d.Maint,
+		notify:   d.Notify,
 	}
 }
 

@@ -22,6 +22,36 @@ type SearchParams struct {
 	Query         string
 	Limit, Offset int
 	Since, Until  *int64
+	// FromMailbox restricts hits to messages sent by this mailbox id.
+	FromMailbox string
+	// State restricts hits to deliveries in a state: unread, read, inbox
+	// (not archived) or archived; empty matches every delivery.
+	State string
+}
+
+// Highlight markers wrapped around matched terms in SearchHit.Snippet. They
+// are control characters so message text cannot be mistaken for markup.
+const (
+	MarkOpen  = "\x02"
+	MarkClose = "\x03"
+)
+
+// stateClause builds the delivery-state predicate for alias from fixed
+// fragments; an unknown state matches nothing.
+func stateClause(alias, state string) string {
+	switch state {
+	case "":
+		return "1 = 1"
+	case "unread":
+		return alias + ".read_at IS NULL AND " + alias + ".archived_at IS NULL"
+	case "read":
+		return alias + ".read_at IS NOT NULL AND " + alias + ".archived_at IS NULL"
+	case "inbox":
+		return alias + ".archived_at IS NULL"
+	case "archived":
+		return alias + ".archived_at IS NOT NULL"
+	}
+	return "1 = 0"
 }
 
 // SearchHit is one ranked search result. Rank is the bm25 score (lower is
@@ -61,7 +91,7 @@ func scopeClause(alias string, p SearchParams) string {
 func searchSQL(p SearchParams) string {
 	return `
 SELECT m.id, m.thread_id, m.subject,
-       snippet(messages_fts, 1, '[', ']', '...', 12),
+       snippet(messages_fts, 1, char(2), char(3), '...', 12),
        m.from_mailbox, m.created_at, bm25(messages_fts), d.mailbox_id
 FROM messages_fts
 JOIN messages m ON m.rowid = messages_fts.rowid
@@ -69,12 +99,15 @@ JOIN deliveries d ON d.message_id = m.id
 JOIN mailboxes mb ON mb.id = d.mailbox_id
 WHERE messages_fts MATCH @query
   AND ` + scopeClause("mb", p) + `
+  AND ` + stateClause("d", p.State) + `
   AND (@since IS NULL OR m.created_at >= @since)
   AND (@until IS NULL OR m.created_at <= @until)
+  AND (@from = '' OR m.from_mailbox = @from)
   AND NOT EXISTS (
     SELECT 1 FROM deliveries d2 JOIN mailboxes mb2 ON mb2.id = d2.mailbox_id
     WHERE d2.message_id = d.message_id AND d2.mailbox_id < d.mailbox_id
-      AND ` + scopeClause("mb2", p) + `)
+      AND ` + scopeClause("mb2", p) + `
+      AND ` + stateClause("d2", p.State) + `)
 ORDER BY bm25(messages_fts), m.id DESC
 LIMIT @limit OFFSET @offset`
 }
@@ -109,7 +142,7 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]SearchHit, error)
 	args := []any{
 		sql.Named("query", p.Query),
 		sql.Named("since", nullInt(p.Since)), sql.Named("until", nullInt(p.Until)),
-		sql.Named("limit", limit), sql.Named("offset", max(p.Offset, 0)),
+		sql.Named("from", p.FromMailbox), sql.Named("limit", limit), sql.Named("offset", max(p.Offset, 0)),
 	}
 	if !p.All {
 		args = append(args, sql.Named("host", p.Host), sql.Named("org", p.Org))

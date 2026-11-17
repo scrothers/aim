@@ -3,19 +3,24 @@ package httpapi_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/scrothers/aim/internal/address"
 	"github.com/scrothers/aim/internal/httpapi"
 	"github.com/scrothers/aim/internal/mail"
+	"github.com/scrothers/aim/internal/maintenance"
 	"github.com/scrothers/aim/internal/mcpserver"
+	"github.com/scrothers/aim/internal/notify"
 	"github.com/scrothers/aim/internal/presence"
 	"github.com/scrothers/aim/internal/store"
 	"github.com/scrothers/aim/internal/wire"
@@ -27,6 +32,11 @@ type env struct {
 	h   http.Handler
 	svc *mail.Service
 	reg *presence.Registry
+	// backupDir is the daemon-default backup directory.
+	backupDir string
+	// hookBase is the URL of a fake webhook receiver; hookHits counts posts.
+	hookBase string
+	hookHits atomic.Int32
 }
 
 func newEnv(t *testing.T) *env {
@@ -42,11 +52,27 @@ func newEnv(t *testing.T) *env {
 	if err := svc.EnsureOperator(ctx); err != nil {
 		t.Fatal(err)
 	}
-	h := httpapi.New(httpapi.Deps{
-		Pinger: fakePinger{}, Mail: svc, Presence: reg, Version: "test",
-		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	e := &env{svc: svc, reg: reg, backupDir: filepath.Join(t.TempDir(), "backups")}
+	recv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		e.hookHits.Add(1)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(recv.Close)
+	e.hookBase = recv.URL
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	// Only the local receiver is an allowed webhook host in tests.
+	check := func(u *url.URL) (notify.Kind, error) {
+		if u.Host != strings.TrimPrefix(recv.URL, "http://") {
+			return "", errors.New("host not allowed")
+		}
+		return notify.KindDiscord, nil
+	}
+	e.h = httpapi.New(httpapi.Deps{
+		Pinger: fakePinger{}, Mail: svc, Presence: reg, Version: "test", Logger: logger,
+		Maint:  maintenance.New(st, svc, logger, maintenance.WithDefaultDir(e.backupDir)),
+		Notify: notify.New(svc, logger, notify.WithHostCheck(check), notify.WithBackoff(time.Millisecond)),
 	})
-	return &env{h: h, svc: svc, reg: reg}
+	return e
 }
 
 func (e *env) register(t *testing.T, addr, role string) {
