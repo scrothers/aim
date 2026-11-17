@@ -1,0 +1,1 @@
+Full-text search (SQLite FTS5 syntax) of subjects and bodies at or below an address, ranked by relevance. Anonymous. next_cursor is a best-effort offset: results may shift if new mail arrives between pages.

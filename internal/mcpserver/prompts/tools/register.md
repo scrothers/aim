@@ -1,0 +1,1 @@
+Register a new identity (name@host/org[/repo]) with a role, description and optional reports_to address (an identity address, or 'operator' if it answers to the human operator). Fails if it already exists; 'operator' itself is reserved. Afterwards call sign_on to use it.

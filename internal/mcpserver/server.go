@@ -15,42 +15,32 @@ import (
 	"github.com/scrothers/aim/internal/presence"
 )
 
-const instructions = `AIM is an inbox system for coding agents across sessions and machines.
-
-Addresses: [subagent@][identity@]host/org[/repo]. Examples: github.com/acme (org mailbox), github.com/acme/api (repo mailbox), reviewer@github.com/acme/api (identity), tests@reviewer@github.com/acme/api (subagent of an identity). Names are lower-case. Call whoami to see your git namespace (host/org/repo), which is the usual place to start.
-
-Reading is anonymous and recursive: listing or searching an address covers it and everything below it (org > repos > identities > subagents). No sign-on is needed to read, list, search, view a roster or open a thread.
-
-Identities must be registered once (register), then you sign on (sign_on) for this connection before using send or mark. Multiple sessions may sign on as the same identity. To escalate to the human operator (approvals, decisions, blockers), send to the address "operator"; the operator is not an identity, cannot be signed on as, and replies arrive in your inbox. Sending to an unknown identity fails with suggestions; namespace and subagent mailboxes are created on first send.
-
-read marks a message read for deliveries you own; pass peek=true to read without marking. Pass subagent to act as one of your subagents (send, read, mark). list shows unread by default; state=archived needs both since and until (RFC3339 timestamps).
-
-To wait for a reply instead of polling, call wait: it blocks until new unread mail arrives for your identity (or the address you give) or the timeout passes.`
-
 // New returns an MCP server for one connection. Handlers act on behalf of
 // conn, whose preamble and sign-on state identify the caller.
 func New(svc *mail.Service, conn *presence.Entry, version string, opts ...Option) *mcp.Server {
 	srv := mcp.NewServer(
 		&mcp.Implementation{Name: "aim", Version: version},
-		&mcp.ServerOptions{Instructions: instructions},
+		&mcp.ServerOptions{Instructions: instructions()},
 	)
 	h := &handlers{svc: svc, conn: conn, progressInterval: defaultProgressInterval}
 	for _, o := range opts {
 		o(h)
 	}
 	srv.AddReceivingMiddleware(h.captureClient)
-	mcp.AddTool(srv, &mcp.Tool{Name: "whoami", Description: "Show this session's id, machine, client (name and version), project directory, git namespace (your default mailbox scope) and the identity you are signed on as, if any."}, h.whoami)
-	mcp.AddTool(srv, &mcp.Tool{Name: "register", Description: "Register a new identity (name@host/org[/repo]) with a role, description and optional reports_to address (an identity address, or 'operator' if it answers to the human operator). Fails if it already exists; 'operator' itself is reserved. Afterwards call sign_on to use it."}, h.register)
-	mcp.AddTool(srv, &mcp.Tool{Name: "roster", Description: "List registered identities at or below an address with their role, description, reports_to, who is online (and away messages) and recently seen subagent names. Anonymous."}, h.roster)
-	mcp.AddTool(srv, &mcp.Tool{Name: "sign_on", Description: "Sign this connection on as a registered identity so you can send and mark. Replaces any previous sign-on on this connection. Optional away message is shown in the roster."}, h.signOn)
-	mcp.AddTool(srv, &mcp.Tool{Name: "sign_off", Description: "Sign this connection off; you appear offline in rosters and can no longer send or mark."}, h.signOff)
-	mcp.AddTool(srv, &mcp.Tool{Name: "send", Description: "Send a message from your signed-on identity (or one of its subagents via subagent) to to[] and optional cc[] addresses. Use in_reply_to to thread a reply; reply_all addresses the original sender and recipients. Send to 'operator' to escalate to the human operator. Requires sign_on. Sending to an unregistered identity fails with suggestions."}, h.send)
-	mcp.AddTool(srv, &mcp.Tool{Name: "list", Description: "List message headers for an address and everything below it. Anonymous. state is unread (default), read, archived or all; archived requires since and until (RFC3339). Use cursor from a previous result to page."}, h.list)
-	mcp.AddTool(srv, &mcp.Tool{Name: "read", Description: "Read one message by id. Marks the delivery read if you own it; set peek=true to avoid marking. The result's marked field is true when your delivery is marked read, and false if you peeked or aren't signed on as an owner of the message. Use subagent to read as one of your subagents."}, h.read)
-	mcp.AddTool(srv, &mcp.Tool{Name: "thread", Description: "Return every message in a thread, oldest first. Anonymous."}, h.thread)
-	mcp.AddTool(srv, &mcp.Tool{Name: "mark", Description: "Mark messages read, unread, archived or unarchived. Affects only deliveries owned by your signed-on identity or the named subagent. Requires sign_on."}, h.mark)
-	mcp.AddTool(srv, &mcp.Tool{Name: "search", Description: "Full-text search (SQLite FTS5 syntax) of subjects and bodies at or below an address, ranked by relevance. Anonymous. next_cursor is a best-effort offset: results may shift if new mail arrives between pages."}, h.search)
-	mcp.AddTool(srv, &mcp.Tool{Name: "wait", Description: "Block until an unread message newer than since_id arrives for an address (default: your signed-on identity and its subagents; anonymous callers must pass address), then return its header(s) like list; or return timed_out=true. Use instead of polling list. timeout_seconds defaults to 60 and is capped at 300; keep it below your MCP client's tool-call timeout. Progress notifications are sent every 15 seconds when the client supplies a progress token. Pass since_id (the newest id you have seen) to ignore older unread mail."}, h.wait)
+	// Descriptions live in prompts/tools/<name>.md (see prompts.go).
+	tool := func(name string) *mcp.Tool { return &mcp.Tool{Name: name, Description: toolDescription(name)} }
+	mcp.AddTool(srv, tool("whoami"), h.whoami)
+	mcp.AddTool(srv, tool("register"), h.register)
+	mcp.AddTool(srv, tool("roster"), h.roster)
+	mcp.AddTool(srv, tool("sign_on"), h.signOn)
+	mcp.AddTool(srv, tool("sign_off"), h.signOff)
+	mcp.AddTool(srv, tool("send"), h.send)
+	mcp.AddTool(srv, tool("list"), h.list)
+	mcp.AddTool(srv, tool("read"), h.read)
+	mcp.AddTool(srv, tool("thread"), h.thread)
+	mcp.AddTool(srv, tool("mark"), h.mark)
+	mcp.AddTool(srv, tool("search"), h.search)
+	mcp.AddTool(srv, tool("wait"), h.wait)
 	return srv
 }
 

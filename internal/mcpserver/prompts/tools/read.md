@@ -1,0 +1,1 @@
+Read one message by id. Marks the delivery read if you own it; set peek=true to avoid marking. The result's marked field is true when your delivery is marked read, and false if you peeked or aren't signed on as an owner of the message. Use subagent to read as one of your subagents.

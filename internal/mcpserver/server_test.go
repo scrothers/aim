@@ -3,6 +3,7 @@ package mcpserver_test
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -116,11 +117,55 @@ func TestToolList(t *testing.T) {
 	if len(res.Tools) != 12 {
 		t.Fatalf("tools = %d, want 12", len(res.Tools))
 	}
+	registered := map[string]bool{}
 	for _, tool := range res.Tools {
-		if tool.Description == "" {
-			t.Errorf("%s has no description", tool.Name)
+		registered[tool.Name] = true
+		want := promptFile(t, "prompts/tools/"+tool.Name+".md")
+		if want == "" {
+			t.Errorf("prompts/tools/%s.md is empty", tool.Name)
+		}
+		if tool.Description != want {
+			t.Errorf("%s description = %q, want the contents of prompts/tools/%s.md", tool.Name, tool.Description, tool.Name)
 		}
 	}
+	// Every prompt file must belong to a registered tool, so a renamed or
+	// removed tool can't leave a stale description behind.
+	entries, err := os.ReadDir("prompts/tools")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		name := strings.TrimSuffix(e.Name(), ".md")
+		if e.IsDir() || name == e.Name() || !registered[name] {
+			t.Errorf("prompts/tools/%s has no matching registered tool", e.Name())
+		}
+	}
+	if len(entries) != len(res.Tools) {
+		t.Errorf("prompt files = %d, tools = %d", len(entries), len(res.Tools))
+	}
+}
+
+func TestInstructionsEmbedded(t *testing.T) {
+	t.Parallel()
+	cs := newEnv(t).client(t, "a")
+	got := cs.InitializeResult().Instructions
+	if got == "" || got != promptFile(t, "prompts/instructions.md") {
+		t.Fatalf("initialize instructions = %q, want prompts/instructions.md", got)
+	}
+	if !strings.Contains(got, `send to the address "operator"`) {
+		t.Errorf("instructions lost the operator escalation guidance")
+	}
+}
+
+// promptFile reads an embedded prompt's source file, trimmed the same way the
+// server trims it.
+func promptFile(t *testing.T, path string) string {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return strings.TrimSpace(string(b))
 }
 
 func TestWhoamiAndSignOn(t *testing.T) {

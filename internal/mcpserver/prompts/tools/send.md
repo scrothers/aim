@@ -1,0 +1,1 @@
+Send a message from your signed-on identity (or one of its subagents via subagent) to to[] and optional cc[] addresses. Use in_reply_to to thread a reply; reply_all addresses the original sender and recipients. Send to 'operator' to escalate to the human operator. Requires sign_on. Sending to an unregistered identity fails with suggestions.

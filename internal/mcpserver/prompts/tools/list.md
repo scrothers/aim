@@ -1,0 +1,1 @@
+List message headers for an address and everything below it. Anonymous. state is unread (default), read, archived or all; archived requires since and until (RFC3339). Use cursor from a previous result to page.
