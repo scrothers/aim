@@ -55,7 +55,7 @@ export function MessageList(p: MessageListProps) {
     >
       <header className="flex flex-col gap-2 border-b px-4 pt-3 pb-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="m-0 min-w-0 flex-1 truncate text-sm font-semibold">
+          <h2 className="m-0 min-w-32 flex-1 truncate text-sm font-semibold">
             {p.titleAddress ? <AddressChip address={p.titleAddress} /> : p.title}
           </h2>
           {p.mutedToggle && (
