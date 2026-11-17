@@ -65,7 +65,7 @@ tasks:
     cmds:
       - mkdir -p {{.DEV_DIR}}
       - >-
-        go run ./cmd/aim daemon
+        go run ./cmd/aimdev -- daemon
         --db {{.DEV_DIR}}/aim.db
         --socket {{.DEV_SOCKET}}
         --listen 0.0.0.0:{{.DEV_MCP_PORT}}
