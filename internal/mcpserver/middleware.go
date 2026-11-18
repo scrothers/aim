@@ -13,17 +13,17 @@ const toolUseMetaKey = "claudecode/toolUseId"
 
 // captureClient records the MCP clientInfo on the presence entry the first
 // time a tool is called on the connection, and attributes subagent calls.
-func (h *handlers) captureClient(next mcp.MethodHandler) mcp.MethodHandler {
+func (m *middleware) captureClient(next mcp.MethodHandler) mcp.MethodHandler {
 	return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
 		if method == "tools/call" {
-			h.conn.Touch(time.Now())
-			h.attributeSubagent(req)
+			m.conn.Touch(time.Now())
+			m.attributeSubagent(req)
 		}
-		if method == "tools/call" && !h.clientSeen.Load() {
+		if method == "tools/call" && !m.clientSeen.Load() {
 			if ss, ok := req.GetSession().(*mcp.ServerSession); ok {
 				if ip := ss.InitializeParams(); ip != nil && ip.ClientInfo != nil {
-					h.conn.SetClient(ip.ClientInfo.Name, ip.ClientInfo.Version)
-					h.clientSeen.Store(true)
+					m.conn.SetClient(ip.ClientInfo.Name, ip.ClientInfo.Version)
+					m.clientSeen.Store(true)
 				}
 			}
 		}
@@ -33,9 +33,9 @@ func (h *handlers) captureClient(next mcp.MethodHandler) mcp.MethodHandler {
 
 // attributeSubagent sets the subagent argument of a send, read or mark call
 // that left it empty, when the resolver knows the call's subagent.
-func (h *handlers) attributeSubagent(req mcp.Request) {
+func (m *middleware) attributeSubagent(req mcp.Request) {
 	ctr, ok := req.(*mcp.CallToolRequest)
-	if !ok || h.resolveSubagent == nil || ctr.Params == nil {
+	if !ok || m.resolveSubagent == nil || ctr.Params == nil {
 		return
 	}
 	switch ctr.Params.Name {
@@ -44,7 +44,7 @@ func (h *handlers) attributeSubagent(req mcp.Request) {
 		return
 	}
 	id, _ := ctr.Params.GetMeta()[toolUseMetaKey].(string)
-	sub, ok := h.resolveSubagent(id)
+	sub, ok := m.resolveSubagent(id)
 	if !ok {
 		return
 	}

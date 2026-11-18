@@ -1,4 +1,4 @@
-package mcpserver_test
+package completions_test
 
 import (
 	"context"
@@ -8,7 +8,26 @@ import (
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/scrothers/aim/internal/mcpserver/mcptest"
 )
+
+const (
+	alice = mcptest.Alice
+	bob   = mcptest.Bob
+)
+
+// Short names for the shared test helpers.
+var (
+	newEnv   = mcptest.New
+	ok       = mcptest.OK
+	register = mcptest.Register
+)
+
+func twoAgents(t *testing.T, e *mcptest.Env) (a, b *mcp.ClientSession, msgID, threadID string) {
+	t.Helper()
+	return e.TwoAgents(t)
+}
 
 func promptRef(name string) *mcp.CompleteReference {
 	return &mcp.CompleteReference{Type: "ref/prompt", Name: name}

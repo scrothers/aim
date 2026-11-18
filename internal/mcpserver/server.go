@@ -7,6 +7,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/scrothers/aim/internal/mail"
+	"github.com/scrothers/aim/internal/mcpserver/completions"
 	"github.com/scrothers/aim/internal/mcpserver/prompts"
 	"github.com/scrothers/aim/internal/mcpserver/resources"
 	"github.com/scrothers/aim/internal/mcpserver/session"
@@ -17,48 +18,58 @@ import (
 // New returns an MCP server for one connection. Handlers act on behalf of
 // conn, whose preamble and sign-on state identify the caller.
 func New(svc *mail.Service, conn *presence.Entry, version string, opts ...Option) *mcp.Server {
-	h := &handlers{svc: svc, conn: conn, c: &session.Conn{Svc: svc, Entry: conn}}
+	var cfg config
 	for _, o := range opts {
-		o(h)
+		o(&cfg)
 	}
-	subs := resources.NewSubscriptions(h.c, h.subscribeDebounce, h.watcherExit)
+	c := &session.Conn{Svc: svc, Entry: conn}
+	subs := resources.NewSubscriptions(c, cfg.subscribeDebounce, cfg.watcherExit)
 	srv := mcp.NewServer(
 		&mcp.Implementation{Name: "aim", Version: version},
 		&mcp.ServerOptions{
 			Instructions:       instructions(),
 			SubscribeHandler:   subs.Subscribe,
 			UnsubscribeHandler: subs.Unsubscribe,
-			CompletionHandler:  h.complete,
+			CompletionHandler:  completions.Handler(c),
 		},
 	)
 	subs.Bind(srv)
-	resources.Register(srv, h.c)
-	prompts.Register(srv, h.c)
-	srv.AddReceivingMiddleware(h.captureClient)
-	tools.Register(srv, h.c, tools.Options{ProgressInterval: h.progressInterval})
+	resources.Register(srv, c)
+	prompts.Register(srv, c)
+	mw := &middleware{conn: conn, resolveSubagent: cfg.resolveSubagent}
+	srv.AddReceivingMiddleware(mw.captureClient)
+	tools.Register(srv, c, tools.Options{ProgressInterval: cfg.progressInterval})
 	return srv
 }
 
+// config is what Options set.
+type config struct {
+	progressInterval  time.Duration
+	subscribeDebounce time.Duration
+	watcherExit       chan<- struct{}
+	resolveSubagent   SubagentResolver
+}
+
 // Option configures a per-connection server.
-type Option func(*handlers)
+type Option func(*config)
 
 // WithProgressInterval sets how often wait reports progress while blocked.
 // Non-positive values keep the default.
 func WithProgressInterval(d time.Duration) Option {
-	return func(h *handlers) { h.progressInterval = d }
+	return func(c *config) { c.progressInterval = d }
 }
 
 // WithSubscribeDebounce sets how long the subscription watcher waits after a
 // mail change before re-checking subscribed resources. Non-positive values
 // keep the default.
 func WithSubscribeDebounce(d time.Duration) Option {
-	return func(h *handlers) { h.subscribeDebounce = d }
+	return func(c *config) { c.subscribeDebounce = d }
 }
 
 // WithWatcherExit makes the subscription watcher close ch once its goroutines
 // have returned, so tests can prove it ends with the session.
 func WithWatcherExit(ch chan<- struct{}) Option {
-	return func(h *handlers) { h.watcherExit = ch }
+	return func(c *config) { c.watcherExit = ch }
 }
 
 // SubagentResolver returns the subagent that issued the tool call with the
@@ -69,16 +80,12 @@ type SubagentResolver func(toolUseID string) (string, bool)
 // mark calls that omit it, when the resolver knows which subagent made the
 // call. Claude Code sends the tool-use id as _meta["claudecode/toolUseId"].
 func WithSubagentResolver(r SubagentResolver) Option {
-	return func(h *handlers) { h.resolveSubagent = r }
+	return func(c *config) { c.resolveSubagent = r }
 }
 
-type handlers struct {
-	svc               *mail.Service
-	conn              *presence.Entry
-	c                 *session.Conn
-	progressInterval  time.Duration
-	subscribeDebounce time.Duration
-	watcherExit       chan<- struct{}
-	clientSeen        atomic.Bool
-	resolveSubagent   SubagentResolver
+// middleware is the per-connection state of the receiving middleware.
+type middleware struct {
+	conn            *presence.Entry
+	resolveSubagent SubagentResolver
+	clientSeen      atomic.Bool
 }

@@ -5,10 +5,27 @@ import (
 	"time"
 
 	"github.com/scrothers/aim/internal/address"
+	"github.com/scrothers/aim/internal/mail"
 	"github.com/scrothers/aim/internal/mcpserver"
 	"github.com/scrothers/aim/internal/presence"
 	"github.com/scrothers/aim/internal/wire"
 )
+
+func TestPresenceAdapterSessions(t *testing.T) {
+	t.Parallel()
+	reg := presence.New()
+	now := time.Now()
+	reg.Add("c1", wire.Preamble{SessionID: "s1", Machine: "box"}, now)
+	reg.Add("c2", wire.Preamble{SessionID: "s2", Machine: "box"}, now)
+	reg.Add("c3", wire.Preamble{SessionID: "s3", Machine: "laptop"}, now)
+	sc, ok := mcpserver.NewPresence(reg).(mail.SessionCounter)
+	if !ok {
+		t.Fatal("presence adapter is not a mail.SessionCounter")
+	}
+	if sessions, machines := sc.Sessions(); sessions != 3 || machines != 2 {
+		t.Errorf("Sessions() = %d, %d; want 3, 2", sessions, machines)
+	}
+}
 
 func TestPresenceAdapterAttention(t *testing.T) {
 	t.Parallel()
