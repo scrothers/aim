@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { BellOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ago } from '@/lib/identity'
+import { stripMarkdown } from '@/lib/markdown'
 import { rowKey, type Header, type MailState } from '@/api/mail'
 import { AddressChip } from '@/components/shared/AddressChip'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
@@ -167,7 +168,7 @@ export function MessageList(p: MessageListProps) {
                         </span>
                       )}
                     </span>
-                    {h.snippet && <span className="truncate text-xs text-faint">{h.snippet}</span>}
+                    {h.snippet && <span className="truncate text-xs text-faint">{stripMarkdown(h.snippet, { trim: true })}</span>}
                     {p.showMailbox && (
                       <span className="flex items-center gap-1 text-xs text-faint">
                         <span>to</span>

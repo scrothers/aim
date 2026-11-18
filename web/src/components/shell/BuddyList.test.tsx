@@ -105,7 +105,7 @@ describe('BuddyList', () => {
     const badge = within(row).getByRole('status', { name: /blocked: Claude needs your permission to use Bash/ })
     expect(badge).toHaveAttribute('title', 'Claude needs your permission to use Bash · for 2m')
     expect(badge.className).toContain('bg-attention-soft')
-    expect(screen.getByText(/1 need attention/)).toBeInTheDocument()
+    expect(screen.getByText(/1 needs attention/)).toBeInTheDocument()
     expect(screen.getByText('coordinator').closest('li')).not.toHaveAttribute('data-attention')
   })
 
@@ -116,7 +116,7 @@ describe('BuddyList', () => {
     const badge = screen.getByTestId('attention')
     expect(badge).toHaveTextContent('needs input')
     expect(badge.className).not.toContain('bg-attention-soft')
-    expect(screen.queryByText(/need attention/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/needs? attention/)).not.toBeInTheDocument()
   })
 
   it('lists attention events in the feed with readable labels', () => {

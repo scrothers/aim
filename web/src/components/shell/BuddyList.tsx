@@ -147,7 +147,7 @@ export function BuddyList({ data }: { data: PresenceBody }) {
           <span className="font-normal text-faint">
             ({g.offline ? g.total || (g.buddies ?? []).length : `${g.online}/${g.total}`}
             {!g.offline && (g.idle ?? 0) > 0 && <span className="text-idle"> · {g.idle} idle</span>}
-            {!g.offline && (g.attention ?? 0) > 0 && <span className="text-attention"> · {g.attention} need attention</span>})
+            {!g.offline && (g.attention ?? 0) > 0 && <span className="text-attention"> · {g.attention} {g.attention === 1 ? 'needs' : 'need'} attention</span>})
           </span>
         </button>
         {open && (
