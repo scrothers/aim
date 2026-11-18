@@ -71,6 +71,10 @@ func TestRenderGolden(t *testing.T) {
 		{"whoami", mdview.Whoami(mdview.WhoamiInfo{SessionID: "s", Machine: "box", Namespace: "github.com/acme/api", SignedOnAs: "alice@github.com/acme/api", Client: "claude-code", ClientVersion: "2"})},
 		{"whoami_anon", mdview.Whoami(mdview.WhoamiInfo{SessionID: "s"})},
 		{"transcript_empty", mdview.Transcript(nil)},
+		{"nudge", mdview.Nudge("alice@github.com/acme/api", hdrs, 5)},
+		{"nudge_all", mdview.Nudge("alice@github.com/acme/api", hdrs[:1], 1)},
+		{"roster_brief", mdview.RosterBrief(roster)},
+		{"roster_brief_empty", mdview.RosterBrief(nil)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

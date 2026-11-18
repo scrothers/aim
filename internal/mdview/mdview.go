@@ -122,6 +122,45 @@ func Roster(title string, es []mail.RosterEntry) string {
 	return strings.TrimRight(b.String(), "\n") + "\n"
 }
 
+// Nudge renders a compact new-mail notice for hook context: one bullet per
+// message, newest first as given. total counts all unread mail, which may
+// exceed len(items).
+func Nudge(identity string, items []mail.Header, total int) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "# AIM: %d new message(s) for %s\n\n", len(items), identity)
+	for _, h := range items {
+		fmt.Fprintf(&b, "- **%s** from %s (id `%s`, thread `%s`, %s)\n",
+			OneLine(h.Subject), h.From, h.ID, h.ThreadID, Stamp(h.CreatedAt))
+		if h.Snippet != "" {
+			fmt.Fprintf(&b, "  > %s\n", OneLine(h.Snippet))
+		}
+	}
+	if total > len(items) {
+		fmt.Fprintf(&b, "\n%d unread in all; `list` shows the rest.\n", total)
+	}
+	b.WriteString("\nRead with `read` (message id); reply with `send` and `in_reply_to`; archive with `mark`.\n")
+	return b.String()
+}
+
+// RosterBrief renders one line per identity: address, role and presence.
+func RosterBrief(es []mail.RosterEntry) string {
+	if len(es) == 0 {
+		return "_No identities registered._\n"
+	}
+	var b strings.Builder
+	for _, e := range es {
+		presence := "offline"
+		if len(e.Online) > 0 {
+			presence = e.Online[0].State
+			if presence == "" {
+				presence = "online"
+			}
+		}
+		fmt.Fprintf(&b, "- `%s` - %s (%s)\n", e.Address, OneLine(e.Role), presence)
+	}
+	return b.String()
+}
+
 // WhoamiInfo is the data behind Whoami.
 type WhoamiInfo struct {
 	SessionID, Machine, ProjectDir, GitRemote, Namespace string

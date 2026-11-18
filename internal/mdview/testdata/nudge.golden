@@ -1,0 +1,9 @@
+# AIM: 2 new message(s) for alice@github.com/acme/api
+
+- **re: deploy plan** from bob@github.com/acme/api (id `msg-2`, thread `thr-1`, 2026-01-02 15:04 UTC)
+  > ack ok
+- **no snippet** from x@h/o (id `msg-3`, thread `thr-3`, 2026-01-02 15:04 UTC)
+
+5 unread in all; `list` shows the rest.
+
+Read with `read` (message id); reply with `send` and `in_reply_to`; archive with `mark`.

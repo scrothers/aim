@@ -246,6 +246,40 @@ func (r *Registry) Online(identity address.Address) []Status {
 	return out
 }
 
+// Agent returns the connection of the agent identified by a session id, or
+// failing that by its process id on machine: the MCP connection a hook
+// process of the same agent belongs to. Signed-on connections win over
+// signed-off ones, then the most recent connection.
+func (r *Registry) Agent(machine, sessionID string, agentPID int) (*Entry, bool) {
+	if sessionID == "" && agentPID <= 0 {
+		return nil, false
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var best *Entry
+	for _, e := range r.entries {
+		p := e.preamble
+		match := (sessionID != "" && p.SessionID == sessionID) ||
+			(agentPID > 0 && p.AgentPID == agentPID && p.Machine == machine)
+		if !match {
+			continue
+		}
+		if best == nil || better(e, best) {
+			best = e
+		}
+	}
+	return best, best != nil
+}
+
+// better reports whether a is a better agent match than b. The caller must
+// hold r.mu.
+func better(a, b *Entry) bool {
+	if a.signedOn != b.signedOn {
+		return a.signedOn
+	}
+	return a.connectedAt.After(b.connectedAt)
+}
+
 // Len returns the number of registered connections, signed on or not.
 func (r *Registry) Len() int {
 	r.mu.RLock()

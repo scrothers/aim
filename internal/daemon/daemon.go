@@ -16,6 +16,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/oklog/ulid/v2"
 
+	"github.com/scrothers/aim/internal/hooks"
 	"github.com/scrothers/aim/internal/httpapi"
 	"github.com/scrothers/aim/internal/mail"
 	"github.com/scrothers/aim/internal/maintenance"
@@ -85,6 +86,7 @@ type daemon struct {
 	reg    *presence.Registry
 	maint  *maintenance.Runner
 	notify *notify.Manager
+	hooks  *hooks.Server
 
 	mu    sync.Mutex
 	conns map[net.Conn]struct{}
@@ -113,6 +115,7 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) (err error) {
 		cfg: cfg, logger: logger, reg: reg, conns: make(map[net.Conn]struct{}),
 		svc: mail.New(st, mcpserver.NewPresence(reg)),
 	}
+	d.hooks = hooks.New(d.svc, reg)
 
 	if err := d.svc.EnsureOperator(ctx); err != nil {
 		_ = st.Close()
@@ -349,6 +352,14 @@ func (d *daemon) serve(ctx context.Context, c net.Conn) {
 	}
 	_ = c.SetReadDeadline(time.Time{})
 
+	if p.Kind == wire.KindHook {
+		if err := d.hooks.Serve(ctx, c, br, p); err != nil {
+			d.logger.LogAttrs(ctx, slog.LevelWarn, "hook failed",
+				slog.String("session", p.SessionID), slog.String("client", p.Client), slog.String("error", err.Error()))
+		}
+		return
+	}
+
 	connID := "conn-" + ulid.Make().String()
 	entry := d.reg.Add(connID, p, time.Now())
 	defer d.reg.Remove(connID)
@@ -358,7 +369,7 @@ func (d *daemon) serve(ctx context.Context, c net.Conn) {
 
 	d.restoreSignon(ctx, log, entry, p)
 
-	srv := mcpserver.New(d.svc, entry, d.cfg.Version)
+	srv := mcpserver.New(d.svc, entry, d.cfg.Version, mcpserver.WithSubagentResolver(d.hooks.SubagentFor))
 	f := newInflight(halfCloseGrace)
 	ss, err := srv.Connect(ctx, &mcp.IOTransport{Reader: f.reader(br, c), Writer: f.writer(c)}, nil)
 	if err != nil {
