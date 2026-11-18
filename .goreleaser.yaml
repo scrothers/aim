@@ -1,0 +1,51 @@
+# GoReleaser config for AIM. Runs from .github/workflows/release.yml on v* tags.
+# Local dry run: goreleaser release --snapshot --clean
+version: 2
+
+project_name: aim
+
+before:
+  hooks:
+    # The console is embedded in the binary, so build it first.
+    - pnpm --dir web install --frozen-lockfile
+    - pnpm --dir web run build
+
+builds:
+  - id: aim
+    main: ./cmd/aim
+    binary: aim
+    env:
+      - CGO_ENABLED=0 # modernc.org/sqlite is pure Go
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X main.buildVersion={{ .Version }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: aim
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - NOTICE
+      - README.md
+      - deploy/aim.service
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  github:
+    owner: scrothers
+    name: aim
+  prerelease: auto

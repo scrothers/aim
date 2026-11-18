@@ -1,4 +1,5 @@
 bin/
+/dist/
 .claude/
 .dev/
 coverage.out
