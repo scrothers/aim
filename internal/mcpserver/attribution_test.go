@@ -44,4 +44,32 @@ func TestSubagentAttributionFromToolUseID(t *testing.T) {
 	}
 	// Tools without a subagent argument are left alone.
 	ok(t, cs, "agent_whoami", map[string]any{})
+
+	// mail_read and mail_mark are attributed too: mail delivered only to the
+	// subagent's mailbox is read and marked when the call comes from it.
+	call := func(meta mcp.Meta, name string, args map[string]any) map[string]any {
+		t.Helper()
+		res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Meta: meta, Name: name, Arguments: args})
+		if err != nil || res.IsError {
+			t.Fatalf("%s: %v %s", name, err, text(res))
+		}
+		m, _ := res.StructuredContent.(map[string]any)
+		return m
+	}
+	toSub := base()
+	toSub["to"] = []string{"helper@alice@github.com/acme/api"}
+	id, _ := call(nil, "mail_send", toSub)["id"].(string)
+	if r := call(mcp.Meta{"claudecode/toolUseId": "tu-main"}, "mail_read", map[string]any{"message_id": id}); r["marked"] != false {
+		t.Errorf("main-agent read marked the subagent's copy: %v", r["marked"])
+	}
+	if r := call(mcp.Meta{"claudecode/toolUseId": "tu-sub"}, "mail_read", map[string]any{"message_id": id}); r["marked"] != true {
+		t.Errorf("attributed read did not mark the subagent's copy: %v", r["marked"])
+	}
+	unread := map[string]any{"message_ids": []string{id}, "state": "unread"}
+	if r := call(mcp.Meta{"claudecode/toolUseId": "tu-main"}, "mail_mark", unread); r["changed"] != float64(0) {
+		t.Errorf("main-agent mark changed the subagent's copy: %v", r["changed"])
+	}
+	if r := call(mcp.Meta{"claudecode/toolUseId": "tu-sub"}, "mail_mark", unread); r["changed"] != float64(1) {
+		t.Errorf("attributed mark changed = %v, want 1", r["changed"])
+	}
 }
