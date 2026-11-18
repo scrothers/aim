@@ -11,6 +11,31 @@ import (
 	"github.com/scrothers/aim/internal/mail"
 )
 
+func TestApprovalSettings(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ctx := context.Background()
+	a, err := e.svc.ApprovalSettings(ctx)
+	if err != nil || a.Enabled || a.TimeoutSeconds != mail.DefaultApprovalTimeoutSeconds {
+		t.Fatalf("default approvals = %+v, %v", a, err)
+	}
+	for _, secs := range []int{-1, 9, 3601} {
+		if _, err := e.svc.SetApprovalSettings(ctx, mail.ApprovalSettings{Enabled: true, TimeoutSeconds: secs}); !errors.Is(err, mail.ErrInvalidInput) {
+			t.Errorf("timeout %d err = %v", secs, err)
+		}
+	}
+	got, err := e.svc.SetApprovalSettings(ctx, mail.ApprovalSettings{Enabled: true, TimeoutSeconds: 60})
+	if err != nil || got != (mail.ApprovalSettings{Enabled: true, TimeoutSeconds: 60}) {
+		t.Fatalf("set = %+v, %v", got, err)
+	}
+	if a, _ = e.svc.ApprovalSettings(ctx); !a.Enabled || a.TimeoutSeconds != 60 {
+		t.Errorf("approvals = %+v", a)
+	}
+	if got, _ = e.svc.SetApprovalSettings(ctx, mail.ApprovalSettings{}); got.Enabled || got.TimeoutSeconds != mail.DefaultApprovalTimeoutSeconds {
+		t.Errorf("zero set = %+v", got)
+	}
+}
+
 func TestRetentionAndBackupSettings(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)

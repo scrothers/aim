@@ -27,7 +27,54 @@ const (
 	keyBackupStatus = "backup_status"
 	keyNotify       = "notify"
 	keyFilters      = "saved_filters"
+	keyApprovals    = "approvals"
 )
+
+// Remote approval timeout bounds, in seconds.
+const (
+	DefaultApprovalTimeoutSeconds = 300
+	MinApprovalTimeoutSeconds     = 10
+	MaxApprovalTimeoutSeconds     = 3600
+)
+
+// ApprovalSettings configures remote approval of agent permission prompts
+// from the operator console.
+type ApprovalSettings struct {
+	// Enabled makes approval hooks wait for the operator; off, they return
+	// at once and the agent prompts in its terminal.
+	Enabled bool `json:"enabled"`
+	// TimeoutSeconds is how long a prompt waits for the operator before
+	// falling back to the terminal.
+	TimeoutSeconds int `json:"timeout_seconds"`
+}
+
+// ApprovalSettings returns the remote approval settings with defaults
+// applied: disabled, with the default timeout.
+func (s *Service) ApprovalSettings(ctx context.Context) (ApprovalSettings, error) {
+	a, err := getSetting(ctx, s.store.Read(), keyApprovals, ApprovalSettings{})
+	if err != nil {
+		return ApprovalSettings{}, err
+	}
+	if a.TimeoutSeconds == 0 {
+		a.TimeoutSeconds = DefaultApprovalTimeoutSeconds
+	}
+	return a, nil
+}
+
+// SetApprovalSettings validates and stores the remote approval settings. A
+// zero TimeoutSeconds selects the default.
+func (s *Service) SetApprovalSettings(ctx context.Context, a ApprovalSettings) (ApprovalSettings, error) {
+	if a.TimeoutSeconds == 0 {
+		a.TimeoutSeconds = DefaultApprovalTimeoutSeconds
+	}
+	if a.TimeoutSeconds < MinApprovalTimeoutSeconds || a.TimeoutSeconds > MaxApprovalTimeoutSeconds {
+		return ApprovalSettings{}, invalidf("settings", "timeout_seconds must be %d-%d", MinApprovalTimeoutSeconds, MaxApprovalTimeoutSeconds)
+	}
+	return updateSetting(ctx, s, keyApprovals, ApprovalSettings{}, func(v *ApprovalSettings) error {
+		*v = a
+		return nil
+	})
+}
 
 // Settings defaults and limits.
 const (
