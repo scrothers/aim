@@ -64,8 +64,8 @@ func buildPresence(roster []mail.RosterEntry, reg *presence.Registry) PresenceBo
 			g.Buddies = append(g.Buddies, Buddy{
 				Address: r.Address, Name: name, Role: r.Role, Online: true, Away: o.Away,
 				Client: o.Client, ClientVersion: versions[o.SessionID], Machine: o.Machine,
-				Subagents: subs, SignedOnAt: o.SignedOnAt, State: o.State, LastActive: o.LastActive,
-				Attention: o.Attention, AttentionDetail: o.AttentionDetail, AttentionSince: o.AttentionSince,
+				Subagents: subs, SignedOnAt: o.SignedOnAt, State: string(o.State), LastActive: o.LastActive,
+				Attention: string(o.Attention), AttentionDetail: o.AttentionDetail, AttentionSince: o.AttentionSince,
 			})
 		}
 		if needsAttention {

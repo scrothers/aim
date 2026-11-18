@@ -150,9 +150,9 @@ func attentionNote(o mail.OnlineStatus) string {
 		return ""
 	}
 	if d := OneLine(o.AttentionDetail); d != "" {
-		return ", " + o.Attention + ": " + d
+		return ", " + string(o.Attention) + ": " + d
 	}
-	return ", " + o.Attention
+	return ", " + string(o.Attention)
 }
 
 // RosterBrief renders one line per identity: address, role and presence.
@@ -164,7 +164,7 @@ func RosterBrief(es []mail.RosterEntry) string {
 	for _, e := range es {
 		presence := "offline"
 		if len(e.Online) > 0 {
-			presence = e.Online[0].State
+			presence = string(e.Online[0].State)
 			if presence == "" {
 				presence = "online"
 			}

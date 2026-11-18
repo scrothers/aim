@@ -346,7 +346,7 @@ func (s *Service) headers(ctx context.Context, q *db.Queries, rows []store.Inbox
 			ID: r.MessageID, ThreadID: r.ThreadID, InReplyTo: r.InReplyTo.String,
 			From: idx[r.FromMailbox].String(), Subject: r.Subject, CreatedAt: fromMS(r.CreatedAt),
 			To: p.to, Cc: p.cc,
-			Mailbox: rowAddr(r.Host, r.Org, r.Repo, r.Identity, r.Subagent).String(), Kind: r.Kind,
+			Mailbox: rowAddr(r.Host, r.Org, r.Repo, r.Identity, r.Subagent).String(), Kind: DeliveryKind(r.Kind),
 			ReadAt: nullTime(r.ReadAt), ArchivedAt: nullTime(r.ArchivedAt),
 			FromClient: senders[r.MessageID].FromClient, FromMachine: senders[r.MessageID].FromMachine,
 			Snippet:     s.renderer.Snippet(senders[r.MessageID].BodyHead, snippetRunes),

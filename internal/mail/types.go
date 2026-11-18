@@ -19,12 +19,12 @@ type OnlineStatus struct {
 	SignedOnAt time.Time `json:"signed_on_at" jsonschema:"When the session signed on, RFC3339."`
 	Client     string    `json:"client,omitempty" jsonschema:"MCP client of the session, for example claude-code."`
 	// State is "online" or "idle" (no tool call within the idle threshold).
-	State string `json:"state,omitempty" jsonschema:"online, or idle when the session has made no tool call within the idle threshold (10 minutes by default)."`
+	State SessionState `json:"state,omitempty" jsonschema:"online, or idle when the session has made no tool call within the idle threshold (10 minutes by default)."`
 	// LastActive is the time of the session's latest tool call.
 	LastActive time.Time `json:"last_active,omitzero" jsonschema:"Time of the session's latest tool call, RFC3339."`
 	// Attention is the state the agent's hooks reported (blocked, waiting,
 	// failed or interrupted), or empty when it needs none.
-	Attention string `json:"attention,omitempty" jsonschema:"blocked, waiting, failed or interrupted when the agent's hooks report it needs a human; absent otherwise. Such a session is unlikely to answer soon."`
+	Attention Attention `json:"attention,omitempty" jsonschema:"blocked, waiting, failed or interrupted when the agent's hooks report it needs a human; absent otherwise. Such a session is unlikely to answer soon."`
 	// AttentionDetail is the runtime's message for the attention state.
 	AttentionDetail string `json:"attention_detail,omitempty" jsonschema:"The runtime's message for the attention state, such as the pending permission prompt."`
 	// AttentionSince is when the attention state began.
@@ -108,18 +108,18 @@ type Message struct {
 
 // Header is a message summary as delivered to one mailbox.
 type Header struct {
-	ID         string     `json:"id" jsonschema:"Message id (msg-...). Pass it to read or mark, to send as in_reply_to, or the newest one to wait as since_id."`
-	ThreadID   string     `json:"thread_id" jsonschema:"Conversation id, equal to the id of the thread's first message. Pass it to thread."`
-	InReplyTo  string     `json:"in_reply_to,omitempty" jsonschema:"Id of the message this one answers; absent for the first message of a thread."`
-	From       string     `json:"from" jsonschema:"Sender address."`
-	Subject    string     `json:"subject" jsonschema:"Subject line."`
-	CreatedAt  time.Time  `json:"created_at" jsonschema:"When the message was sent, RFC3339 UTC."`
-	To         []string   `json:"to" jsonschema:"Addresses the message was delivered to as to."`
-	Cc         []string   `json:"cc" jsonschema:"Addresses the message was delivered to as cc."`
-	Mailbox    string     `json:"mailbox" jsonschema:"Address this copy was delivered to. A message delivered to several mailboxes in scope appears once per mailbox."`
-	Kind       string     `json:"kind" jsonschema:"to or cc: how this mailbox was addressed."`
-	ReadAt     *time.Time `json:"read_at,omitempty" jsonschema:"When this copy was marked read; absent while unread. Org and repo mailbox copies are never marked."`
-	ArchivedAt *time.Time `json:"archived_at,omitempty" jsonschema:"When this copy was archived; absent unless archived."`
+	ID         string       `json:"id" jsonschema:"Message id (msg-...). Pass it to read or mark, to send as in_reply_to, or the newest one to wait as since_id."`
+	ThreadID   string       `json:"thread_id" jsonschema:"Conversation id, equal to the id of the thread's first message. Pass it to thread."`
+	InReplyTo  string       `json:"in_reply_to,omitempty" jsonschema:"Id of the message this one answers; absent for the first message of a thread."`
+	From       string       `json:"from" jsonschema:"Sender address."`
+	Subject    string       `json:"subject" jsonschema:"Subject line."`
+	CreatedAt  time.Time    `json:"created_at" jsonschema:"When the message was sent, RFC3339 UTC."`
+	To         []string     `json:"to" jsonschema:"Addresses the message was delivered to as to."`
+	Cc         []string     `json:"cc" jsonschema:"Addresses the message was delivered to as cc."`
+	Mailbox    string       `json:"mailbox" jsonschema:"Address this copy was delivered to. A message delivered to several mailboxes in scope appears once per mailbox."`
+	Kind       DeliveryKind `json:"kind" jsonschema:"to or cc: how this mailbox was addressed."`
+	ReadAt     *time.Time   `json:"read_at,omitempty" jsonschema:"When this copy was marked read; absent while unread. Org and repo mailbox copies are never marked."`
+	ArchivedAt *time.Time   `json:"archived_at,omitempty" jsonschema:"When this copy was archived; absent unless archived."`
 	// FromClient and FromMachine describe the sender's MCP client and host at
 	// send time; empty for mail sent before they were tracked.
 	FromClient  string `json:"from_client,omitempty" jsonschema:"Sender's MCP client at send time, for example claude-code; absent for older mail."`
@@ -132,6 +132,26 @@ type Header struct {
 	// mailbox deliveries.
 	Muted bool `json:"muted" jsonschema:"true when the human operator muted this thread; set only on operator mailbox copies."`
 }
+
+// DeliveryKind is how a mailbox was addressed on a message: DeliveryTo or
+// DeliveryCc.
+type DeliveryKind string
+
+// Delivery kinds.
+const (
+	DeliveryTo DeliveryKind = kindTo
+	DeliveryCc DeliveryKind = kindCc
+)
+
+// SessionState is whether a signed-on session is active: "online", or "idle"
+// after no tool call within the idle threshold. The presence package defines
+// the values.
+type SessionState string
+
+// Attention is the state an agent's hooks reported when it needs a human
+// ("blocked", "waiting", "failed" or "interrupted"), or empty. The wire
+// package defines the values.
+type Attention string
 
 // List states.
 const (

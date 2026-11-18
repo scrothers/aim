@@ -22,10 +22,10 @@ func (p presenceAdapter) Online(identity address.Address) []mail.OnlineStatus {
 			Away:       s.Away,
 			SignedOnAt: s.SignedOnAt,
 			Client:     s.Client,
-			State:      s.State,
+			State:      mail.SessionState(s.State),
 			LastActive: s.LastActive,
 
-			Attention:       s.Attention,
+			Attention:       mail.Attention(s.Attention),
 			AttentionDetail: s.AttentionDetail,
 			AttentionSince:  s.AttentionSince,
 		})
