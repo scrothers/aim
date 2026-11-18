@@ -19,8 +19,16 @@ import (
 	"github.com/scrothers/aim/internal/tasks"
 )
 
-// version reports the main module version from the embedded build info.
+// buildVersion is set at link time by release builds
+// (-ldflags "-X main.buildVersion=v1.2.3"); empty otherwise.
+var buildVersion string
+
+// version reports the release version set at link time, else the main
+// module version from the embedded build info (go install pkg@v1.2.3).
 func version() string {
+	if buildVersion != "" {
+		return buildVersion
+	}
 	if bi, ok := debug.ReadBuildInfo(); ok && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
 		return bi.Main.Version
 	}
