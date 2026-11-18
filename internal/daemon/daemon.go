@@ -118,7 +118,8 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) (err error) {
 		cfg: cfg, logger: logger, reg: reg, conns: make(map[net.Conn]struct{}),
 		svc: mail.New(st, mcpserver.NewPresence(reg)),
 	}
-	d.hooks = hooks.New(d.svc, reg, hooks.WithAlertAfter(cfg.AttentionAlert), hooks.WithLogger(logger))
+	d.hooks = hooks.New(d.svc, reg, hooks.WithAlertAfter(cfg.AttentionAlert), hooks.WithLogger(logger),
+		hooks.WithApprovalMode(approvalMode(d.svc)))
 	defer d.hooks.Close() // runs before the store closes (registered first, runs last otherwise)
 
 	if err := d.svc.EnsureOperator(ctx); err != nil {
@@ -190,7 +191,7 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) (err error) {
 		d.setPublicURL(addrs.HTTP)
 		hs = &http.Server{
 			Handler: httpapi.New(httpapi.Deps{
-				Pinger: st, Mail: d.svc, Presence: d.reg, Maint: d.maint, Notify: d.notify, Static: webui.FS(),
+				Pinger: st, Mail: d.svc, Presence: d.reg, Maint: d.maint, Notify: d.notify, Approvals: d.hooks, Static: webui.FS(),
 				Version: cfg.Version, Logger: logger, AllowedHosts: cfg.HTTPAllowedHosts,
 			}),
 			ReadHeaderTimeout: 5 * time.Second,
@@ -228,6 +229,18 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) (err error) {
 		}
 	}
 	return err
+}
+
+// approvalMode reads the remote approval setting from the settings store on
+// each approve request, so a console toggle applies to the next prompt.
+func approvalMode(svc *mail.Service) hooks.ApprovalModeFunc {
+	return func(ctx context.Context) (hooks.ApprovalMode, error) {
+		a, err := svc.ApprovalSettings(ctx)
+		if err != nil {
+			return hooks.ApprovalMode{}, fmt.Errorf("daemon: approval settings: %w", err)
+		}
+		return hooks.ApprovalMode{Enabled: a.Enabled, Timeout: time.Duration(a.TimeoutSeconds) * time.Second}, nil
+	}
 }
 
 func listenUnix(ctx context.Context, lc *net.ListenConfig, path string) (net.Listener, error) {

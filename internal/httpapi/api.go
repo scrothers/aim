@@ -15,13 +15,14 @@ import (
 )
 
 type handlers struct {
-	mail     *mail.Service
-	presence *presence.Registry
-	render   *render.Renderer
-	version  string
-	caller   mail.Caller
-	maint    Maintenance
-	notify   Notifier
+	mail      *mail.Service
+	presence  *presence.Registry
+	render    *render.Renderer
+	version   string
+	caller    mail.Caller
+	maint     Maintenance
+	notify    Notifier
+	approvals Approver
 }
 
 // operatorCaller is the only actor of the HTTP API: the human operator.
@@ -106,6 +107,7 @@ func registerOperations(api huma.API, h *handlers) {
 	huma.Register(api, get("getOrgChart", "/api/orgchart", "Reporting graph with presence"), h.orgChart)
 	huma.Register(api, post("renderMarkdown", "/api/render", "Preview Markdown as sanitized HTML"), h.renderPreview)
 	registerSettings(api, h)
+	registerApprovals(api, h)
 }
 
 // apiError maps a mail error to an HTTP error.

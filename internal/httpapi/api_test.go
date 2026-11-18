@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/scrothers/aim/internal/address"
+	"github.com/scrothers/aim/internal/hooks"
 	"github.com/scrothers/aim/internal/httpapi"
 	"github.com/scrothers/aim/internal/mail"
 	"github.com/scrothers/aim/internal/maintenance"
@@ -37,6 +38,8 @@ type env struct {
 	// hookBase is the URL of a fake webhook receiver; hookHits counts posts.
 	hookBase string
 	hookHits atomic.Int32
+	// hooks serves approve requests whose prompts the API lists and decides.
+	hooks *hooks.Server
 }
 
 func newEnv(t *testing.T) *env {
@@ -67,10 +70,16 @@ func newEnv(t *testing.T) *env {
 		}
 		return notify.KindDiscord, nil
 	}
+	e.hooks = hooks.New(svc, reg, hooks.WithApprovalMode(func(ctx context.Context) (hooks.ApprovalMode, error) {
+		a, err := svc.ApprovalSettings(ctx)
+		return hooks.ApprovalMode{Enabled: a.Enabled, Timeout: time.Duration(a.TimeoutSeconds) * time.Second}, err
+	}))
+	t.Cleanup(e.hooks.Close)
 	e.h = httpapi.New(httpapi.Deps{
 		Pinger: fakePinger{}, Mail: svc, Presence: reg, Version: "test", Logger: logger,
-		Maint:  maintenance.New(st, svc, logger, maintenance.WithDefaultDir(e.backupDir)),
-		Notify: notify.New(svc, logger, notify.WithHostCheck(check), notify.WithBackoff(time.Millisecond)),
+		Maint:     maintenance.New(st, svc, logger, maintenance.WithDefaultDir(e.backupDir)),
+		Notify:    notify.New(svc, logger, notify.WithHostCheck(check), notify.WithBackoff(time.Millisecond)),
+		Approvals: e.hooks,
 	})
 	return e
 }

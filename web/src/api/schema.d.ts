@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+    "/api/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Agent permission prompts waiting for the operator */
+        get: operations["listApprovals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/approvals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Allow or deny a pending permission prompt */
+        post: operations["decideApproval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/filters": {
         parameters: {
             query?: never;
@@ -263,6 +297,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Remote approval setting */
+        get: operations["getApprovalSettings"];
+        /** Turn remote approvals on or off and set the timeout */
+        put: operations["updateApprovalSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/backup": {
         parameters: {
             query?: never;
@@ -488,6 +540,75 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Approval: {
+            /** @description Agent runtime, such as claude-code. */
+            client?: string;
+            /**
+             * Format: date-time
+             * @description When the prompt arrived.
+             */
+            created_at: string;
+            /**
+             * Format: date-time
+             * @description When it falls back to the agent's terminal.
+             */
+            expires_at: string;
+            /** @description Approval id (appr-<ulid>). */
+            id: string;
+            /** @description Agent identity, when signed on. */
+            identity?: string;
+            /** @description Tool arguments as JSON; inputs over 16 KiB become {truncated, bytes, preview}. */
+            input?: unknown;
+            /** @description Machine the agent runs on. */
+            machine: string;
+            /** @description Agent working directory. */
+            project_dir?: string;
+            /** @description Runtime session id. */
+            session_id?: string;
+            /** @description One-line summary of the tool call. */
+            summary?: string;
+            /** @description Tool the agent asks to run. */
+            tool: string;
+        };
+        ApprovalSettingsBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ApprovalSettingsBody.json
+             */
+            readonly $schema?: string;
+            /** @description Wait for the console on agent permission prompts. Off, agents prompt in their terminal as usual. */
+            enabled: boolean;
+            /**
+             * Format: int64
+             * @description Seconds a prompt waits for the console before falling back to the terminal (default 300).
+             */
+            timeout_seconds: number;
+        };
+        ApprovalSettingsRequest: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ApprovalSettingsRequest.json
+             */
+            readonly $schema?: string;
+            /** @description Wait for the console on agent permission prompts. */
+            enabled: boolean;
+            /**
+             * Format: int64
+             * @description Seconds a prompt waits for the console (default 300).
+             */
+            timeout_seconds?: number;
+        };
+        ApprovalsBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ApprovalsBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["Approval"][] | null;
+        };
         BackupStatus: {
             /**
              * Format: uri
@@ -630,6 +751,32 @@ export interface components {
             default_public_url: string;
             public_url: string;
             webhooks: components["schemas"]["WebhookView"][] | null;
+        };
+        DecisionBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/DecisionBody.json
+             */
+            readonly $schema?: string;
+            /** @enum {string} */
+            decision: "allow" | "deny";
+            id: string;
+        };
+        DecisionRequest: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/DecisionRequest.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description Allow or deny the tool call.
+             * @enum {string}
+             */
+            decision: "allow" | "deny";
+            /** @description Optional note shown to the agent. */
+            reason?: string;
         };
         ErrorDetail: {
             /** @description Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id' */
@@ -1208,6 +1355,71 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listApprovals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalsBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    decideApproval: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Approval id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     listSavedFilters: {
         parameters: {
             query?: never;
@@ -1828,6 +2040,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SettingsBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    getApprovalSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalSettingsBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    updateApprovalSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalSettingsBody"];
                 };
             };
             /** @description Error */

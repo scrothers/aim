@@ -31,6 +31,9 @@ type Deps struct {
 	Maint Maintenance
 	// Notify manages webhooks; nil makes those operations return 503.
 	Notify Notifier
+	// Approvals holds agent permission prompts; nil makes the approval list
+	// and decisions return 503.
+	Approvals Approver
 	// Static serves the web UI; nil disables static serving.
 	Static  fs.FS
 	Version string
@@ -86,13 +89,14 @@ func register(api huma.API, d Deps) {
 
 func newHandlers(d Deps) *handlers {
 	return &handlers{
-		mail:     d.Mail,
-		presence: d.Presence,
-		render:   render.New(),
-		version:  d.Version,
-		caller:   operatorCaller(),
-		maint:    d.Maint,
-		notify:   d.Notify,
+		mail:      d.Mail,
+		presence:  d.Presence,
+		render:    render.New(),
+		version:   d.Version,
+		caller:    operatorCaller(),
+		maint:     d.Maint,
+		notify:    d.Notify,
+		approvals: d.Approvals,
 	}
 }
 
