@@ -30,25 +30,31 @@ type Buddy struct {
 	SignedOnAt    time.Time `json:"signed_on_at,omitzero" doc:"When the session signed on."`
 	State         string    `json:"state,omitempty" enum:"online,idle" doc:"online, or idle when the session has made no tool call recently; empty for offline identities."`
 	LastActive    time.Time `json:"last_active,omitzero" doc:"Time of the session's latest tool call."`
+	// Attention fields come from the agent's hooks.
+	Attention       string    `json:"attention,omitempty" enum:"blocked,waiting,failed,interrupted" doc:"Why the agent needs the operator: blocked on a prompt, waiting for input, failed on an API error, or interrupted; empty when it needs nothing."`
+	AttentionDetail string    `json:"attention_detail,omitempty" doc:"The runtime's message for the attention state, for example a permission prompt."`
+	AttentionSince  time.Time `json:"attention_since,omitzero" doc:"When the attention state began."`
 }
 
 // BuddyGroup is a repo or org namespace and its buddies.
 type BuddyGroup struct {
-	Name    string  `json:"name" doc:"Namespace (host/org[/repo]) or Offline."`
-	Offline bool    `json:"offline" doc:"True for the group of identities with no signed-on session."`
-	Online  int     `json:"online" doc:"Identities in the namespace with at least one session."`
-	Idle    int     `json:"idle" doc:"Identities counted in online whose sessions are all idle."`
-	Total   int     `json:"total" doc:"Active identities in the namespace."`
-	Buddies []Buddy `json:"buddies"`
+	Name      string  `json:"name" doc:"Namespace (host/org[/repo]) or Offline."`
+	Offline   bool    `json:"offline" doc:"True for the group of identities with no signed-on session."`
+	Online    int     `json:"online" doc:"Identities in the namespace with at least one session."`
+	Idle      int     `json:"idle" doc:"Identities counted in online whose sessions are all idle."`
+	Attention int     `json:"attention" doc:"Identities counted in online with a session blocked or failed."`
+	Total     int     `json:"total" doc:"Active identities in the namespace."`
+	Buddies   []Buddy `json:"buddies"`
 }
 
 // PresenceEvent is one entry of the sign-on feed.
 type PresenceEvent struct {
-	Kind     string    `json:"kind" enum:"signed_on,signed_off,connected,disconnected,went_idle,active" doc:"What happened."`
-	Identity string    `json:"identity,omitempty" doc:"Identity address, when signed on."`
-	Machine  string    `json:"machine,omitempty"`
-	Client   string    `json:"client,omitempty"`
-	At       time.Time `json:"at"`
+	Kind      string    `json:"kind" enum:"signed_on,signed_off,connected,disconnected,went_idle,active,attention" doc:"What happened."`
+	Attention string    `json:"attention,omitempty" enum:"blocked,waiting,failed,interrupted" doc:"For attention events, the state the agent entered."`
+	Identity  string    `json:"identity,omitempty" doc:"Identity address, when signed on."`
+	Machine   string    `json:"machine,omitempty"`
+	Client    string    `json:"client,omitempty"`
+	At        time.Time `json:"at"`
 }
 
 // PresenceBody is the buddy list.

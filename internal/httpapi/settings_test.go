@@ -417,6 +417,37 @@ func TestPresenceStateAndIdleCount(t *testing.T) {
 	}
 }
 
+func TestPresenceAttention(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.register(t, alice, "dev")
+	now := time.Now()
+	ent := e.reg.Add("sess-a", wire.Preamble{SessionID: "sess-a", Machine: "devbox"}, now)
+	if err := ent.SignOn(address.MustParse(alice), "", now); err != nil {
+		t.Fatal(err)
+	}
+	ent.SetAttention(wire.AttentionBlocked, "needs permission for Bash", now)
+
+	p := decode[obj](t, e.do(t, http.MethodGet, "/api/presence", nil), http.StatusOK)
+	g := p["groups"].([]any)[0].(obj)
+	if g["attention"] != float64(1) {
+		t.Errorf("group attention = %v, want 1", g["attention"])
+	}
+	b := g["buddies"].([]any)[0].(obj)
+	if b["attention"] != "blocked" || b["attention_detail"] != "needs permission for Bash" || b["attention_since"] == nil {
+		t.Errorf("buddy = %v", b)
+	}
+	found := false
+	for _, ev := range p["events"].([]any) {
+		if ev.(obj)["kind"] == "attention" && ev.(obj)["attention"] == "blocked" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("no attention event in %v", p["events"])
+	}
+}
+
 // newBare returns an env whose API has no maintenance runner or notifier.
 func newBare(t *testing.T, base *env) *env {
 	t.Helper()

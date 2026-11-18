@@ -549,6 +549,18 @@ export interface components {
         Buddy: {
             /** @description Identity address. */
             address: string;
+            /**
+             * @description Why the agent needs the operator: blocked on a prompt, waiting for input, failed on an API error, or interrupted; empty when it needs nothing.
+             * @enum {string}
+             */
+            attention?: "blocked" | "waiting" | "failed" | "interrupted";
+            /** @description The runtime's message for the attention state, for example a permission prompt. */
+            attention_detail?: string;
+            /**
+             * Format: date-time
+             * @description When the attention state began.
+             */
+            attention_since?: string;
             /** @description Away message, empty when present. */
             away?: string;
             /** @description MCP client name, for example claude-code. */
@@ -582,6 +594,11 @@ export interface components {
             subagents: string[] | null;
         };
         BuddyGroup: {
+            /**
+             * Format: int64
+             * @description Identities counted in online with a session blocked or failed.
+             */
+            attention: number;
             buddies: components["schemas"]["Buddy"][] | null;
             /**
              * Format: int64
@@ -860,6 +877,10 @@ export interface components {
             webhooks: components["schemas"]["WebhookInput"][] | null;
         };
         OnlineStatus: {
+            attention?: string;
+            attention_detail?: string;
+            /** Format: date-time */
+            attention_since?: string;
             away?: string;
             client?: string;
             /** Format: date-time */
@@ -919,6 +940,11 @@ export interface components {
         PresenceEvent: {
             /** Format: date-time */
             at: string;
+            /**
+             * @description For attention events, the state the agent entered.
+             * @enum {string}
+             */
+            attention?: "blocked" | "waiting" | "failed" | "interrupted";
             client?: string;
             /** @description Identity address, when signed on. */
             identity?: string;
@@ -926,7 +952,7 @@ export interface components {
              * @description What happened.
              * @enum {string}
              */
-            kind: "signed_on" | "signed_off" | "connected" | "disconnected" | "went_idle" | "active";
+            kind: "signed_on" | "signed_off" | "connected" | "disconnected" | "went_idle" | "active" | "attention";
             machine?: string;
         };
         PruneResult: {

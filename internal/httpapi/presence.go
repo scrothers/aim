@@ -8,6 +8,7 @@ import (
 	"github.com/scrothers/aim/internal/address"
 	"github.com/scrothers/aim/internal/mail"
 	"github.com/scrothers/aim/internal/presence"
+	"github.com/scrothers/aim/internal/wire"
 )
 
 const (
@@ -26,7 +27,7 @@ func buildPresence(roster []mail.RosterEntry, reg *presence.Registry) PresenceBo
 			versions[s.SessionID] = s.ClientVersion
 		}
 		for _, e := range reg.Events(presenceEvents) {
-			events = append(events, PresenceEvent{Kind: e.Kind, Identity: e.Identity, Machine: e.Machine, Client: e.Client, At: e.At})
+			events = append(events, PresenceEvent{Kind: e.Kind, Identity: e.Identity, Machine: e.Machine, Client: e.Client, At: e.At, Attention: e.Attention})
 		}
 	}
 
@@ -56,14 +57,19 @@ func buildPresence(roster []mail.RosterEntry, reg *presence.Registry) PresenceBo
 			continue
 		}
 		g.Online++
-		allIdle := true
+		allIdle, needsAttention := true, false
 		for _, o := range r.Online {
 			allIdle = allIdle && o.State == presence.StateIdle
+			needsAttention = needsAttention || o.Attention == wire.AttentionBlocked || o.Attention == wire.AttentionFailed
 			g.Buddies = append(g.Buddies, Buddy{
 				Address: r.Address, Name: name, Role: r.Role, Online: true, Away: o.Away,
 				Client: o.Client, ClientVersion: versions[o.SessionID], Machine: o.Machine,
 				Subagents: subs, SignedOnAt: o.SignedOnAt, State: o.State, LastActive: o.LastActive,
+				Attention: o.Attention, AttentionDetail: o.AttentionDetail, AttentionSince: o.AttentionSince,
 			})
+		}
+		if needsAttention {
+			g.Attention++
 		}
 		if allIdle {
 			g.Idle++
