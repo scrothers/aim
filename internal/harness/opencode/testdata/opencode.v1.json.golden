@@ -1,0 +1,12 @@
+{
+  "mcp": {
+    "aim": {
+      "type": "local",
+      "command": [
+        "/opt/aim",
+        "mcp"
+      ],
+      "enabled": true
+    }
+  }
+}

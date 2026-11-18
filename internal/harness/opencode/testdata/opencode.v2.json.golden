@@ -1,0 +1,13 @@
+{
+  "mcp": {
+    "servers": {
+      "aim": {
+        "type": "local",
+        "command": [
+          "/opt/aim",
+          "mcp"
+        ]
+      }
+    }
+  }
+}
