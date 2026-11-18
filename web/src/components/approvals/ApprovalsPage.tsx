@@ -102,14 +102,17 @@ function ApprovalCard({ a, now }: { a: Approval; now: number }) {
           onChange={(e) => setReason(e.target.value)}
           className="min-w-0 flex-[1_1_200px]"
         />
-        <Button type="button" variant="outline" disabled={decide.isPending} onClick={() => send('deny')}>
-          <X aria-hidden="true" />
-          Deny
-        </Button>
-        <Button type="button" disabled={decide.isPending} onClick={() => send('allow')}>
-          <Check aria-hidden="true" />
-          Allow
-        </Button>
+        {/* One row at every width. Secondary then primary, as in the app's dialogs (Cancel, Confirm). */}
+        <div role="group" aria-label="Decision" className="flex gap-2 max-md:w-full">
+          <Button type="button" variant="outline" className="max-md:flex-1" disabled={decide.isPending} onClick={() => send('deny')}>
+            <X aria-hidden="true" />
+            Deny
+          </Button>
+          <Button type="button" className="max-md:flex-1" disabled={decide.isPending} onClick={() => send('allow')}>
+            <Check aria-hidden="true" />
+            Allow
+          </Button>
+        </div>
       </form>
     </li>
   )

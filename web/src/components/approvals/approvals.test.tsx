@@ -79,6 +79,16 @@ describe('ApprovalsPage', () => {
     expect(await screen.findByText('falling back to terminal')).toBeInTheDocument()
   })
 
+  it('keeps Deny and Allow together in one group, in dialog order, with Allow as the primary', async () => {
+    items = [mk({ id: 'a1', input: { command: 'ls' } })]
+    render(wrap(<ApprovalsPage />))
+    const group = within(await screen.findByTestId('approval')).getByRole('group', { name: 'Decision' })
+    const buttons = within(group).getAllByRole('button')
+    expect(buttons.map((b) => b.textContent)).toEqual(['Deny', 'Allow'])
+    expect(buttons[1]!.className).toContain('bg-primary')
+    expect(buttons[0]!.className).not.toContain('bg-primary')
+  })
+
   it('posts allow and deny decisions with the reason', async () => {
     const user = userEvent.setup()
     items = [mk({ id: 'a1', input: { command: 'ls' } }), mk({ id: 'a2', input: { command: 'pwd' } })]

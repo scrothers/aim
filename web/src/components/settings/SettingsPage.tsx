@@ -430,9 +430,10 @@ function NotifyCard({ settings }: { settings: Settings }) {
 function ApprovalsCard({ enabled, timeoutSeconds }: { enabled: boolean; timeoutSeconds: number }) {
   const save = useSaveApprovalSettings()
   const [on, setOn] = useState(enabled)
-  const [minutes, setMinutes] = useState(String(timeoutSeconds / 60))
-  const secs = Math.round(Number(minutes) * 60)
-  const valid = minutes.trim() !== '' && Number.isFinite(secs) && secs >= 10 && secs <= 3600
+  // Seconds end to end: the same unit as the API's timeout_seconds (10..3600).
+  const [text, setText] = useState(String(timeoutSeconds))
+  const secs = Number(text)
+  const valid = text.trim() !== '' && Number.isInteger(secs) && secs >= 10 && secs <= 3600
   return (
     <Card
       title="Remote approvals"
@@ -449,8 +450,8 @@ function ApprovalsCard({ enabled, timeoutSeconds }: { enabled: boolean; timeoutS
           <input type="checkbox" checked={on} onChange={(e) => setOn(e.target.checked)} />
           Enable remote approvals
         </label>
-        <Field label="Timeout (minutes)" hint="Between 10 seconds and 60 minutes. Default 5.">
-          <Input type="number" min={1 / 6} max={60} step="any" value={minutes} onChange={(e) => setMinutes(e.target.value)} aria-invalid={!valid} />
+        <Field label="Timeout (seconds)" hint="Between 10 and 3600 seconds (1 hour). Default 300 (5 minutes).">
+          <Input type="number" min={10} max={3600} step={1} value={text} onChange={(e) => setText(e.target.value)} aria-invalid={!valid} />
         </Field>
         <div className="flex justify-end">
           <Button type="submit" disabled={!valid || save.isPending}>

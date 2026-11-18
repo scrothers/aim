@@ -42,6 +42,31 @@ beforeEach(() => {
   mocks.POST.mockImplementation(async () => ok({}))
 })
 
+describe('approval timeout', () => {
+  beforeEach(() => {
+    mocks.GET.mockImplementation(async (path: string) => ok(path === '/api/settings/approvals' ? { enabled: true, timeout_seconds: 120 } : settings))
+  })
+
+  it('uses seconds in the label, input, hint and payload', async () => {
+    const user = userEvent.setup()
+    mount()
+    const input = await screen.findByLabelText(/^Timeout \(seconds\)/)
+    expect(input).toHaveValue(120)
+    expect(input).toHaveAttribute('min', '10')
+    expect(input).toHaveAttribute('max', '3600')
+    expect(screen.getByText(/Between 10 and 3600 seconds/)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Timeout \(minutes\)/)).toBeNull()
+    await user.clear(input)
+    await user.type(input, '9')
+    const save = within(screen.getByRole('region', { name: 'Remote approvals' })).getByRole('button', { name: 'Save' })
+    expect(save).toBeDisabled()
+    await user.clear(input)
+    await user.type(input, '3600')
+    await user.click(save)
+    await waitFor(() => expect(mocks.PUT).toHaveBeenCalledWith('/api/settings/approvals', { body: { enabled: true, timeout_seconds: 3600 } }))
+  })
+})
+
 describe('SettingsPage', () => {
   it('shows masked webhook URLs and never a full secret', async () => {
     mount()
