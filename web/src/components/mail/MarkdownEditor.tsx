@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  BlockTypeSelect,
   BoldItalicUnderlineToggles,
   codeBlockPlugin,
   CodeToggle,
@@ -27,6 +26,7 @@ import {
 } from '@mdxeditor/editor'
 import '@mdxeditor/editor/style.css'
 import './markdown-editor.css'
+import { BlockType } from './BlockType'
 
 export interface MarkdownEditorProps {
   value: string
@@ -73,7 +73,7 @@ const plugins = [
       <DiffSourceToggleWrapper options={['rich-text', 'source']}>
         <UndoRedo />
         <Separator />
-        <BlockTypeSelect />
+        <BlockType />
         <BoldItalicUnderlineToggles options={['Bold', 'Italic']} />
         <CodeToggle />
         <Separator />

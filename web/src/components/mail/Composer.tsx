@@ -140,20 +140,21 @@ export function Composer({
         e.preventDefault()
         submit()
       }}
-      className={cn('flex flex-col gap-2.5 rounded-xl border bg-panel p-3', fill && 'min-h-0 flex-1')}
+      // In the compose sheet the sheet is the frame; an inline reply sits in a thread, so it keeps its own card.
+      className={cn('flex flex-col gap-2.5', fill ? 'min-h-0 flex-1' : 'rounded-xl border bg-panel p-3')}
     >
       <RecipientInput label="To" value={to} onChange={setTo} pendingRef={toPending} />
       {showCc ? (
         <RecipientInput label="Cc" value={cc} onChange={setCc} pendingRef={ccPending} />
       ) : (
-        <button type="button" onClick={() => setShowCc(true)} className="self-start pl-10 text-xs text-accent-text hover:underline">
+        <button type="button" onClick={() => setShowCc(true)} className="self-start pl-16 text-xs text-accent-text hover:underline">
           Add Cc
         </button>
       )}
       {!reply && (
-        <div className="flex items-center gap-2">
-          <label htmlFor="composer-subject" className="w-8 shrink-0 text-xs font-semibold text-faint">
-            Subj
+        <div className="flex items-start gap-2">
+          <label htmlFor="composer-subject" className="flex h-9 w-14 shrink-0 items-center text-xs font-semibold text-faint">
+            Subject
           </label>
           <Input id="composer-subject" aria-label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
         </div>

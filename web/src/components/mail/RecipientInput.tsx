@@ -54,7 +54,7 @@ export function RecipientInput({ label, value, onChange, pendingRef }: Recipient
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-start gap-2">
-        <span className="w-8 shrink-0 pt-1.5 text-xs font-semibold text-faint">{label}</span>
+        <span className="flex h-9 w-14 shrink-0 items-center text-xs font-semibold text-faint">{label}</span>
         <CommandPrimitive
           shouldFilter={false}
           loop

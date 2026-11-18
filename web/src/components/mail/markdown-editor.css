@@ -93,14 +93,21 @@
   top: 0;
   z-index: 2;
   flex-shrink: 0;
-  flex-wrap: wrap;
-  overflow: visible;
+  /* One row always: in a narrow pane the toolbar scrolls sideways instead of wrapping.
+     Dropdowns are portalled out of the toolbar, so clipping it is safe. */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
   gap: 2px;
   padding: 4px 6px;
   width: auto;
   border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
   background: var(--panel2);
   border-bottom: 1px solid var(--border);
+}
+.aim-editor .mdxeditor-toolbar > * {
+  flex-shrink: 0;
 }
 .aim-editor .mdxeditor-toolbar button,
 .aim-editor .mdxeditor-toolbar [role='button'],
