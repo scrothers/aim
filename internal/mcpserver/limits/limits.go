@@ -18,3 +18,9 @@ const MaxDescriptionBytes = clientFloorBytes * 9 / 10
 // this keeps them explicit without sprawling in pickers and slash-command
 // menus.
 const MaxCatalogDescriptionBytes = 1000
+
+// MaxFieldDescriptionBytes caps each property description in a tool's input
+// and output schemas, in UTF-8 bytes. No harness caps these either, but
+// every tool's full schema is sent with every request that lists tools, so
+// they stay short: what the field means, its format, and its default.
+const MaxFieldDescriptionBytes = 500
