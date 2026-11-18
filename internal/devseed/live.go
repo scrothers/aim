@@ -8,6 +8,7 @@ import (
 	"net"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -37,6 +38,20 @@ type LiveConfig struct {
 	// Chatter is the interval between simulated actions; zero disables them.
 	Chatter time.Duration
 	Out     io.Writer
+	// HTTP is the daemon's HTTP API address (host:port); it is used to read
+	// and, with EnableApprovals, turn on remote approvals. Empty skips both.
+	HTTP string
+	// EnableApprovals turns remote approvals on, with ApprovalTimeout.
+	EnableApprovals bool
+	// ApprovalTimeout is the approval timeout to set; zero means 5 minutes.
+	ApprovalTimeout time.Duration
+	// ApprovalEvery is the interval between simulated permission prompts;
+	// zero disables them.
+	ApprovalEvery time.Duration
+	// QuietAfter is how long one agent keeps the task it claimed at startup
+	// before it disconnects for good, leaving its lease to decay at the
+	// daemon's task decay thresholds. Zero disconnects it at once.
+	QuietAfter time.Duration
 	// OnReady, if set, is called once every agent has signed on.
 	OnReady func([]Online)
 }
@@ -58,6 +73,11 @@ type agent struct {
 	cs   *mcp.ClientSession
 	// signedOn is true while the agent is connected and signed on.
 	signedOn bool
+	// pid is a stable fake agent process id, shared by MCP and hook
+	// connections so the daemon can join them.
+	pid int
+	// quiet marks the agent that claimed a task and stops acting.
+	quiet bool
 }
 
 func network(addr string) (string, string) {
@@ -78,7 +98,7 @@ func (a *agent) preamble() wire.Preamble {
 	}
 	return wire.Preamble{
 		SessionID: p.sessionID(), Machine: p.machine, ProjectDir: "/home/dev/src/" + p.addr.Org + "/" + repo,
-		GitRemote: "https://" + p.scope() + ".git", Namespace: p.scope(),
+		GitRemote: "https://" + p.scope() + ".git", Namespace: p.scope(), AgentPID: a.pid,
 	}
 }
 
@@ -106,16 +126,21 @@ func (a *agent) connect(ctx context.Context, addr string) error {
 }
 
 func (a *agent) call(ctx context.Context, tool string, args any) error {
+	_, err := a.callRes(ctx, tool, args)
+	return err
+}
+
+func (a *agent) callRes(ctx context.Context, tool string, args any) (*mcp.CallToolResult, error) {
 	ctx, cancel := context.WithTimeout(ctx, callTimeout)
 	defer cancel()
 	res, err := a.cs.CallTool(ctx, &mcp.CallToolParams{Name: tool, Arguments: args})
 	if err != nil {
-		return fmt.Errorf("devseed: %s %s: %w", a.p, tool, err)
+		return nil, fmt.Errorf("devseed: %s %s: %w", a.p, tool, err)
 	}
 	if res.IsError {
-		return fmt.Errorf("devseed: %s %s: tool error: %s", a.p, tool, textOf(res))
+		return nil, fmt.Errorf("devseed: %s %s: tool error: %s", a.p, tool, textOf(res))
 	}
-	return nil
+	return res, nil
 }
 
 func textOf(res *mcp.CallToolResult) string {
@@ -181,14 +206,16 @@ func RunLive(ctx context.Context, cfg LiveConfig) error {
 	if cfg.Out == nil {
 		cfg.Out = io.Discard
 	}
+	// Approval prompts log from their own goroutines.
+	cfg.Out = &lockedWriter{w: cfg.Out}
 	world, err := buildWorld()
 	if err != nil {
 		return err
 	}
 	rng := rand.New(rand.NewPCG(cfg.Seed, 0xc2b2ae3d27d4eb4f))
 	var agents []*agent
-	for _, p := range chooseAgents(rng, world, liveAgents) {
-		agents = append(agents, &agent{p: p, away: pick(rng, awayMessages)})
+	for i, p := range chooseAgents(rng, world, liveAgents) {
+		agents = append(agents, &agent{p: p, away: pick(rng, awayMessages), pid: 41000 + i})
 	}
 	defer func() {
 		// Sign off and disconnect even when ctx is canceled.
@@ -227,23 +254,60 @@ func RunLive(ctx context.Context, cfg LiveConfig) error {
 		cfg.OnReady(online)
 	}
 
-	if cfg.Chatter <= 0 {
-		<-ctx.Done()
-		return nil
-	}
 	l := &liveLoop{addr: cfg.Addr, rng: rng, world: world, agents: agents, out: cfg.Out}
-	t := time.NewTicker(cfg.Chatter)
-	defer t.Stop()
+	defer l.wait()
+	if cfg.HTTP != "" {
+		l.setupApprovals(ctx, cfg)
+	}
+	var quietC <-chan time.Time
+	if cfg.Chatter > 0 || cfg.ApprovalEvery > 0 {
+		if q := l.startQuiet(ctx); q != nil {
+			timer := time.NewTimer(cfg.QuietAfter)
+			defer timer.Stop()
+			quietC = timer.C
+		}
+	}
+	tickC, stopTick := every(cfg.Chatter)
+	defer stopTick()
+	approveC, stopApprove := every(cfg.ApprovalEvery)
+	defer stopApprove()
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
-		case <-t.C:
+		case <-quietC:
+			quietC = nil
+			l.goQuiet()
+		case <-tickC:
 			if err := l.tick(ctx); err != nil && ctx.Err() == nil {
 				say(cfg.Out, "chatter: %v\n", err)
 			}
+		case <-approveC:
+			l.approve(ctx)
 		}
 	}
+}
+
+// every returns a ticker channel for d, nil when d is not positive, and its
+// stop function.
+func every(d time.Duration) (<-chan time.Time, func()) {
+	if d <= 0 {
+		return nil, func() {}
+	}
+	t := time.NewTicker(d)
+	return t.C, t.Stop
+}
+
+// lockedWriter serializes writes from concurrent goroutines.
+type lockedWriter struct {
+	mu sync.Mutex
+	w  io.Writer
+}
+
+func (l *lockedWriter) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.w.Write(p)
 }
 
 // registerWorld registers every active persona through one connection;
@@ -270,12 +334,23 @@ type liveLoop struct {
 	agents []*agent
 	out    io.Writer
 	n      int
+
+	// board is the tasks the simulated agents created and still track.
+	board []*liveTask
+	// quiet is the agent that claimed a task and went silent.
+	quiet     *agent
+	quietTask string
+	// Pending approval prompts, each waiting in its own goroutine.
+	mu      sync.Mutex
+	pending int
+	asking  map[*agent]bool
+	wg      sync.WaitGroup
 }
 
 func (l *liveLoop) online() []*agent {
 	var out []*agent
 	for _, a := range l.agents {
-		if a.signedOn {
+		if a.signedOn && !a.quiet {
 			out = append(out, a)
 		}
 	}
@@ -285,10 +360,12 @@ func (l *liveLoop) online() []*agent {
 func (l *liveLoop) tick(ctx context.Context) error {
 	l.n++
 	switch r := l.rng.Float64(); {
-	case r < 0.2:
+	case r < 0.15:
 		return l.toggle(ctx)
-	case r < 0.3:
+	case r < 0.22:
 		return l.escalate(ctx)
+	case r < 0.55:
+		return l.taskTick(ctx)
 	default:
 		return l.chat(ctx)
 	}
@@ -299,7 +376,7 @@ func (l *liveLoop) tick(ctx context.Context) error {
 func (l *liveLoop) toggle(ctx context.Context) error {
 	var away []*agent
 	for _, a := range l.agents {
-		if !a.signedOn {
+		if !a.signedOn && !a.quiet {
 			away = append(away, a)
 		}
 	}

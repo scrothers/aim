@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -381,5 +382,124 @@ func TestHistoryApprovalsFlag(t *testing.T) {
 	}
 	if !enabled(on) || !sum.ApprovalsEnabled {
 		t.Error("approvals not enabled by --approvals")
+	}
+}
+
+// syncBuf is a concurrent-safe output capture.
+type syncBuf struct {
+	mu sync.Mutex
+	b  strings.Builder
+}
+
+func (s *syncBuf) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *syncBuf) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
+}
+
+func TestLiveTasksAndApprovals(t *testing.T) {
+	dir := t.TempDir()
+	cfg := daemon.Config{DBPath: filepath.Join(dir, "aim.db"), Socket: filepath.Join(dir, "s"), HTTP: "127.0.0.1:0"}
+	ready := make(chan daemon.Addrs, 1)
+	cfg.Ready = func(a daemon.Addrs) { ready <- a }
+	dctx, dcancel := context.WithCancel(context.Background())
+	ddone := make(chan error, 1)
+	go func() { ddone <- daemon.Run(dctx, cfg, slog.New(slog.NewTextHandler(io.Discard, nil))) }()
+	t.Cleanup(func() { dcancel(); <-ddone })
+	var addrs daemon.Addrs
+	select {
+	case addrs = <-ready:
+	case <-time.After(10 * time.Second):
+		t.Fatal("daemon not ready")
+	}
+	base := "http://" + addrs.HTTP
+
+	var out syncBuf
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		done <- devseed.RunLive(ctx, devseed.LiveConfig{
+			Addr: addrs.Socket, Seed: 1, Chatter: 20 * time.Millisecond, Out: &out,
+			HTTP: addrs.HTTP, EnableApprovals: true, ApprovalTimeout: time.Minute,
+			ApprovalEvery: 30 * time.Millisecond, QuietAfter: 50 * time.Millisecond,
+		})
+	}()
+
+	// A simulated prompt reaches the daemon and waits for the operator.
+	type approval struct {
+		ID, Tool, Identity, Client string
+	}
+	var pending approval
+	deadline := time.Now().Add(20 * time.Second)
+	for pending.ID == "" {
+		var body struct {
+			Items []approval `json:"items"`
+		}
+		getJSON(t, base+"/api/approvals", &body)
+		if len(body.Items) > 0 {
+			pending = body.Items[0]
+		} else if time.Now().After(deadline) {
+			t.Fatalf("no approval became pending; output:\n%s", out.String())
+		} else {
+			time.Sleep(20 * time.Millisecond)
+		}
+	}
+	if pending.Tool == "" || pending.Identity == "" || pending.Client != "claude-code" {
+		t.Errorf("approval = %+v, want a tool, a joined identity and client claude-code", pending)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/approvals/"+pending.ID, strings.NewReader(`{"decision":"allow"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-AIM-Request", "1")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("decide status = %s", resp.Status)
+	}
+
+	// The agents create and work tasks, link messages to them, and one goes
+	// quiet while holding its task.
+	deadline = time.Now().Add(20 * time.Second)
+	for {
+		log := out.String()
+		var board struct {
+			Items []struct {
+				Status string `json:"status"`
+			} `json:"items"`
+		}
+		getJSON(t, base+"/api/tasks", &board)
+		if strings.Contains(log, "-> allow") && strings.Contains(log, "goes quiet") && strings.Contains(log, "(linked to task-") &&
+			(strings.Contains(log, " claims task ") || strings.Contains(log, " starts task ")) && len(board.Items) >= 2 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("expected tasks, links, the approval decision and a quiet agent; %d tasks; output:\n%s", len(board.Items), log)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if !strings.Contains(out.String(), "approvals: enabled") {
+		t.Errorf("approvals were not enabled through the API; output:\n%s", out.String())
+	}
+
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Errorf("RunLive: %v", err)
+		}
+	case <-time.After(15 * time.Second):
+		t.Fatal("RunLive did not stop")
 	}
 }
