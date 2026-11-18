@@ -1,4 +1,4 @@
-package mcpserver
+package mdview_test
 
 import (
 	"os"
@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/scrothers/aim/internal/mail"
+	"github.com/scrothers/aim/internal/mdview"
 )
 
 // golden compares got with testdata/<name>.golden; UPDATE_SNAPSHOTS=1 rewrites it.
@@ -61,15 +62,15 @@ func TestRenderGolden(t *testing.T) {
 	tests := []struct {
 		name, got string
 	}{
-		{"transcript", renderTranscript(fixtureMessages())},
-		{"message", renderMessage(fixtureMessages()[0])},
-		{"digest", renderDigest("Unread", hdrs, true)},
-		{"digest_empty", renderDigest("Unread", nil, false)},
-		{"roster", renderRoster("Roster", roster)},
-		{"roster_empty", renderRoster("Roster", nil)},
-		{"whoami", renderWhoami(whoamiInfo{SessionID: "s", Machine: "box", Namespace: "github.com/acme/api", SignedOnAs: "alice@github.com/acme/api", Client: "claude-code", ClientVersion: "2"})},
-		{"whoami_anon", renderWhoami(whoamiInfo{SessionID: "s"})},
-		{"transcript_empty", renderTranscript(nil)},
+		{"transcript", mdview.Transcript(fixtureMessages())},
+		{"message", mdview.Message(fixtureMessages()[0])},
+		{"digest", mdview.Digest("Unread", hdrs, true)},
+		{"digest_empty", mdview.Digest("Unread", nil, false)},
+		{"roster", mdview.Roster("Roster", roster)},
+		{"roster_empty", mdview.Roster("Roster", nil)},
+		{"whoami", mdview.Whoami(mdview.WhoamiInfo{SessionID: "s", Machine: "box", Namespace: "github.com/acme/api", SignedOnAs: "alice@github.com/acme/api", Client: "claude-code", ClientVersion: "2"})},
+		{"whoami_anon", mdview.Whoami(mdview.WhoamiInfo{SessionID: "s"})},
+		{"transcript_empty", mdview.Transcript(nil)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

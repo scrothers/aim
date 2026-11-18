@@ -1,4 +1,8 @@
-package mcpserver
+// Package mdview renders mail data as Markdown for agents. MCP resources,
+// workflow prompts and hook context share these renderers so an agent sees
+// identical text from every path. They are pure: no I/O, no clock, so
+// golden-file tests can pin their output.
+package mdview
 
 import (
 	"fmt"
@@ -8,20 +12,17 @@ import (
 	"github.com/scrothers/aim/internal/mail"
 )
 
-// The renderers below turn mail data into Markdown. Resources and prompts
-// share them so an agent sees identical text either way. They are pure: no
-// I/O, no clock, so golden-file tests can pin their output.
-
 // timeLayout is the timestamp format used in rendered Markdown.
 const timeLayout = "2006-01-02 15:04 MST"
 
-func stamp(t time.Time) string { return t.UTC().Format(timeLayout) }
+// Stamp formats t in UTC with the rendered timestamp layout.
+func Stamp(t time.Time) string { return t.UTC().Format(timeLayout) }
 
-// oneLine collapses all whitespace runs so a value fits on a single line.
-func oneLine(s string) string { return strings.Join(strings.Fields(s), " ") }
+// OneLine collapses all whitespace runs so a value fits on a single line.
+func OneLine(s string) string { return strings.Join(strings.Fields(s), " ") }
 
-// renderTranscript renders a conversation, oldest first.
-func renderTranscript(msgs []mail.Message) string {
+// Transcript renders a conversation, oldest first.
+func Transcript(msgs []mail.Message) string {
 	if len(msgs) == 0 {
 		return "_No messages._\n"
 	}
@@ -29,17 +30,17 @@ func renderTranscript(msgs []mail.Message) string {
 	fmt.Fprintf(&b, "# Thread %s\n\n%d message(s), oldest first.\n", msgs[0].ThreadID, len(msgs))
 	for _, m := range msgs {
 		b.WriteString("\n---\n\n")
-		b.WriteString(renderMessageBody(m, "##"))
+		b.WriteString(messageBody(m, "##"))
 	}
 	return b.String()
 }
 
-// renderMessage renders one message under a top-level heading.
-func renderMessage(m mail.Message) string { return renderMessageBody(m, "#") }
+// Message renders one message under a top-level heading.
+func Message(m mail.Message) string { return messageBody(m, "#") }
 
-func renderMessageBody(m mail.Message, h string) string {
+func messageBody(m mail.Message, h string) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s %s\n\n", h, oneLine(m.Subject))
+	fmt.Fprintf(&b, "%s %s\n\n", h, OneLine(m.Subject))
 	fmt.Fprintf(&b, "- id: %s\n- thread: %s\n- from: %s\n", m.ID, m.ThreadID, m.From)
 	fmt.Fprintf(&b, "- to: %s\n", joinOrNone(m.To))
 	if len(m.Cc) > 0 {
@@ -48,7 +49,7 @@ func renderMessageBody(m mail.Message, h string) string {
 	if m.InReplyTo != "" {
 		fmt.Fprintf(&b, "- in reply to: %s\n", m.InReplyTo)
 	}
-	fmt.Fprintf(&b, "- sent: %s\n\n%s\n", stamp(m.CreatedAt), strings.TrimSpace(m.Body))
+	fmt.Fprintf(&b, "- sent: %s\n\n%s\n", Stamp(m.CreatedAt), strings.TrimSpace(m.Body))
 	return b.String()
 }
 
@@ -59,9 +60,9 @@ func joinOrNone(s []string) string {
 	return strings.Join(s, ", ")
 }
 
-// renderDigest renders a message list as a digest, newest first as given.
-// more reports that the list was truncated.
-func renderDigest(title string, items []mail.Header, more bool) string {
+// Digest renders a message list as a digest, newest first as given. more
+// reports that the list was truncated.
+func Digest(title string, items []mail.Header, more bool) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# %s\n\n", title)
 	if len(items) == 0 {
@@ -70,11 +71,11 @@ func renderDigest(title string, items []mail.Header, more bool) string {
 	}
 	fmt.Fprintf(&b, "%d message(s), newest first.\n", len(items))
 	for _, h := range items {
-		fmt.Fprintf(&b, "\n## %s\n\n", oneLine(h.Subject))
+		fmt.Fprintf(&b, "\n## %s\n\n", OneLine(h.Subject))
 		fmt.Fprintf(&b, "- id: %s\n- from: %s\n- to: %s\n- sent: %s\n- thread: %s (%d message(s))\n",
-			h.ID, h.From, h.Mailbox, stamp(h.CreatedAt), h.ThreadID, h.ThreadCount)
+			h.ID, h.From, h.Mailbox, Stamp(h.CreatedAt), h.ThreadID, h.ThreadCount)
 		if h.Snippet != "" {
-			fmt.Fprintf(&b, "\n> %s\n", oneLine(h.Snippet))
+			fmt.Fprintf(&b, "\n> %s\n", OneLine(h.Snippet))
 		}
 	}
 	if more {
@@ -83,8 +84,8 @@ func renderDigest(title string, items []mail.Header, more bool) string {
 	return b.String()
 }
 
-// renderRoster renders identities with their presence.
-func renderRoster(title string, es []mail.RosterEntry) string {
+// Roster renders identities with their presence.
+func Roster(title string, es []mail.RosterEntry) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# %s\n\n", title)
 	if len(es) == 0 {
@@ -92,9 +93,9 @@ func renderRoster(title string, es []mail.RosterEntry) string {
 		return b.String()
 	}
 	for _, e := range es {
-		fmt.Fprintf(&b, "## %s\n\n- role: %s\n", e.Address, oneLine(e.Role))
+		fmt.Fprintf(&b, "## %s\n\n- role: %s\n", e.Address, OneLine(e.Role))
 		if e.Description != "" {
-			fmt.Fprintf(&b, "- description: %s\n", oneLine(e.Description))
+			fmt.Fprintf(&b, "- description: %s\n", OneLine(e.Description))
 		}
 		if e.ReportsTo != "" {
 			fmt.Fprintf(&b, "- reports to: %s\n", e.ReportsTo)
@@ -112,7 +113,7 @@ func renderRoster(title string, es []mail.RosterEntry) string {
 			}
 			fmt.Fprintf(&b, "- presence: %s on %s", state, o.Machine)
 			if o.Away != "" {
-				fmt.Fprintf(&b, " (away: %s)", oneLine(o.Away))
+				fmt.Fprintf(&b, " (away: %s)", OneLine(o.Away))
 			}
 			b.WriteString("\n")
 		}
@@ -121,14 +122,14 @@ func renderRoster(title string, es []mail.RosterEntry) string {
 	return strings.TrimRight(b.String(), "\n") + "\n"
 }
 
-// whoamiInfo is the data behind renderWhoami.
-type whoamiInfo struct {
+// WhoamiInfo is the data behind Whoami.
+type WhoamiInfo struct {
 	SessionID, Machine, ProjectDir, GitRemote, Namespace string
 	SignedOnAs, Client, ClientVersion                    string
 }
 
-// renderWhoami renders this connection's identity.
-func renderWhoami(w whoamiInfo) string {
+// Whoami renders a connection's identity.
+func Whoami(w WhoamiInfo) string {
 	var b strings.Builder
 	b.WriteString("# This session\n\n")
 	row := func(k, v string) {

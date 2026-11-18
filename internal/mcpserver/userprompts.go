@@ -13,6 +13,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/scrothers/aim/internal/mail"
+	"github.com/scrothers/aim/internal/mdview"
 )
 
 // workflowDir holds one <prompt name>.md workflow script per user-invocable
@@ -253,7 +254,7 @@ func (h *handlers) attachments(ctx context.Context, name string, args map[string
 		if err != nil {
 			return nil, err
 		}
-		text := renderDigest("Mail since "+since.Format(time.DateOnly)+" under "+args["address"], res.Items, res.NextCursor != "")
+		text := mdview.Digest("Mail since "+since.Format(time.DateOnly)+" under "+args["address"], res.Items, res.NextCursor != "")
 		return []*mcp.PromptMessage{{Role: "user", Content: &mcp.TextContent{Text: text}}}, nil
 	}
 	return nil, nil

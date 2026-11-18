@@ -10,6 +10,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/scrothers/aim/internal/mail"
+	"github.com/scrothers/aim/internal/mdview"
 )
 
 // Resource URIs. Static resources describe this connection; templates take a
@@ -147,14 +148,14 @@ func (h *handlers) renderURI(ctx context.Context, uri string) (string, error) {
 func (h *handlers) meMarkdown() string {
 	p := h.conn.Preamble()
 	st := h.conn.Status()
-	w := whoamiInfo{
+	w := mdview.WhoamiInfo{
 		SessionID: p.SessionID, Machine: p.Machine, ProjectDir: p.ProjectDir, GitRemote: p.GitRemote,
 		Namespace: p.Namespace, Client: st.Client, ClientVersion: st.ClientVersion,
 	}
 	if id, ok := h.conn.Identity(); ok {
 		w.SignedOnAs = id.String()
 	}
-	return renderWhoami(w)
+	return mdview.Whoami(w)
 }
 
 func (h *handlers) inboxMarkdown(ctx context.Context) (string, error) {
@@ -170,7 +171,7 @@ func (h *handlers) mailboxMarkdown(ctx context.Context, addr string) (string, er
 	if err != nil {
 		return "", err
 	}
-	return renderDigest(unreadInboxTitle+" for "+addr, res.Items, res.NextCursor != ""), nil
+	return mdview.Digest(unreadInboxTitle+" for "+addr, res.Items, res.NextCursor != ""), nil
 }
 
 func (h *handlers) namespaceRosterMarkdown(ctx context.Context) (string, error) {
@@ -186,7 +187,7 @@ func (h *handlers) rosterMarkdown(ctx context.Context, addr string) (string, err
 	if err != nil {
 		return "", err
 	}
-	return renderRoster("Roster of "+addr, es), nil
+	return mdview.Roster("Roster of "+addr, es), nil
 }
 
 func (h *handlers) threadMarkdown(ctx context.Context, id string) (string, error) {
@@ -194,7 +195,7 @@ func (h *handlers) threadMarkdown(ctx context.Context, id string) (string, error
 	if err != nil {
 		return "", err
 	}
-	return renderTranscript(ms), nil
+	return mdview.Transcript(ms), nil
 }
 
 func (h *handlers) messageMarkdown(ctx context.Context, id string) (string, error) {
@@ -202,5 +203,5 @@ func (h *handlers) messageMarkdown(ctx context.Context, id string) (string, erro
 	if err != nil {
 		return "", err
 	}
-	return renderMessage(m), nil
+	return mdview.Message(m), nil
 }
