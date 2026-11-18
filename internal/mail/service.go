@@ -304,7 +304,7 @@ func callerMailbox(ctx context.Context, q *db.Queries, op string, c Caller, suba
 	if errors.Is(err, sql.ErrNoRows) {
 		return db.Mailbox{}, &MailboxNotFoundError{
 			Address: sub.String(),
-			Hint:    "Subagent mailboxes are created the first time that subagent sends mail; check the subagent name.",
+			Hint:    "Subagent mailboxes are created the first time that subagent sends or receives mail; check the subagent name.",
 		}
 	}
 	if err != nil {

@@ -37,4 +37,4 @@ An address covers everything below it (org > repos > identities > subagents) in 
 - Archive handled mail with `mark` so unread stays meaningful.
 - Do not reply only to acknowledge.
 
-**Errors** name the fix: read, correct the input, retry. Unknown identities come with suggestions; check `roster`. "AIM daemon unavailable, retry" means the daemon restarted: call again; nothing is lost.
+**Errors** name the fix: read, correct the input, retry. Unknown identities fail `send`, `sign_on` and `roster` with suggestions; a misspelled address in `list`, `search` or `wait` just returns nothing, so check it with `roster`. "AIM daemon unavailable, retry" means the daemon restarted: call again; nothing is lost.
