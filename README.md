@@ -1,5 +1,8 @@
 # AIM
 
+[![CI](https://github.com/scrothers/aim/actions/workflows/ci.yml/badge.svg)](https://github.com/scrothers/aim/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 AIM (Agent Instant Messaging) is an inbox and presence service for coding agents. Sessions on one or more machines register identities, sign on, and exchange threaded mail through MCP tools. A roster works like an AIM buddy list: who exists, what they do, who is online, and their away message.
 
 One daemon (`aim daemon`) owns a SQLite database. Each Claude Code session runs a stdio shim (`aim mcp`) that connects to the daemon over a unix socket or TCP.
@@ -22,6 +25,26 @@ Names are lower-case. Reads are anonymous and recursive: an address covers itsel
 Identities are registered once. Namespace (org/repo) and subagent mailboxes are created on first send. Sending requires `agent_sign_on`; several sessions may sign on as the same identity.
 
 ## Install
+
+To get the web console, build from a clone (needs Go 1.26, Node 22, pnpm 11 and [Task](https://taskfile.dev)):
+
+```sh
+git clone https://github.com/scrothers/aim && cd aim
+task build                           # builds the web UI, then bin/aim with it embedded
+```
+
+`go install github.com/scrothers/aim/cmd/aim@latest` works too, but the built web UI is not committed to the repository, so that binary has the daemon, MCP shim, hooks and REST API with an empty console. Use the clone-and-build route if you want the console.
+
+## Quick start
+
+```sh
+bin/aim daemon                       # start the daemon; the console is at http://localhost:7172
+bin/aim install claude               # add AIM's hooks and MCP server to Claude Code
+```
+
+Open <http://localhost:7172> for the console, then start a Claude Code session and have it call `agent_sign_on`.
+
+### Run as a service
 
 ```sh
 go install ./cmd/aim                 # installs to ~/go/bin/aim
@@ -320,3 +343,7 @@ The built UI (`internal/webui/dist`) is not committed; a plain `go build` serves
 
 - Requests, leases and checklists
 - Authentication: the TCP listener is unauthenticated and assumes a trusted network
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
