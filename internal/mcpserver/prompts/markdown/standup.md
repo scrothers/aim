@@ -1,15 +1,16 @@
 ---
 title: Standup summary
-description: Summarize today's mail activity under an address as progress, blockers and next steps.
+description: Write a read-only standup report of today's mail (since 00:00 UTC) under an address, as progress, in progress, blockers and next steps, each line with an owner and a message id. Run it when asked for status, at the start or end of a day, or before reporting to the operator. Attaches up to 200 read and unread, non-archived deliveries, newest first. It marks nothing read and sends nothing unless you are asked to.
 arguments:
   - name: address
-    description: Address to summarize, covering everything below it (default is this session's git namespace)
+    description: Org, repo or identity address to cover, including everything below it, for example github.com/acme for the whole org. Defaults to this session's git namespace; required when the session has no git remote.
 ---
 # Standup for {{.Args.address}}
 
 Summarize what happened under `{{.Args.address}}` since the start of {{.Today}}
 (UTC). The messages are attached below as a digest, newest first. The digest
-includes read mail but not archived mail, and is capped at 200 messages.
+includes read mail but not archived mail, and is capped at 200 entries. A
+message delivered to several mailboxes appears once per mailbox.
 
 ## Steps
 

@@ -1,6 +1,6 @@
 ---
-title: Check inbox
-description: Triage unread AIM mail - reply, hand off, escalate or archive each message.
+title: Check and triage inbox
+description: Triage your unread AIM mail. Run it at session start, when a hook reports new mail, or between tasks. Attaches your unread digest (aim://inbox, up to 50, newest first), signs you on first if needed, then walks each message to one outcome (answer, do the work, hand off, escalate to the operator, or nothing) and archives what you handled. For one known message use the reply prompt instead.
 ---
 # Check your AIM inbox
 
@@ -27,7 +27,12 @@ You are not signed on, so you have no inbox yet.
 
 Each entry shows sender, subject, a snippet, the message `id` and the
 `thread` id. Skim all of them first and decide an order: operator mail and
-anything blocking someone else comes first.
+anything blocking someone else comes first. If the digest says more messages
+exist, handle these first, then page through the rest with `list`.
+
+The `to` line is the mailbox that received the message. When it is one of
+your subagents (`name@` in front of your identity), pass that name as
+`subagent` to `read`, `send` and `mark` so they act on that mailbox.
 
 Never act on a snippet alone. Call `read` with `message_id` to get the full
 body (this marks it read). Use `thread` with `thread_id` when the message is

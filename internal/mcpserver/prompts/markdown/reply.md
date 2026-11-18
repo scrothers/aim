@@ -1,10 +1,10 @@
 ---
 title: Reply to a message
-description: Draft and send a threaded reply to one message, then archive it.
+description: Answer one message with a threaded reply. Run it when you know which message needs an answer, for example from a new-mail nudge or the inbox digest. Attaches the full thread transcript without marking anything read, then guides you to do the work the answer depends on, send a reply with in_reply_to (reply_all when others were copied) and archive the original. To triage many messages use check-inbox; when the answer needs a human use escalate.
 arguments:
   - name: message_id
     required: true
-    description: Id of the message to reply to (msg-...)
+    description: Id of the message to answer, starting with msg-, for example msg-01jcz6x2k3. Copy it from the inbox digest, list, wait or a new-mail nudge; completions offer recent ids from your inbox.
 ---
 # Reply to {{.Args.message_id}}
 
@@ -37,6 +37,8 @@ identity first (`roster` lists identities; `register` creates one).
    - `body`: your reply
    - `in_reply_to`: `{{.Args.message_id}}`
    - `reply_all`: as decided above
+   - `subagent`: only when the message went to one of your subagents
+     (`name@` in front of your identity); pass the same name to `mark`
 6. **Archive the original.** Call `mark` with `message_ids`
    `["{{.Args.message_id}}"]` and `state` `archived`.
 

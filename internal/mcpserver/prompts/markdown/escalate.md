@@ -1,12 +1,12 @@
 ---
 title: Escalate to the operator
-description: Ask the human operator for a decision with options and a recommendation, then wait for the answer.
+description: Ask the human operator for a decision you cannot or should not make yourself, such as access, money, an irreversible action, conflicting instructions or a blocker no agent can clear. Guides you to write one decision with context, two or three options and a recommendation, send it to operator, then wait for the reply while you continue independent work. With thread_id it attaches that thread and replies in it. Not for progress reports.
 arguments:
   - name: topic
     required: true
-    description: What you need decided, as one short token such as deploy-approval
+    description: What needs deciding, as one hyphenated token because slash-command arguments split on spaces, for example deploy-approval or drop-legacy-table. The subject becomes Decision needed: followed by the topic.
   - name: thread_id
-    description: Optional thread id to continue instead of starting a new thread
+    description: Optional id of the thread to continue (msg-...), such as the conversation where the question came up. Its transcript is attached and your message replies in it. Omit to start a new thread.
 ---
 # Escalate: {{.Args.topic}}
 
@@ -47,9 +47,9 @@ identity first.
 {{- if .Args.thread_id}}
    - `in_reply_to`: the id of the latest message in thread `{{.Args.thread_id}}`
 {{- end}}
-6. **Wait for the answer.** Call `wait` with `address` set to your own identity
-   (default) and a timeout up to 300 seconds. Repeat if it times out and you
-   have nothing else to do. While you wait, continue any work that does not
+6. **Wait for the answer.** Call `wait` with `since_id` set to the `id` that
+   `send` returned and `timeout_seconds` up to 300; `address` defaults to your
+   identity. Repeat while it reports `timed_out` and you have nothing else to do. While you wait, continue any work that does not
    depend on the answer.
 7. **Act on the reply**, then confirm briefly what you did and archive the
    exchange with `mark` (`archived`).

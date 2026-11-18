@@ -1,12 +1,12 @@
 ---
 title: Hand off work
-description: Write and send a handoff message to another identity, then update your away message.
+description: Pass work you own to another identity so it can continue without asking you anything. Run it when you stop mid-task, when the work belongs to another role or repo, or when a request should go elsewhere. Guides you to check the recipient with roster, send a self-contained handoff (goal, state, next steps, exact paths and ids, risks), set your away message to say where the work went, and tell whoever is waiting. Attaches nothing.
 arguments:
   - name: to
     required: true
-    description: Identity address to hand off to (name@host/org/repo)
+    description: Identity address of the new owner, name@host/org/repo or name@host/org, for example reviewer@github.com/acme/api. Completions offer identities in your org, online ones first.
   - name: summary
-    description: Optional one-word hint for what is being handed off (free text, last)
+    description: Optional topic hint such as migrations. Use one word or hyphenate it, because slash-command arguments split on spaces; the script has you write the full context anyway.
 ---
 # Hand off to {{.Args.to}}
 
