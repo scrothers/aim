@@ -219,10 +219,10 @@ func TestAssignmentReservesAndMails(t *testing.T) {
 		t.Errorf("claimed = %+v", got)
 	}
 	d := e.get(tk.ID)
-	if want := []string{"created", "assign", "link", "claim"}; strings.Join(kinds(d), ",") != strings.Join(want, ",") {
+	if want := []string{"created", "assign", "link", "link", "claim"}; strings.Join(kinds(d), ",") != strings.Join(want, ",") {
 		t.Errorf("events = %v", kinds(d))
 	}
-	if len(d.Links) != 1 || d.Links[0].MessageID != msg.ID || d.Links[0].ThreadID != msg.ThreadID || d.Links[0].Subject != "about it" {
+	if len(d.Links) != 2 || d.Links[0].MessageID != msg.ID || d.Links[0].ThreadID != msg.ThreadID || d.Links[0].Subject != "about it" || d.Links[1].Subject != "Task assigned: review" || d.Links[1].LinkedBy != alice {
 		t.Errorf("links = %+v", d.Links)
 	}
 	// Self-assignment sends nothing.

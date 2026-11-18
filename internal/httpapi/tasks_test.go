@@ -37,10 +37,10 @@ func TestTaskEndpoints(t *testing.T) {
 	}), http.StatusCreated)
 	id := created.ID
 	if created.CreatedBy != "operator" || created.Assignee != alice || created.Status != "not_started" ||
-		!strings.Contains(created.BodyHTML, "<em>care</em>") || len(created.Links) != 1 || created.Links[0].ThreadID != msg.ThreadID {
+		!strings.Contains(created.BodyHTML, "<em>care</em>") || len(created.Links) != 2 || created.Links[0].ThreadID != msg.ThreadID || created.Links[1].Subject != "Task assigned: Plan **v2**" {
 		t.Fatalf("created = %+v", created)
 	}
-	if kinds := eventKinds(created); !slices.Equal(kinds, []string{"created", "assign", "link"}) {
+	if kinds := eventKinds(created); !slices.Equal(kinds, []string{"created", "assign", "link", "link"}) {
 		t.Errorf("events = %v", kinds)
 	}
 
@@ -122,7 +122,7 @@ func TestTaskEndpoints(t *testing.T) {
 
 	// Detail and thread chips.
 	d := decode[taskDetail](t, e.do(t, http.MethodGet, "/api/tasks/"+id, nil), http.StatusOK)
-	if len(d.Events) != 7 || d.Events[len(d.Events)-1].Kind != "finish" || d.Events[len(d.Events)-1].ToStatus != "finished" {
+	if len(d.Events) != 8 || d.Events[len(d.Events)-1].Kind != "finish" || d.Events[len(d.Events)-1].ToStatus != "finished" {
 		t.Errorf("detail events = %v", eventKinds(d))
 	}
 	if rec := e.do(t, http.MethodGet, "/api/tasks/task-nope", nil); rec.Code != http.StatusNotFound {

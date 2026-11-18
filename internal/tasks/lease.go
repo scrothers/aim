@@ -241,9 +241,15 @@ func (s *Service) notifyAssigned(ctx context.Context, c mail.Caller, t Task, not
 		fmt.Fprintf(&b, "Note: %s\n\n", note)
 	}
 	fmt.Fprintf(&b, "Claim it with task_update (task_id %s, action claim) or start it directly with action start; read aim://task/%s for details.", t.ID, t.ID)
-	_, err := s.mail.Send(ctx, c, mail.SendInput{To: []string{t.Assignee}, Subject: truncSubject("Task assigned: " + t.Title), Body: b.String()})
+	m, err := s.mail.Send(ctx, c, mail.SendInput{To: []string{t.Assignee}, Subject: truncSubject("Task assigned: " + t.Title), Body: b.String()})
 	if err != nil {
 		s.log.Warn("tasks: assignment notice failed", "task", t.ID, "assignee", t.Assignee, "err", err)
+		return
+	}
+	// Link the notice so the task history and its thread show it; the
+	// assignment stands even if this fails.
+	if err := s.Link(ctx, c, t.ID, m.ID); err != nil {
+		s.log.Warn("tasks: linking assignment notice failed", "task", t.ID, "message", m.ID, "err", err)
 	}
 }
 

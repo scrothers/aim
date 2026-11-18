@@ -71,7 +71,7 @@ func TestTaskToolsFlow(t *testing.T) {
 
 	detail := ok(t, a, "task_get", map[string]any{"task_id": id})
 	links, _ := detail["links"].([]any)
-	if events, _ := detail["events"].([]any); len(events) != 8 {
+	if events, _ := detail["events"].([]any); len(events) != 9 {
 		t.Errorf("events = %v", events)
 	}
 	linked := map[string]bool{}
