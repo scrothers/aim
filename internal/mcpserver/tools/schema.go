@@ -11,11 +11,11 @@ import (
 // from In and Out, made portable (see portable), and whose description comes
 // from <name>.md in this package.
 func addTool[In, Out any](srv *mcp.Server, name string, h mcp.ToolHandlerFor[In, Out]) {
-	in, err := jsonschema.For[In](nil)
+	in, err := jsonschema.For[In](&jsonschema.ForOptions{TypeSchemas: enumSchemas})
 	if err != nil {
 		panic(fmt.Sprintf("tools: infer %s input schema: %v", name, err))
 	}
-	out, err := jsonschema.For[Out](nil)
+	out, err := jsonschema.For[Out](&jsonschema.ForOptions{TypeSchemas: enumSchemas})
 	if err != nil {
 		panic(fmt.Sprintf("tools: infer %s output schema: %v", name, err))
 	}
