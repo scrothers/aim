@@ -115,6 +115,7 @@ func Roster(title string, es []mail.RosterEntry) string {
 			if o.Away != "" {
 				fmt.Fprintf(&b, " (away: %s)", OneLine(o.Away))
 			}
+			b.WriteString(attentionNote(o))
 			b.WriteString("\n")
 		}
 		b.WriteString("\n")
@@ -142,6 +143,18 @@ func Nudge(identity string, items []mail.Header, total int) string {
 	return b.String()
 }
 
+// attentionNote renders a session's attention state as ", blocked: detail",
+// or "" when it needs none.
+func attentionNote(o mail.OnlineStatus) string {
+	if o.Attention == "" {
+		return ""
+	}
+	if d := OneLine(o.AttentionDetail); d != "" {
+		return ", " + o.Attention + ": " + d
+	}
+	return ", " + o.Attention
+}
+
 // RosterBrief renders one line per identity: address, role and presence.
 func RosterBrief(es []mail.RosterEntry) string {
 	if len(es) == 0 {
@@ -155,6 +168,7 @@ func RosterBrief(es []mail.RosterEntry) string {
 			if presence == "" {
 				presence = "online"
 			}
+			presence += attentionNote(e.Online[0])
 		}
 		fmt.Fprintf(&b, "- `%s` - %s (%s)\n", e.Address, OneLine(e.Role), presence)
 	}

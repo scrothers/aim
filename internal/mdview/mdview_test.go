@@ -55,7 +55,7 @@ func TestRenderGolden(t *testing.T) {
 	roster := []mail.RosterEntry{
 		{
 			Address: "alice@github.com/acme/api", Role: "lead", Description: "runs it", ReportsTo: "operator", Subagents: []string{"helper"},
-			Online: []mail.OnlineStatus{{Machine: "box", Away: "lunch", State: "idle"}, {Machine: "box2"}},
+			Online: []mail.OnlineStatus{{Machine: "box", Away: "lunch", State: "idle"}, {Machine: "box2", Attention: "blocked", AttentionDetail: "Claude needs your\npermission to use Bash"}},
 		},
 		{Address: "bob@github.com/acme/api", Role: "dev", Online: []mail.OnlineStatus{}},
 	}

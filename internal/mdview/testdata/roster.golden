@@ -7,7 +7,7 @@
 - reports to: operator
 - subagents: helper
 - presence: idle on box (away: lunch)
-- presence: online on box2
+- presence: online on box2, blocked: Claude needs your permission to use Bash
 
 ## bob@github.com/acme/api
 
