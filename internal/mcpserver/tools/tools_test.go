@@ -13,7 +13,7 @@ const maxDescriptionChars = 2048
 
 func TestDescriptionsTrimmedAndFitClientCap(t *testing.T) {
 	t.Parallel()
-	entries, err := fs.ReadDir(descriptionFS, ".")
+	entries, err := fs.ReadDir(descriptionFS, markdownDir)
 	if err != nil {
 		t.Fatal(err)
 	}

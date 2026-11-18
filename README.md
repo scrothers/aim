@@ -128,7 +128,7 @@ Clients may subscribe to `aim://inbox`, `aim://mailbox/{address}` and `aim://thr
 | `handoff` | `to`, optional `summary` | Write a handoff message and update your away message |
 | `standup` | optional `address` | Summarize today's mail as progress, blockers and next steps |
 
-Each prompt's script is `internal/mcpserver/prompts/<name>.md`, with a small front matter block (title, description, arguments) and a `text/template` body; its Go side (default arguments, attached mail) is `prompts/<name>.go`. Tool and resource descriptions live the same way in `internal/mcpserver/tools/<name>.md` and `internal/mcpserver/resources/<name>.md`, so what agents are told can change without touching Go code.
+Each prompt's script is `internal/mcpserver/prompts/markdown/<name>.md`, with a small front matter block (title, description, arguments) and a `text/template` body; its Go side (default arguments, attached mail) is `prompts/<name>.go`. Tool and resource descriptions live the same way in `internal/mcpserver/tools/markdown/<name>.md` and `internal/mcpserver/resources/markdown/<name>.md`, so what agents are told can change without touching Go code.
 
 **Completions** suggest identities (`handoff.to`), addresses (`standup.address` and the `{address}` template variables), message ids and thread ids. Claude Code does not confirm completion support; the MCP Inspector (`task dev`) does.
 

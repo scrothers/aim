@@ -15,7 +15,7 @@ import (
 )
 
 // behavior is the Go side of a workflow prompt, declared in <name>.go beside
-// its <name>.md script. Both hooks are optional.
+// its markdown/<name>.md script. Both hooks are optional.
 type behavior struct {
 	// defaults fills in arguments the caller left empty, or rejects the call.
 	defaults func(c *session.Conn, args map[string]string) error
@@ -24,8 +24,8 @@ type behavior struct {
 	attach func(ctx context.Context, c *session.Conn, args map[string]string, now time.Time) ([]*mcp.PromptMessage, error)
 }
 
-// behaviors maps each workflow name to its behavior. Every <name>.md must have
-// an entry, and every entry a file; tests enforce both.
+// behaviors maps each workflow name to its behavior. Every markdown/<name>.md
+// must have an entry, and every entry a file; tests enforce both.
 var behaviors = map[string]behavior{
 	"check-inbox": checkInbox,
 	"escalate":    escalate,

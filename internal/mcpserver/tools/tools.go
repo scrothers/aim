@@ -28,7 +28,8 @@ type toolset struct {
 }
 
 // Register adds AIM's tools to srv, acting for the connection c. Each tool's
-// types and handler live in <name>.go and its description in <name>.md.
+// types and handler live in <name>.go and its description in
+// markdown/<name>.md.
 func Register(srv *mcp.Server, c *session.Conn, o Options) {
 	t := &toolset{c: c, progressInterval: o.ProgressInterval}
 	if t.progressInterval <= 0 {
@@ -48,19 +49,20 @@ func Register(srv *mcp.Server, c *session.Conn, o Options) {
 	addTool(srv, "wait", t.wait)
 }
 
-// descriptionFS holds one <tool name>.md description per tool. Editing these
+// markdownDir holds one <tool name>.md description per tool. Editing these
 // files changes what agents are told without touching Go code.
-//
-//go:embed *.md
+const markdownDir = "markdown"
+
+//go:embed markdown/*.md
 var descriptionFS embed.FS
 
 // description returns the trimmed description of the named tool. The files
 // are compiled in and covered by tests, so a missing one is a programming
 // error.
 func description(name string) string {
-	b, err := descriptionFS.ReadFile(name + ".md")
+	b, err := descriptionFS.ReadFile(markdownDir + "/" + name + ".md")
 	if err != nil {
-		panic(fmt.Sprintf("tools: missing description %s.md: %v", name, err))
+		panic(fmt.Sprintf("tools: missing description %s/%s.md: %v", markdownDir, name, err))
 	}
 	return strings.TrimSpace(string(b))
 }

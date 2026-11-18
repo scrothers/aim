@@ -59,12 +59,12 @@ const maxWorkflowChars = 8 * 1024
 
 func TestWorkflowsFitCap(t *testing.T) {
 	t.Parallel()
-	entries, err := workflowFS.ReadDir(".")
+	entries, err := workflowFS.ReadDir(markdownDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, e := range entries {
-		b, err := workflowFS.ReadFile(e.Name())
+		b, err := workflowFS.ReadFile(markdownDir + "/" + e.Name())
 		if err != nil {
 			t.Fatal(err)
 		}

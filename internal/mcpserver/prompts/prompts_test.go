@@ -62,7 +62,7 @@ func TestPromptsRegisteredMatchFiles(t *testing.T) {
 			t.Errorf("prompt %s lacks title or description", p.Name)
 		}
 	}
-	entries, err := os.ReadDir(".")
+	entries, err := os.ReadDir("markdown")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -43,17 +43,17 @@ func TestToolList(t *testing.T) {
 				t.Errorf("%s %s schema has a type list: %s", tool.Name, kind, b)
 			}
 		}
-		want := descriptionFile(t, tool.Name+".md")
+		want := descriptionFile(t, "markdown/"+tool.Name+".md")
 		if want == "" {
-			t.Errorf("%s.md is empty", tool.Name)
+			t.Errorf("markdown/%s.md is empty", tool.Name)
 		}
 		if tool.Description != want {
-			t.Errorf("%s description = %q, want the contents of %s.md", tool.Name, tool.Description, tool.Name)
+			t.Errorf("%s description = %q, want the contents of markdown/%s.md", tool.Name, tool.Description, tool.Name)
 		}
 	}
 	// Every description file must belong to a registered tool, so a renamed
 	// or removed tool can't leave a stale description behind.
-	entries, err := os.ReadDir(".")
+	entries, err := os.ReadDir("markdown")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestToolList(t *testing.T) {
 		}
 		descriptions++
 		if !registered[name] {
-			t.Errorf("%s has no matching registered tool", e.Name())
+			t.Errorf("markdown/%s has no matching registered tool", e.Name())
 		}
 	}
 	if descriptions != len(res.Tools) {

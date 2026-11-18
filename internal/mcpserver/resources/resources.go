@@ -21,7 +21,7 @@ const MIMEMarkdown = "text/markdown"
 // prefix followed by a single percent-encoded {variable} segment (see
 // EncodeSegment). render receives the decoded variable, or "" for a static
 // resource. Each resource is declared in its own <name>.go file and described
-// in <name>.md.
+// in markdown/<name>.md.
 type resource struct {
 	name, title string
 	uri         string // static resources
@@ -127,18 +127,19 @@ func decodeSegment(s string) (string, bool) {
 	return v, true
 }
 
-// descriptionFS holds one <resource name>.md description per resource.
-//
-//go:embed *.md
+// markdownDir holds one <resource name>.md description per resource.
+const markdownDir = "markdown"
+
+//go:embed markdown/*.md
 var descriptionFS embed.FS
 
 // description returns the trimmed description of the named resource. The
 // files are compiled in and covered by tests, so a missing one is a
 // programming error.
 func description(name string) string {
-	b, err := descriptionFS.ReadFile(name + ".md")
+	b, err := descriptionFS.ReadFile(markdownDir + "/" + name + ".md")
 	if err != nil {
-		panic(fmt.Sprintf("resources: missing description %s.md: %v", name, err))
+		panic(fmt.Sprintf("resources: missing description %s/%s.md: %v", markdownDir, name, err))
 	}
 	return strings.TrimSpace(string(b))
 }

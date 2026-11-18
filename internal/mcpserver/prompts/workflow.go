@@ -8,11 +8,12 @@ import (
 	"text/template"
 )
 
-// workflowFS holds one <prompt name>.md workflow script per user-invocable
+// markdownDir holds one <prompt name>.md workflow script per user-invocable
 // MCP prompt. Unlike tool descriptions these load only when invoked, so they
 // are not subject to the 2 KB client cap.
-//
-//go:embed *.md
+const markdownDir = "markdown"
+
+//go:embed markdown/*.md
 var workflowFS embed.FS
 
 // workflowArg describes one prompt argument from a workflow's front matter.
@@ -21,7 +22,7 @@ type workflowArg struct {
 	required          bool
 }
 
-// workflow is a parsed <name>.md file.
+// workflow is a parsed markdown/<name>.md file.
 type workflow struct {
 	name, title, description string
 	args                     []workflowArg
@@ -143,7 +144,7 @@ func (w *workflow) parseFrontMatter(lines []string) error {
 // workflows parses every embedded workflow. The files are compiled in and
 // covered by tests, so a malformed one is a programming error.
 func workflows() []workflow {
-	entries, err := fs.ReadDir(workflowFS, ".")
+	entries, err := fs.ReadDir(workflowFS, markdownDir)
 	if err != nil {
 		panic(fmt.Sprintf("prompts: read workflows: %v", err))
 	}
@@ -153,9 +154,9 @@ func workflows() []workflow {
 		if e.IsDir() || !ok {
 			continue
 		}
-		b, err := workflowFS.ReadFile(e.Name())
+		b, err := workflowFS.ReadFile(markdownDir + "/" + e.Name())
 		if err != nil {
-			panic(fmt.Sprintf("prompts: read %s: %v", e.Name(), err))
+			panic(fmt.Sprintf("prompts: read %s/%s: %v", markdownDir, e.Name(), err))
 		}
 		w, err := parseWorkflow(name, strings.TrimSpace(string(b)))
 		if err != nil {
