@@ -38,6 +38,12 @@ type Status struct {
 	// LastActive is the time of the connection's most recent tool call, or its
 	// connection time when it has made none.
 	LastActive time.Time
+	// Attention is a wire.Attention* state the agent's hooks reported, or ""
+	// when it needs none; AttentionDetail is the runtime's message and
+	// AttentionSince when the state began.
+	Attention       string
+	AttentionDetail string
+	AttentionSince  time.Time
 }
 
 // Connection states reported in Status.State.
@@ -57,6 +63,9 @@ const (
 	EventDisconnected = "disconnected"
 	EventWentIdle     = "went_idle"
 	EventActive       = "active"
+	// EventAttention is recorded when a signed-on agent starts needing
+	// attention; Event.Attention says which state.
+	EventAttention = "attention"
 )
 
 // maxEvents is the capacity of the event ring buffer.
@@ -69,6 +78,8 @@ type Event struct {
 	Machine  string
 	Client   string
 	At       time.Time
+	// Attention is the state of an EventAttention event.
+	Attention string
 }
 
 // Option configures a Registry.
@@ -306,6 +317,11 @@ type Entry struct {
 	// idleNoted is true once a went_idle event has been recorded for the
 	// current idle spell.
 	idleNoted bool
+	// attention, attentionDetail and attentionSince hold the state the
+	// agent's hooks last reported; see SetAttention.
+	attention       string
+	attentionDetail string
+	attentionSince  time.Time
 }
 
 // idleLocked reports whether e has been inactive for the idle threshold at
@@ -336,6 +352,35 @@ func (e *Entry) Touch(now time.Time) {
 		e.reg.record(Event{Kind: EventActive, Identity: e.identity.String(), Machine: e.preamble.Machine, Client: e.client, At: now})
 	}
 	e.lastActive = now
+	e.clearAttentionLocked()
+}
+
+// SetAttention records that the agent needs attention: state is a
+// wire.Attention* value and detail the runtime's message. An empty state
+// clears it. Repeating the current state keeps its start time and only
+// updates the detail. It returns when the current state began, which is the
+// zero time once cleared.
+func (e *Entry) SetAttention(state, detail string, now time.Time) time.Time {
+	e.reg.mu.Lock()
+	defer e.reg.mu.Unlock()
+	if state == "" {
+		e.clearAttentionLocked()
+		return time.Time{}
+	}
+	if state != e.attention {
+		e.attention, e.attentionSince = state, now
+		if e.signedOn {
+			e.reg.record(Event{Kind: EventAttention, Identity: e.identity.String(), Machine: e.preamble.Machine, Client: e.client, At: now, Attention: state})
+		}
+	}
+	e.attentionDetail = detail
+	return e.attentionSince
+}
+
+// clearAttentionLocked clears the attention state. The caller must hold
+// reg.mu for writing.
+func (e *Entry) clearAttentionLocked() {
+	e.attention, e.attentionDetail, e.attentionSince = "", "", time.Time{}
 }
 
 // ConnID returns the connection ID this entry was registered under.
@@ -429,6 +474,10 @@ func (e *Entry) statusLocked() Status {
 		ClientVersion: e.clientVer,
 		State:         StateOnline,
 		LastActive:    e.lastActive,
+
+		Attention:       e.attention,
+		AttentionDetail: e.attentionDetail,
+		AttentionSince:  e.attentionSince,
 	}
 	if e.idleLocked(e.reg.clock()) {
 		s.State = StateIdle
