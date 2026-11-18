@@ -3,10 +3,13 @@ package wire_test
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
+	"reflect"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/scrothers/aim/internal/wire"
 )
@@ -99,7 +102,7 @@ func TestHookLinesRoundTrip(t *testing.T) {
 	if err := wire.WritePreamble(&buf, in); err != nil {
 		t.Fatal(err)
 	}
-	req := wire.HookRequest{Op: wire.HookOpEvent, Event: wire.HookPrompt, ToolUseID: "t1"}
+	req := wire.HookRequest{Op: wire.HookOpApprove, Event: wire.HookPrompt, ToolUseID: "t1", ToolInput: json.RawMessage(`{"command":"ls"}`)}
 	if err := wire.WriteLine(&buf, req); err != nil {
 		t.Fatal(err)
 	}
@@ -116,9 +119,80 @@ func TestHookLinesRoundTrip(t *testing.T) {
 	if err := wire.ReadLine(br, &got); err != nil {
 		t.Fatal(err)
 	}
-	if got != req {
+	if !reflect.DeepEqual(got, req) {
 		t.Fatalf("request = %+v, want %+v", got, req)
 	}
+}
+
+func TestHookReplyDecisionRoundTrip(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	in := wire.HookReply{SignedOn: true, Decision: wire.DecisionDeny, Reason: "no"}
+	if err := wire.WriteLine(&buf, in); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), `"decision":"deny","reason":"no"`) {
+		t.Fatalf("line = %s", buf.String())
+	}
+	var got wire.HookReply
+	if err := wire.ReadLine(bufio.NewReader(&buf), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got != in {
+		t.Fatalf("reply = %+v, want %+v", got, in)
+	}
+	buf.Reset()
+	if err := wire.WriteLine(&buf, wire.HookReply{}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "decision") {
+		t.Fatalf("empty decision serialized: %s", buf.String())
+	}
+}
+
+func TestTruncateToolInput(t *testing.T) {
+	t.Parallel()
+	big, err := json.Marshal(map[string]string{"content": strings.Repeat("é", wire.MaxToolInputBytes)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	atCap := `"` + strings.Repeat("a", wire.MaxToolInputBytes-2) + `"`
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"empty", "", ""},
+		{"invalid", `{"a":`, ""},
+		{"small", ` {"command":"ls"} `, `{"command":"ls"}`},
+		{"at cap", atCap, atCap},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := string(wire.TruncateToolInput(json.RawMessage(tt.in))); got != tt.want {
+				t.Fatalf("got %.80q, want %.80q", got, tt.want)
+			}
+		})
+	}
+	t.Run("oversized", func(t *testing.T) {
+		t.Parallel()
+		got := wire.TruncateToolInput(big)
+		if len(got) > wire.MaxToolInputBytes || !json.Valid(got) {
+			t.Fatalf("summary is %d bytes, valid=%v", len(got), json.Valid(got))
+		}
+		var s struct {
+			Truncated bool   `json:"truncated"`
+			Bytes     int    `json:"bytes"`
+			Preview   string `json:"preview"`
+		}
+		if err := json.Unmarshal(got, &s); err != nil {
+			t.Fatal(err)
+		}
+		if !s.Truncated || s.Bytes != len(big) || !strings.HasPrefix(string(big), s.Preview) || !utf8.ValidString(s.Preview) {
+			t.Fatalf("summary = %+v", s)
+		}
+	})
 }
 
 func TestReadLineWithoutNewline(t *testing.T) {

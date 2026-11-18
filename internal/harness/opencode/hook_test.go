@@ -1,6 +1,7 @@
 package opencode_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/scrothers/aim/internal/harness"
@@ -64,7 +65,7 @@ func TestParse(t *testing.T) {
 			if ok != tt.wantOK {
 				t.Fatalf("ok = %v, want %v", ok, tt.wantOK)
 			}
-			if got != tt.want {
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("parsed = %+v, want %+v", got, tt.want)
 			}
 		})

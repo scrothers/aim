@@ -53,7 +53,52 @@ const (
 	HookOpEvent = "event"
 	// HookOpWatch blocks until new mail arrives for the agent, then replies.
 	HookOpWatch = "watch"
+	// HookOpApprove asks the operator to answer a permission prompt. It
+	// blocks until the operator decides, the approval times out or the hook
+	// goes away; an empty HookReply.Decision means the runtime should prompt
+	// in its terminal as usual.
+	HookOpApprove = "approve"
 )
+
+// Approval decisions a HookReply carries.
+const (
+	DecisionAllow = "allow"
+	DecisionDeny  = "deny"
+)
+
+// MaxToolInputBytes bounds HookRequest.ToolInput; see TruncateToolInput.
+const MaxToolInputBytes = 16 << 10
+
+// toolInputPreview is how many bytes of an oversized tool input survive in
+// its summary object.
+const toolInputPreview = 4 << 10
+
+// TruncateToolInput returns raw when it is valid JSON of at most
+// MaxToolInputBytes. A larger input becomes a summary object
+// {"truncated":true,"bytes":N,"preview":"..."} holding the first few KiB as
+// a string; invalid JSON becomes nil.
+func TruncateToolInput(raw json.RawMessage) json.RawMessage {
+	raw = bytes.TrimSpace(raw)
+	if len(raw) == 0 || !json.Valid(raw) {
+		return nil
+	}
+	if len(raw) <= MaxToolInputBytes {
+		return raw
+	}
+	cut := toolInputPreview
+	for cut > 0 && raw[cut]&0xC0 == 0x80 {
+		cut--
+	}
+	b, err := json.Marshal(struct {
+		Truncated bool   `json:"truncated"`
+		Bytes     int    `json:"bytes"`
+		Preview   string `json:"preview"`
+	}{true, len(raw), string(raw[:cut])})
+	if err != nil {
+		return nil
+	}
+	return b
+}
 
 // Normalized hook events, shared by every runtime adapter.
 const (
@@ -101,9 +146,13 @@ type HookRequest struct {
 	ToolName  string `json:"tool_name,omitempty"`
 	// Attention is a status event's state (an Attention* constant, or empty
 	// to clear); Detail is the runtime's message, such as which permission
-	// it asks for.
+	// it asks for. An approve request carries a one-line summary of the
+	// tool call in Detail.
 	Attention string `json:"attention,omitempty"`
 	Detail    string `json:"detail,omitempty"`
+	// ToolInput is the tool call's arguments as JSON, for approve requests;
+	// pass it through TruncateToolInput first.
+	ToolInput json.RawMessage `json:"tool_input,omitempty"`
 }
 
 // HookReply is the daemon's single reply line to a HookRequest.
@@ -117,6 +166,11 @@ type HookReply struct {
 	// Superseded reports that a newer watch for the same agent replaced
 	// this one.
 	Superseded bool `json:"superseded,omitempty"`
+	// Decision answers an approve request: DecisionAllow, DecisionDeny, or
+	// empty for no decision (the runtime prompts in its terminal).
+	Decision string `json:"decision,omitempty"`
+	// Reason is the operator's optional note with a decision.
+	Reason string `json:"reason,omitempty"`
 }
 
 // WriteLine writes v as one JSON line.
