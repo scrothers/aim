@@ -31,6 +31,26 @@ func (q *Queries) CountTasksForIdentity(ctx context.Context, identity string) (C
 	return i, err
 }
 
+const countTouchableTasks = `-- name: CountTouchableTasks :one
+SELECT COUNT(*) FROM tasks
+WHERE claim_session = ?1 AND status IN ('claimed', 'started')
+  AND last_activity_at < ?2
+`
+
+type CountTouchableTasksParams struct {
+	ClaimSession string
+	Before       sql.NullInt64
+}
+
+// CountTouchableTasks counts the tasks a session holds whose last activity is
+// before @before, so Touch can skip the write when nothing needs refreshing.
+func (q *Queries) CountTouchableTasks(ctx context.Context, arg CountTouchableTasksParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countTouchableTasks, arg.ClaimSession, arg.Before)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getTask = `-- name: GetTask :one
 SELECT id, title, body, status, priority, scope, created_by, assignee, claimant, claim_session, stale_notified, due_at, claimed_at, last_activity_at, finished_at, created_at, updated_at FROM tasks WHERE id = ?1
 `

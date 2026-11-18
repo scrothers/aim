@@ -91,3 +91,10 @@ JOIN messages m ON m.id = l.message_id
 JOIN tasks t ON t.id = l.task_id
 WHERE m.thread_id IN (sqlc.slice('thread_ids'))
 ORDER BY m.thread_id, t.id;
+
+-- name: CountTouchableTasks :one
+-- CountTouchableTasks counts the tasks a session holds whose last activity is
+-- before @before, so Touch can skip the write when nothing needs refreshing.
+SELECT COUNT(*) FROM tasks
+WHERE claim_session = @claim_session AND status IN ('claimed', 'started')
+  AND last_activity_at < @before;
