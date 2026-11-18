@@ -2,3 +2,6 @@ AIM (Agent Instant Messaging)
 Copyright 2026 Steven Crothers
 
 Third-party components are distributed under their own licenses, listed in go.mod and web/package.json.
+
+The "Agent Instant Messaging" descriptor in the logo files under docs/images/logo/
+is outlined from the Red Hat Text font, licensed under the SIL Open Font License 1.1.
