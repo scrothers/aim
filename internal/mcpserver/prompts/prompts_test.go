@@ -1,4 +1,4 @@
-package mcpserver_test
+package prompts_test
 
 import (
 	"context"
@@ -7,7 +7,23 @@ import (
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/scrothers/aim/internal/mcpserver/mcptest"
 )
+
+const bob = mcptest.Bob
+
+// Short names for the shared test helpers.
+var (
+	newEnv      = mcptest.New
+	ok          = mcptest.OK
+	mustContain = mcptest.MustContain
+)
+
+func twoAgents(t *testing.T, e *mcptest.Env) (a, b *mcp.ClientSession, msgID, threadID string) {
+	t.Helper()
+	return e.TwoAgents(t)
+}
 
 func getPrompt(t *testing.T, cs *mcp.ClientSession, name string, args map[string]string) *mcp.GetPromptResult {
 	t.Helper()
@@ -46,22 +62,27 @@ func TestPromptsRegisteredMatchFiles(t *testing.T) {
 			t.Errorf("prompt %s lacks title or description", p.Name)
 		}
 	}
-	entries, err := os.ReadDir("prompts/workflows")
+	entries, err := os.ReadDir(".")
 	if err != nil {
 		t.Fatal(err)
 	}
+	files := 0
 	for _, e := range entries {
-		name := strings.TrimSuffix(e.Name(), ".md")
+		name, isMD := strings.CutSuffix(e.Name(), ".md")
+		if e.IsDir() || !isMD {
+			continue
+		}
+		files++
 		if got[name] == nil {
-			t.Errorf("prompts/workflows/%s is not registered", e.Name())
+			t.Errorf("%s is not registered", e.Name())
 		}
 		delete(got, name)
 	}
 	for name := range got {
-		t.Errorf("prompt %s has no prompts/workflows file", name)
+		t.Errorf("prompt %s has no workflow file", name)
 	}
-	if len(entries) != len(res.Prompts) {
-		t.Errorf("files = %d, prompts = %d", len(entries), len(res.Prompts))
+	if files != len(res.Prompts) {
+		t.Errorf("files = %d, prompts = %d", files, len(res.Prompts))
 	}
 }
 

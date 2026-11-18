@@ -15,11 +15,10 @@ const (
 
 // Short names for the shared test helpers.
 var (
-	newEnv      = mcptest.New
-	ok          = mcptest.OK
-	text        = mcptest.Text
-	register    = mcptest.Register
-	mustContain = mcptest.MustContain
+	newEnv   = mcptest.New
+	ok       = mcptest.OK
+	text     = mcptest.Text
+	register = mcptest.Register
 )
 
 func twoAgents(t *testing.T, e *mcptest.Env) (a, b *mcp.ClientSession, msgID, threadID string) {

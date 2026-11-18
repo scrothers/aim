@@ -7,6 +7,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/scrothers/aim/internal/mail"
+	"github.com/scrothers/aim/internal/mcpserver/prompts"
 	"github.com/scrothers/aim/internal/mcpserver/resources"
 	"github.com/scrothers/aim/internal/mcpserver/session"
 	"github.com/scrothers/aim/internal/mcpserver/tools"
@@ -32,7 +33,7 @@ func New(svc *mail.Service, conn *presence.Entry, version string, opts ...Option
 	)
 	subs.Bind(srv)
 	resources.Register(srv, h.c)
-	h.registerPrompts(srv)
+	prompts.Register(srv, h.c)
 	srv.AddReceivingMiddleware(h.captureClient)
 	tools.Register(srv, h.c, tools.Options{ProgressInterval: h.progressInterval})
 	return srv
@@ -81,5 +82,3 @@ type handlers struct {
 	clientSeen        atomic.Bool
 	resolveSubagent   SubagentResolver
 }
-
-func (h *handlers) caller() mail.Caller { return h.c.Caller() }

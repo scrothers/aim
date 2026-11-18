@@ -1,8 +1,10 @@
-package mcpserver
+package prompts
 
 import (
+	"bytes"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestParseWorkflow(t *testing.T) {
@@ -48,6 +50,44 @@ func TestParseWorkflow(t *testing.T) {
 				t.Fatalf("err = %v, want %q", err, tt.want)
 			}
 		})
+	}
+}
+
+// maxWorkflowChars is the sanity cap for workflow scripts (8 KB). They load
+// only when invoked, so Claude Code's 2 KB description cap does not apply.
+const maxWorkflowChars = 8 * 1024
+
+func TestWorkflowsFitCap(t *testing.T) {
+	t.Parallel()
+	entries, err := workflowFS.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		b, err := workflowFS.ReadFile(e.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n := utf8.RuneCount(bytes.TrimSpace(b)); n > maxWorkflowChars {
+			t.Errorf("%s is %d characters; keep it at most %d", e.Name(), n, maxWorkflowChars)
+		}
+	}
+}
+
+func TestEveryWorkflowHasBehavior(t *testing.T) {
+	t.Parallel()
+	ws := workflows()
+	names := map[string]bool{}
+	for _, w := range ws {
+		names[w.name] = true
+		if _, ok := behaviors[w.name]; !ok {
+			t.Errorf("%s.md has no behavior in behaviors", w.name)
+		}
+	}
+	for name := range behaviors {
+		if !names[name] {
+			t.Errorf("behavior %s has no %s.md", name, name)
+		}
 	}
 }
 
