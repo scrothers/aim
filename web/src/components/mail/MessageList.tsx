@@ -81,7 +81,8 @@ export function MessageList(p: MessageListProps) {
         />
         {!p.lockedState && (
           <Tabs value={p.state} onValueChange={(v) => p.onState(v as MailState)}>
-            <TabsList>
+            {/* Equal columns on phones, where 44px minimum widths would otherwise space the tabs unevenly. */}
+            <TabsList className="max-md:grid max-md:w-full max-md:grid-cols-4">
               <TabsTrigger value="inbox">Inbox</TabsTrigger>
               <TabsTrigger value="unread">Unread</TabsTrigger>
               <TabsTrigger value="archived">Archived</TabsTrigger>

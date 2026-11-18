@@ -175,6 +175,36 @@ test.describe('phone 390x844', () => {
     expect(await noHScroll(page)).toBe(true)
   })
 
+  test('thread headers wrap inside the card and mail tabs are evenly sized', async ({ page }) => {
+    await page.goto('/mail?view=operator')
+    // Inbox / Unread / Archived / All: equal widths, so the gaps between labels match.
+    const widths = await list(page).getByRole('tab').evaluateAll((tabs) => tabs.map((t) => Math.round(t.getBoundingClientRect().width)))
+    expect(widths).toHaveLength(4)
+    expect(Math.max(...widths) - Math.min(...widths)).toBeLessThanOrEqual(1)
+
+    await page.goto('/mail?view=sent')
+    await list(page).getByRole('button', { name: new RegExp(SUBJECT) }).first().tap()
+    const art = thread(page)
+    await expect(art.getByRole('heading', { level: 1 })).toContainText(SUBJECT)
+    const bad = await art.evaluate((a) => {
+      const out: string[] = []
+      for (const li of a.querySelectorAll('ol > li')) {
+        const card = li.getBoundingClientRect()
+        const chevron = li.querySelector('button[aria-expanded]')!.getBoundingClientRect()
+        for (const el of li.querySelectorAll('span')) {
+          const r = el.getBoundingClientRect()
+          if (r.width === 0 || r.height === 0) continue
+          if (r.right > card.right + 0.5) out.push(`overflows card: ${el.textContent?.slice(0, 40)}`)
+          const hit = r.left < chevron.right && r.right > chevron.left && r.top < chevron.bottom && r.bottom > chevron.top
+          if (hit && !el.closest('button')) out.push(`under chevron: ${el.textContent?.slice(0, 40)}`)
+        }
+      }
+      return out
+    })
+    expect(bad).toEqual([])
+    expect(await noHScroll(page)).toBe(true)
+  })
+
   test('the top bar fits: search is an icon and nothing wraps', async ({ page }) => {
     await page.goto('/mail')
     const hb = await box(header(page))

@@ -29,18 +29,19 @@ function senderLine(m: MessageView): string {
 function MessageHeader({ m }: { m: MessageView }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-      <div className="flex flex-wrap items-baseline gap-x-2">
-        <AddressChip address={m.from} className="text-sm" />
-        <span className="text-xs text-faint">{stamp(m.created_at)}</span>
+      {/* A long sender wraps inside the column, so the date drops below it instead of under the chevron. */}
+      <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+        <AddressChip address={m.from} className="max-w-full min-w-0 flex-wrap text-sm break-all" />
+        <span className="shrink-0 text-xs text-faint">{stamp(m.created_at)}</span>
       </div>
-      <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
         <span>to</span>
         {(m.to ?? []).map((a) => (
-          <AddressChip key={a} address={a} />
+          <AddressChip key={a} address={a} className="max-w-full min-w-0 flex-wrap break-all" />
         ))}
         {(m.cc ?? []).length > 0 && <span>· cc</span>}
         {(m.cc ?? []).map((a) => (
-          <AddressChip key={a} address={a} />
+          <AddressChip key={a} address={a} className="max-w-full min-w-0 flex-wrap break-all" />
         ))}
       </div>
       {senderLine(m) && (
@@ -207,9 +208,9 @@ export const ThreadView = forwardRef<HTMLElement, ThreadViewProps>(function Thre
                       <MessageHeader m={m} />
                     ) : (
                       <span className="flex min-w-0 flex-1 items-baseline gap-2 pt-1">
-                        <AddressChip address={m.from} className="shrink-0" />
-                        <span className="min-w-0 flex-1 truncate text-[13px] text-faint">{m.snippet}</span>
-                        <span className="shrink-0 text-xs text-faint">{stamp(m.created_at)}</span>
+                        <AddressChip address={m.from} className="min-w-0 shrink overflow-hidden whitespace-nowrap md:shrink-0" />
+                        <span className="min-w-0 flex-1 truncate text-[13px] text-faint max-md:hidden">{m.snippet}</span>
+                        <span className="shrink-0 text-xs text-faint max-md:ml-auto">{stamp(m.created_at)}</span>
                       </span>
                     )}
                     <button
@@ -217,7 +218,7 @@ export const ThreadView = forwardRef<HTMLElement, ThreadViewProps>(function Thre
                       aria-expanded={open}
                       aria-label={`${open ? 'Collapse' : 'Expand'} message from ${m.from}`}
                       onClick={() => setToggled((t) => ({ ...t, [m.id]: !open }))}
-                      className="rounded p-1 text-faint hover:bg-hover"
+                      className="flex shrink-0 items-center justify-center rounded p-1 text-faint hover:bg-hover"
                     >
                       {open ? <ChevronDown aria-hidden="true" className="size-4" /> : <ChevronRight aria-hidden="true" className="size-4" />}
                     </button>
