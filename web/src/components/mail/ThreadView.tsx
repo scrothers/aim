@@ -59,7 +59,7 @@ export interface ThreadViewProps {
   onReplying: (v: boolean) => void
   /** Called after the thread's operator deliveries were archived. */
   onArchived: () => void
-  /** Phone layout: shows a back button that returns to the list. */
+  /** Single-pane layout (phones, narrow windows): shows a back button that returns to the list. */
   onBack?: () => void
 }
 
@@ -99,14 +99,14 @@ export const ThreadView = forwardRef<HTMLElement, ThreadViewProps>(function Thre
 
   if (!threadId) {
     return (
-      <article ref={ref} tabIndex={-1} aria-label="Thread" className="box-border flex min-w-0 flex-[999_1_420px] flex-col bg-bg p-5 text-[13px] text-faint">
+      <article ref={ref} tabIndex={-1} aria-label="Thread" className="box-border flex min-h-0 min-w-0 flex-1 flex-col bg-bg p-5 text-[13px] text-faint">
         Select a message to read it.
       </article>
     )
   }
 
   return (
-    <article ref={ref} tabIndex={-1} aria-label="Thread" className="box-border flex min-w-0 flex-[999_1_420px] flex-col gap-4 overflow-y-auto bg-bg p-5 outline-none max-md:p-3">
+    <article ref={ref} tabIndex={-1} aria-label="Thread" className="box-border flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto bg-bg p-5 outline-none max-md:p-3">
       {onBack && (
         <Button variant="ghost" size="sm" className="-ml-1 self-start" onClick={onBack}>
           <ArrowLeft aria-hidden="true" />

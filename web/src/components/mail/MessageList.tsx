@@ -40,6 +40,8 @@ export interface MessageListProps {
   onSelect: (h: Header) => void
   onState: (s: MailState) => void
   onLoadMore: () => void
+  /** Side-by-side layout: the list's fixed width in px. Unset, it fills the pane. */
+  width?: number
 }
 
 export function MessageList(p: MessageListProps) {
@@ -51,7 +53,8 @@ export function MessageList(p: MessageListProps) {
   return (
     <section
       aria-label="Message list"
-      className="box-border flex min-w-0 flex-[1_1_340px] flex-col border-r bg-panel text-[13px]"
+      style={p.width ? { width: p.width } : undefined}
+      className={cn('box-border flex min-h-0 min-w-0 flex-col bg-panel text-[13px]', p.width ? 'shrink-0 border-r' : 'flex-1')}
     >
       <header className="flex flex-col gap-2 border-b px-4 pt-3 pb-2">
         <div className="flex flex-wrap items-center gap-2">

@@ -15,11 +15,12 @@ import {
   type MailState,
   type MarkState,
 } from '@/api/mail'
-import { useIsMobile } from '@/lib/viewport'
+import { useMediaQuery } from '@/lib/viewport'
 import { Button } from '@/components/ui/button'
 import { SaveFilterButton } from './SaveFilter'
 import { composeStore } from '@/lib/compose'
 import { helpFlag, isTyping, paletteFlag } from '@/lib/flag'
+import { LIST_DEFAULT, LIST_MIN, NARROW_QUERY, clampListWidth, mailLayout, useElementWidth, useListWidth } from './mailLayout'
 import { MessageList } from './MessageList'
 import { ThreadView } from './ThreadView'
 
@@ -29,6 +30,41 @@ const VIEW_TITLES: Record<NonNullable<MailSearch['view']>, string> = {
   today: 'Today',
   sent: 'Sent',
   archived: 'Archived',
+}
+
+/** Drag (or arrow keys) to resize the list; double-click restores the default. */
+function ListResizer({ width, paneWidth, onChange }: { width: number; paneWidth: number; onChange: (w: number) => void }) {
+  const drag = useRef<{ x: number; w: number } | null>(null)
+  const set = (w: number) => onChange(clampListWidth(w, paneWidth))
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize message list"
+      aria-valuenow={width}
+      aria-valuemin={LIST_MIN}
+      aria-valuemax={clampListWidth(Infinity, paneWidth)}
+      tabIndex={0}
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture?.(e.pointerId)
+        drag.current = { x: e.clientX, w: width }
+      }}
+      onPointerMove={(e) => {
+        if (drag.current) set(drag.current.w + e.clientX - drag.current.x)
+      }}
+      onPointerUp={() => {
+        drag.current = null
+      }}
+      onDoubleClick={() => set(LIST_DEFAULT)}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowLeft') set(width - 16)
+        else if (e.key === 'ArrowRight') set(width + 16)
+        else return
+        e.preventDefault()
+      }}
+      className="relative z-10 -mx-1 w-2 shrink-0 cursor-col-resize touch-none outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-0.5 after:-translate-x-1/2 hover:after:bg-brand focus-visible:after:bg-brand"
+    />
+  )
 }
 
 const day = (iso?: string) => (iso ? new Date(iso).toLocaleDateString([], { dateStyle: 'medium' }) : '')
@@ -42,7 +78,11 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
   )
   const q = useInfiniteQuery(messagesQuery(params))
   const items = useMemo(() => q.data?.pages.flatMap((p) => p.items ?? []) ?? [], [q.data])
-  const mobile = useIsMobile()
+  const narrow = useMediaQuery(NARROW_QUERY)
+  const paneRef = useRef<HTMLDivElement>(null)
+  const paneWidth = useElementWidth(paneRef)
+  const layout = mailLayout(paneWidth, narrow)
+  const [listWidth, setListWidth] = useListWidth()
   const mark = useMark()
   const mute = useMute()
   const [cursor, setCursor] = useState<string | undefined>()
@@ -205,10 +245,12 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
       ? `Last ${ARCHIVE_DAYS} days · ${day(params.since)} – ${day(params.until)}`
       : undefined
 
+  const single = layout === 'single'
   return (
-    <div className="flex min-h-0 min-w-0 flex-1">
-      {!(mobile && search.thread) && (
+    <div ref={paneRef} data-testid="mail-pane" data-layout={layout} className="flex min-h-0 min-w-0 flex-1">
+      {!(single && search.thread) && (
       <MessageList
+        width={single ? undefined : clampListWidth(listWidth, paneWidth)}
         title={VIEW_TITLES[view ?? 'operator']}
         titleAddress={search.mailbox}
         showMailbox={view !== 'operator' && view !== 'archived'}
@@ -234,10 +276,11 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
         onLoadMore={() => void q.fetchNextPage()}
       />
       )}
-      {(!mobile || search.thread) && (
+      {!single && <ListResizer width={clampListWidth(listWidth, paneWidth)} paneWidth={paneWidth} onChange={setListWidth} />}
+      {(!single || search.thread) && (
       <ThreadView
         ref={threadRef}
-        onBack={mobile ? () => onSearch({ thread: undefined }) : undefined}
+        onBack={single ? () => onSearch({ thread: undefined }) : undefined}
         threadId={search.thread}
         archived={state === 'archived'}
         replying={replying}
