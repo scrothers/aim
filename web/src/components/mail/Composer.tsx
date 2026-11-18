@@ -4,6 +4,7 @@ import { Send } from 'lucide-react'
 import { ApiError } from '@/api/client'
 import { rosterQuery, useSend, type MessageView } from '@/api/mail'
 import { isValidAddress, OPERATOR } from '@/lib/address'
+import { cn } from 'cn'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,7 +29,18 @@ export function replyDefaults(m: MessageView, retired: ReadonlySet<string> = new
   return { to, cc, subject }
 }
 
-export function Composer({ mode, onClose, onSent }: { mode: ComposerMode; onClose: () => void; onSent?: () => void }) {
+export function Composer({
+  mode,
+  onClose,
+  onSent,
+  fill,
+}: {
+  mode: ComposerMode
+  onClose: () => void
+  onSent?: () => void
+  /** Fill the parent's height (compose sheet); the editor takes the leftover space. */
+  fill?: boolean
+}) {
   const reply = mode.kind === 'reply' ? mode.original : undefined
   const defaults = reply ? replyDefaults(reply) : { to: [], cc: [], subject: '' }
   const [toRaw, setTo] = useState<string[]>(defaults.to)
@@ -128,7 +140,7 @@ export function Composer({ mode, onClose, onSent }: { mode: ComposerMode; onClos
         e.preventDefault()
         submit()
       }}
-      className="flex flex-col gap-2.5 rounded-xl border bg-panel p-3"
+      className={cn('flex flex-col gap-2.5 rounded-xl border bg-panel p-3', fill && 'min-h-0 flex-1')}
     >
       <RecipientInput label="To" value={to} onChange={setTo} pendingRef={toPending} />
       {showCc ? (
@@ -147,9 +159,17 @@ export function Composer({ mode, onClose, onSent }: { mode: ComposerMode; onClos
         </div>
       )}
       <Suspense
-        fallback={<Textarea aria-label="Message body" disabled rows={8} placeholder="Loading editor…" className="min-h-32 font-mono text-[13px]" />}
+        fallback={
+          <Textarea
+            aria-label="Message body"
+            disabled
+            rows={8}
+            placeholder="Loading editor…"
+            className={cn('min-h-60 font-mono text-[13px]', fill && 'min-h-112 flex-1')}
+          />
+        }
       >
-        <MarkdownEditor value={body} onChange={setBody} placeholder="Write a message…" autoFocus={!!reply} />
+        <MarkdownEditor value={body} onChange={setBody} placeholder="Write a message…" autoFocus={!!reply} fill={fill} />
       </Suspense>
       {error && (
         <div role="alert" className="text-[13px] text-destructive">

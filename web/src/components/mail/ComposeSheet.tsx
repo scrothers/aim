@@ -12,8 +12,8 @@ export function ComposeSheet() {
           <SheetTitle>New message</SheetTitle>
           <SheetDescription>Send Markdown mail as the operator.</SheetDescription>
         </SheetHeader>
-        <div className="px-4 pb-4">
-          <Composer mode={{ kind: 'new' }} onClose={composeStore.close} />
+        <div className="flex min-h-0 flex-1 flex-col px-4 pb-4">
+          <Composer mode={{ kind: 'new' }} onClose={composeStore.close} fill />
         </div>
       </SheetContent>
     </Sheet>
