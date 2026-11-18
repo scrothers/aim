@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Archive, CalendarDays, Circle, Inbox, Network, PenLine, Send, Settings, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
+import { Archive, CalendarDays, Circle, Inbox, ListChecks, Network, PenLine, Send, Settings, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
 import { useApprovals } from '@/api/approvals'
 import { usePresence, useTree, useViews } from '@/api/queries'
+import { useOpenTaskCount } from '@/api/tasks'
 import { composeStore } from '@/lib/compose'
 import { cn } from '@/lib/utils'
 import { DaemonFooter } from './DaemonFooter'
@@ -48,6 +49,7 @@ export function LeftNav({ drawer = false, onNavigate }: { drawer?: boolean; onNa
   const tree = useTree()
   const presence = usePresence().data
   const pending = useApprovals().data?.items?.length ?? 0
+  const openTasks = useOpenTaskCount()
   const idle = useMemo(
     () =>
       new Set(
@@ -86,6 +88,15 @@ export function LeftNav({ drawer = false, onNavigate }: { drawer?: boolean; onNa
       )}
       <div className="flex flex-col gap-0.5">
         <h3 className="m-0 px-2.5 pb-1.5 text-xs font-semibold tracking-[0.06em] text-faint uppercase">Manage</h3>
+        <Link to="/tasks" className={cn(rowCls, 'h-[34px]')}>
+          <ListChecks aria-hidden="true" className="size-4" />
+          <span className="flex-1">Tasks</span>
+          {openTasks > 0 && (
+            <span aria-label={`${openTasks} open`} className="h-[18px] min-w-5 rounded-[9px] bg-code px-1 text-center text-xs leading-[18px] text-muted-foreground">
+              {openTasks}
+            </span>
+          )}
+        </Link>
         <Link to="/approvals" className={cn(rowCls, 'h-[34px]')}>
           <ShieldCheck aria-hidden="true" className="size-4" />
           <span className="flex-1">Approvals</span>

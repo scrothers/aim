@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import { composeStore } from '@/lib/compose'
 import { helpFlag, isTyping, paletteFlag } from '@/lib/flag'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -7,6 +8,8 @@ const SHORTCUTS: Array<[string, string]> = [
   ['⌘K / Ctrl+K', 'Open the command palette'],
   ['?', 'Show this help'],
   ['c', 'Compose a new message'],
+  ['t', 'Open the task board'],
+  ['n', 'New task (on the task board)'],
   ['j / k', 'Next / previous message'],
   ['Enter', 'Open the selected thread'],
   ['x', 'Select / deselect the message for bulk actions'],
@@ -18,6 +21,7 @@ const SHORTCUTS: Array<[string, string]> = [
 
 /** Global keys: the palette toggles anywhere, `?` only when not typing. */
 export function useGlobalShortcuts() {
+  const navigate = useNavigate()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -29,11 +33,17 @@ export function useGlobalShortcuts() {
       if (e.key === '?' && !composeStore.isOpen() && !paletteFlag.get()) {
         e.preventDefault()
         helpFlag.toggle()
+        return
+      }
+      // Dialogs and sheets own the keyboard while open.
+      if (e.key === 't' && !composeStore.isOpen() && !paletteFlag.get() && !helpFlag.get() && !document.querySelector('[role="dialog"]')) {
+        e.preventDefault()
+        void navigate({ to: '/tasks' })
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [navigate])
 }
 
 export function ShortcutsDialog() {

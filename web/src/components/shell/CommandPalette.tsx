@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Archive, CalendarDays, Circle, FolderTree, Inbox, Keyboard, Mail, Moon, PenLine, Search, Send, ShieldCheck } from 'lucide-react'
+import { Archive, CalendarDays, Circle, FolderTree, Inbox, Keyboard, ListChecks, ListPlus, Mail, Moon, PenLine, Search, Send, ShieldCheck } from 'lucide-react'
 import { rosterQuery, searchQuery } from '@/api/mail'
 import { useTree } from '@/api/queries'
 import { composeStore } from '@/lib/compose'
 import { helpFlag, paletteFlag } from '@/lib/flag'
+import { taskStore } from '@/lib/tasks'
 import { useTheme } from '@/lib/theme'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
@@ -125,6 +126,14 @@ export function CommandPalette() {
           <CommandItem value="action compose new message" onSelect={go(composeStore.open)}>
             <PenLine aria-hidden="true" />
             Compose
+          </CommandItem>
+          <CommandItem value="action tasks board work items" onSelect={go(() => void navigate({ to: '/tasks' }))}>
+            <ListChecks aria-hidden="true" />
+            Tasks
+          </CommandItem>
+          <CommandItem value="action new task create" onSelect={go(() => taskStore.openCreate())}>
+            <ListPlus aria-hidden="true" />
+            New task
           </CommandItem>
           <CommandItem value="action approvals remote permission prompts" onSelect={go(() => void navigate({ to: '/approvals' }))}>
             <ShieldCheck aria-hidden="true" />
