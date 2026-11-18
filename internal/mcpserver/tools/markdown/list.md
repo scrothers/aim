@@ -42,6 +42,7 @@ returns your unread mail. Open the newest with `read`, answer with `send` and `i
 **Notes and errors**
 
 - Only identity and subagent copies have read state. Mail delivered to an org or repo mailbox stays unread for everyone.
+- Listing `operator` omits threads the operator muted; to check an escalation's status, use `thread` on it.
 - A misspelled address, or a `from` that never sent mail, returns no items rather than an error; confirm addresses with `roster` or `whoami`.
 - "state=archived requires both since and until": add a time window.
 - "until must not be before since", a malformed timestamp, or an invalid `cursor`: fix the argument and retry.
