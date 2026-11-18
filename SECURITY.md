@@ -18,8 +18,8 @@ Only the latest `main` and the latest release receive security fixes.
 
 The web console and HTTP API have no authentication. While remote approvals are on, anyone who can reach the console's
 port can approve agent tool calls, including shell commands. AIM is meant for trusted networks; bind `AIM_HTTP` to
-`127.0.0.1` or leave remote approvals off otherwise. See the security note under "Remote approvals" in the
-[README](README.md#remote-approvals).
+`127.0.0.1` or leave remote approvals off otherwise. See the security note under "Remote approvals" in
+[Hooks and approvals](docs/hooks.md#remote-approvals).
 
 Reports that depend on an attacker already having network access to an exposed console are known limitations,
 not vulnerabilities, though suggestions to harden the defaults are welcome as ordinary issues.
