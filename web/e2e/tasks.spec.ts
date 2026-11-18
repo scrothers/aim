@@ -1,4 +1,5 @@
-import { mkdirSync, mkdtempSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Agent } from './agent'
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test'
@@ -12,13 +13,7 @@ test.use({ baseURL: process.env.AIM_E2E_BASE_URL, viewport: { width: 1440, heigh
 test.setTimeout(60_000)
 
 // Set AIM_E2E_SHOTS to a directory to keep screenshots; otherwise they go to a temp dir.
-const SHOTS =
-  process.env.AIM_E2E_SHOTS ??
-  (() => {
-    const base = '/tmp'
-    mkdirSync(base, { recursive: true })
-    return mkdtempSync(join(base, 'aim-tasks-'))
-  })()
+const SHOTS = process.env.AIM_E2E_SHOTS ?? mkdtempSync(join(tmpdir(), 'aim-tasks-'))
 
 let dev: Agent
 
