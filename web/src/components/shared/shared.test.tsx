@@ -72,6 +72,8 @@ describe('operator console identity', () => {
     expect(document.querySelector('svg')).toBeNull()
     const mark = screen.getByTestId('console-mark')
     expect(mark).toHaveTextContent('>_')
+    // Drawn like the logo: sunflower fill, near-black prompt and outline.
+    expect(mark).toHaveClass('bg-[#f5c518]', 'text-[#18181b]', 'border-[#18181b]')
     expect(mark).not.toHaveTextContent('aim-web')
     expect(screen.queryByTitle('Web console')).toBeNull()
   })

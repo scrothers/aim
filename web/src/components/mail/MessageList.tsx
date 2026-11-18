@@ -8,6 +8,7 @@ import { AddressChip } from '@/components/shared/AddressChip'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
+import { Logo } from '@/components/shell/Logo'
 import { Badge, CountBadge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -39,6 +40,8 @@ export interface MessageListProps {
   bulkActions?: ReactNode
   /** Extra header controls, e.g. "Save view". */
   headerActions?: ReactNode
+  /** Operator inbox: an empty list is inbox zero and gets the logo empty state. */
+  caughtUp?: boolean
   /** "Show muted" toggle (operator inbox only). */
   mutedToggle?: { checked: boolean; onChange: (v: boolean) => void }
   onSelect: (h: Header) => void
@@ -115,7 +118,20 @@ export function MessageList(p: MessageListProps) {
       ) : p.loading ? (
         <p className="m-0 p-4 text-faint">Loading…</p>
       ) : p.items.length === 0 ? (
-        <EmptyState icon={Inbox}>No messages.</EmptyState>
+        p.caughtUp ? (
+          <EmptyState
+            art={
+              <span aria-hidden="true" className="flex size-20 items-center justify-center rounded-full bg-accent-soft">
+                <Logo size={44} />
+              </span>
+            }
+          >
+            <span className="block text-[15px] font-semibold text-text">All caught up</span>
+            Nothing needs you right now.
+          </EmptyState>
+        ) : (
+          <EmptyState icon={Inbox}>No messages.</EmptyState>
+        )
       ) : (
         <ul className="m-0 min-h-0 flex-1 list-none overflow-y-auto p-0 max-md:pb-24">
           {p.items.map((h) => {

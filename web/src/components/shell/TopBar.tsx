@@ -19,6 +19,7 @@ import {
 import { useTheme } from '@/lib/theme'
 import { ApprovalsMenuItem, ApprovalsSwitch, useRemoteApprovals } from './ApprovalsSwitch'
 import { useBuddyRail } from './BuddyRail'
+import { ConsoleMark } from '@/components/shared/RobotAvatar'
 import { Logo } from './Logo'
 
 /** Latest dataUpdatedAt across all cached queries (ms), or 0. */
@@ -50,9 +51,7 @@ export function UpdatedAgo({ className }: { className?: string }) {
 function OperatorChip() {
   return (
     <span className="flex shrink-0 items-center gap-2 rounded-full border py-1 pr-2.5 pl-1">
-      <span aria-hidden="true" className="flex size-6 items-center justify-center rounded-full bg-text text-[11px] font-bold text-panel">
-        OP
-      </span>
+      <ConsoleMark size={24} className="rounded-full" />
       <span className="font-mono text-[13px]">operator</span>
     </span>
   )
@@ -93,9 +92,7 @@ function MoreMenu({ compact }: { compact: boolean }) {
           <>
             <DropdownMenuLabel className="flex flex-col gap-1.5 font-normal">
               <span className="flex items-center gap-2">
-                <span aria-hidden="true" className="flex size-6 items-center justify-center rounded-full bg-text text-[11px] font-bold text-panel">
-                  OP
-                </span>
+                <ConsoleMark size={24} className="rounded-full" />
                 <span className="font-mono text-[13px]">operator</span>
               </span>
               <UpdatedAgo />

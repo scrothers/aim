@@ -7,14 +7,22 @@ import { RuntimeBadge } from './RuntimeBadge'
 /** At or below this size the simplified head-crop variant renders. */
 export const COMPACT_MAX_SIZE = 24
 
-/** The operator's mark: a dark rounded square with a terminal prompt. */
-function ConsoleMark({ size }: { size: number }) {
+/**
+ * The operator's mark, drawn like the AIM logo: a sunflower rounded square
+ * with a thin near-black outline and a near-black terminal prompt. Fixed
+ * colours, so it looks the same in both themes.
+ */
+export function ConsoleMark({ size, className }: { size: number; className?: string }) {
   return (
     <span
       aria-hidden="true"
       data-testid="console-mark"
-      className="flex shrink-0 items-center justify-center rounded-[22%] border border-white/15 bg-[#18181b] font-mono font-bold text-white"
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.4) }}
+      className={cn(
+        'flex shrink-0 items-center justify-center rounded-[22%] border-[#18181b] bg-[#f5c518] font-mono font-bold tracking-tighter text-[#18181b]',
+        size >= 28 ? 'border-[1.5px]' : 'border',
+        className,
+      )}
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.42) }}
     >
       {'>_'}
     </span>

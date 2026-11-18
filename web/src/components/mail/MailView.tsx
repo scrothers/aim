@@ -258,6 +258,7 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
         state={state as MailState}
         lockedState={view === 'unread' || view === 'archived'}
         showUnread={view !== 'sent'}
+        caughtUp={view === 'operator' && (state === 'inbox' || state === 'unread')}
         selectedThread={search.thread}
         cursorId={cursorId}
         rangeNote={rangeNote}

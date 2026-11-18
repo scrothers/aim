@@ -129,8 +129,10 @@ export function OrgChart() {
                     key={p.id}
                     data-node={p.id}
                     style={style}
-                    className="absolute box-border flex items-center justify-center rounded-xl bg-text p-2 font-mono font-medium text-panel"
+                    className="absolute box-border flex items-center justify-center gap-2 rounded-xl border-[1.5px] border-[#18181b] bg-[#f5c518] p-2 font-mono font-semibold text-[#18181b]"
                   >
+                    {/* The operator's identity colours: the logo's yellow and near-black, in both themes. */}
+                    <span aria-hidden="true">{'>_'}</span>
                     operator
                   </div>
                 )

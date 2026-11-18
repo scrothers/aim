@@ -8,12 +8,15 @@ import { cn } from '@/lib/utils'
  */
 export function EmptyState({
   icon: Icon,
+  art,
   children,
   action,
   compact = false,
   className,
 }: {
-  icon: LucideIcon
+  icon?: LucideIcon
+  /** Replaces the icon bubble; reserved for the few celebratory states (inbox zero). */
+  art?: ReactNode
   /** One line saying what is empty, or what to do. */
   children: ReactNode
   action?: ReactNode
@@ -29,12 +32,15 @@ export function EmptyState({
         className,
       )}
     >
-      <span
-        aria-hidden="true"
-        className={cn('flex items-center justify-center rounded-full bg-code text-faint', compact ? 'size-7' : 'size-10')}
-      >
-        <Icon className={compact ? 'size-3.5' : 'size-5'} />
-      </span>
+      {art ??
+        (Icon && (
+          <span
+            aria-hidden="true"
+            className={cn('flex items-center justify-center rounded-full bg-code text-faint', compact ? 'size-7' : 'size-10')}
+          >
+            <Icon className={compact ? 'size-3.5' : 'size-5'} />
+          </span>
+        ))}
       <p className={cn('m-0 text-muted-foreground', compact ? 'text-xs' : 'text-[13px]')}>{children}</p>
       {action}
     </div>

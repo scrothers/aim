@@ -161,6 +161,15 @@ describe('MessageList', () => {
     expect(head.closest('[data-slot="page-header"]')).toHaveAttribute('data-size', 'column')
   })
 
+  it('shows inbox zero with the logo when the operator inbox is empty', async () => {
+    routes({ list: () => ({ items: [] }) })
+    wrap(<Harness />)
+    const zero = (await screen.findByText('All caught up')).closest('[data-slot="empty-state"]')
+    expect(zero).not.toBeNull()
+    expect(zero!.querySelector('svg')).not.toBeNull()
+    expect(screen.queryByText('No messages.')).toBeNull()
+  })
+
   it('loads more pages with the cursor', async () => {
     const user = userEvent.setup()
     routes({ list: (q) => (q.cursor ? { items: [hdr('2')] } : { items: [hdr('1')], next_cursor: 'c1' }) })
