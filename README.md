@@ -85,7 +85,7 @@ On, each prompt appears under **Approvals** with the agent, machine, tool and it
 
 Supported runtimes are those whose hooks can return a decision:
 
-- **Claude Code**: a `PermissionRequest` hook answers the permission dialog before it shows. `AskUserQuestion` and `ExitPlanMode` always stay in the terminal (allowing them needs the user's answers).
+- **Claude Code**: a `PermissionRequest` hook answers the permission dialog before it shows. `AskUserQuestion` and `ExitPlanMode` always stay in the terminal (allowing them needs the user's answers). A console allow never overrides a matching deny or ask rule in your Claude Code permission settings; those still apply.
 - **Codex**: a `PermissionRequest` hook answers the approval request. Codex asks you to trust the new hook (`/hooks`).
 - **OpenCode 2.x**: the plugin's permission `evaluate` hook answers before the prompt is published; a denial reason reaches the agent.
 - **OpenCode 1.x**: the terminal prompt shows at the same time; whichever of the terminal or the console answers first wins. A denial reason is not passed on.
