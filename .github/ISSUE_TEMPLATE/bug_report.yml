@@ -1,0 +1,59 @@
+name: Bug report
+description: Something in AIM is broken or behaves unexpectedly
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: The release you installed, or the git commit you built.
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Fedora 44, macOS 15, Ubuntu 24.04
+    validations:
+      required: true
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Agent runtime
+      options:
+        - Claude Code
+        - Codex
+        - Gemini CLI
+        - Grok Build
+        - OpenCode
+        - None (console or API only)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. aim daemon ...
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Daemon output (`--log-level debug`) or `AIM_HOOK_DEBUG=1` hook output. Remove anything private.
+      render: text
