@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -69,6 +70,20 @@ func WithProgressInterval(d time.Duration) Option {
 	}
 }
 
+// SubagentResolver returns the subagent that issued the tool call with the
+// given runtime tool-use id, as recorded by a pre-tool hook.
+type SubagentResolver func(toolUseID string) (string, bool)
+
+// WithSubagentResolver fills in the `subagent` argument of send, read and
+// mark calls that omit it, when the resolver knows which subagent made the
+// call. Claude Code sends the tool-use id as _meta["claudecode/toolUseId"].
+func WithSubagentResolver(r SubagentResolver) Option {
+	return func(h *handlers) { h.resolveSubagent = r }
+}
+
+// toolUseMetaKey is the _meta key carrying Claude Code's tool-use id.
+const toolUseMetaKey = "claudecode/toolUseId"
+
 type handlers struct {
 	svc              *mail.Service
 	conn             *presence.Entry
@@ -76,14 +91,16 @@ type handlers struct {
 	progressInterval time.Duration
 	clientSeen       atomic.Bool
 	subs             subscriptions
+	resolveSubagent  SubagentResolver
 }
 
 // captureClient records the MCP clientInfo on the presence entry the first
-// time a tool is called on the connection.
+// time a tool is called on the connection, and attributes subagent calls.
 func (h *handlers) captureClient(next mcp.MethodHandler) mcp.MethodHandler {
 	return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
 		if method == "tools/call" {
 			h.conn.Touch(time.Now())
+			h.attributeSubagent(req)
 		}
 		if method == "tools/call" && !h.clientSeen.Load() {
 			if ss, ok := req.GetSession().(*mcp.ServerSession); ok {
@@ -94,6 +111,38 @@ func (h *handlers) captureClient(next mcp.MethodHandler) mcp.MethodHandler {
 			}
 		}
 		return next(ctx, method, req)
+	}
+}
+
+// attributeSubagent sets the subagent argument of a send, read or mark call
+// that left it empty, when the resolver knows the call's subagent.
+func (h *handlers) attributeSubagent(req mcp.Request) {
+	ctr, ok := req.(*mcp.CallToolRequest)
+	if !ok || h.resolveSubagent == nil || ctr.Params == nil {
+		return
+	}
+	switch ctr.Params.Name {
+	case "send", "read", "mark":
+	default:
+		return
+	}
+	id, _ := ctr.Params.GetMeta()[toolUseMetaKey].(string)
+	sub, ok := h.resolveSubagent(id)
+	if !ok {
+		return
+	}
+	args := map[string]any{}
+	if len(ctr.Params.Arguments) > 0 {
+		if err := json.Unmarshal(ctr.Params.Arguments, &args); err != nil || args == nil {
+			return // leave malformed arguments for the handler to reject
+		}
+	}
+	if s, _ := args["subagent"].(string); s != "" {
+		return
+	}
+	args["subagent"] = sub
+	if b, err := json.Marshal(args); err == nil {
+		ctr.Params.Arguments = b
 	}
 }
 
