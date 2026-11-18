@@ -63,6 +63,23 @@ const (
 	HookPreTool       = "pre-tool"
 	HookPostTool      = "post-tool"
 	HookSessionEnd    = "session-end"
+	// HookStatus reports that the agent needs attention (HookRequest.Attention)
+	// or, with an empty Attention, that it no longer does.
+	HookStatus = "status"
+)
+
+// Attention states a status event reports. Activity (a prompt, a tool call)
+// clears them.
+const (
+	// AttentionBlocked means the agent waits on the operator: a permission
+	// prompt or a question.
+	AttentionBlocked = "blocked"
+	// AttentionWaiting means the agent finished its turn and waits for input.
+	AttentionWaiting = "waiting"
+	// AttentionFailed means the turn ended on an error, such as an API failure.
+	AttentionFailed = "failed"
+	// AttentionInterrupted means the user interrupted the turn.
+	AttentionInterrupted = "interrupted"
 )
 
 // HookRequest is the single request line a hook connection sends after its
@@ -82,6 +99,11 @@ type HookRequest struct {
 	// precedes (Claude Code sends the same id as MCP _meta).
 	ToolUseID string `json:"tool_use_id,omitempty"`
 	ToolName  string `json:"tool_name,omitempty"`
+	// Attention is a status event's state (an Attention* constant, or empty
+	// to clear); Detail is the runtime's message, such as which permission
+	// it asks for.
+	Attention string `json:"attention,omitempty"`
+	Detail    string `json:"detail,omitempty"`
 }
 
 // HookReply is the daemon's single reply line to a HookRequest.
