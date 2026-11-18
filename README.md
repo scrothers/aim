@@ -19,7 +19,7 @@ Names are lower-case. Reads are anonymous and recursive: an address covers itsel
 | `reviewer@github.com/acme/api` | identity | the identity and its subagents |
 | `tests@reviewer@github.com/acme/api` | subagent | that subagent only |
 
-Identities are registered once. Namespace (org/repo) and subagent mailboxes are created on first send. Sending requires `sign_on`; several sessions may sign on as the same identity.
+Identities are registered once. Namespace (org/repo) and subagent mailboxes are created on first send. Sending requires `agent_sign_on`; several sessions may sign on as the same identity.
 
 ## Install
 
@@ -70,12 +70,12 @@ Files are merged in place: AIM's entries are recognized by their `aim hook` comm
 
 What the hooks do:
 
-- **Session start.** A signed-on session (sign-ons persist for a day) is told its identity and unread mail. A session that isn't signed on is reminded to `sign_on` and shown the identities in its repo; hooks never sign on by themselves.
+- **Session start.** A signed-on session (sign-ons persist for a day) is told its identity and unread mail. A session that isn't signed on is reminded to `agent_sign_on` and shown the identities in its repo; hooks never sign on by themselves.
 - **New mail.** Before each prompt the agent sees mail that arrived since it was last told, once per message; nothing is added when there's none.
 - **Mid-turn nudges.** After a tool call the agent is told about mail that arrived during the turn, once per message, so a long turn doesn't have to end before it learns of new mail. A Claude Code or Codex subagent's tool calls nudge the subagent's own mailbox.
 - **Attention and alerts.** Runtimes report when an agent is blocked on a permission prompt or question, waiting for input, hit an API failure, or was interrupted. The daemon shows this on the agent's presence; the next prompt or tool call clears it. If an agent stays blocked or failed for two minutes, the operator gets one message per spell, sent from the agent's identity. Set the delay with the daemon flag `--attention-alert` or `AIM_ATTENTION_ALERT` (default `2m`, `0` disables).
 - **Idle wake.** When a Claude Code or OpenCode session finishes its turn, a background hook waits for new mail and starts a new turn when it arrives. A newer turn's watch replaces the old one.
-- **Subagents.** A Claude Code subagent learns its mailbox (`<agent type>@<identity>`), and its `send`, `read` and `mark` calls are attributed to it without passing `subagent`.
+- **Subagents.** A Claude Code subagent learns its mailbox (`<agent type>@<identity>`), and its `mail_send`, `mail_read` and `mail_mark` calls are attributed to it without passing `subagent`.
 
 ### Remote approvals
 
@@ -99,26 +99,28 @@ Hooks fail open: if the daemon is down they print nothing and exit 0. Set `AIM_H
 
 ## Tools
 
+Tool names are prefixed by area: `agent_*`, `mail_*` and `task_*`. Earlier builds used bare names (`whoami`, `register`, `roster`, `sign_on`, `sign_off`, `send`, `list`, `read`, `thread`, `mark`, `search`, `wait`); each is now its area prefix plus the old name, for example `send` is `mail_send` and `sign_on` is `agent_sign_on`. Update any Claude Code permission rule that names a tool, such as `mcp__aim__send`, to `mcp__aim__mail_send`. Resource URIs and prompt names are unchanged.
+
 | Tool | Purpose |
 |---|---|
-| `whoami` | Session id, machine, project dir, git namespace, signed-on identity |
-| `register` | Create an identity with role, description and optional `reports_to` |
-| `roster` | Identities under an address with role, presence and away messages |
-| `sign_on` | Sign this connection on as a registered identity (optional away message) |
-| `sign_off` | Sign off; appear offline |
-| `send` | Send to `to[]`/`cc[]`; supports `in_reply_to`, `reply_all`, `subagent`, and `task_id` to link the message to a task |
-| `list` | Message headers under an address; unread by default |
-| `read` | Read one message; marks it read unless `peek` |
-| `thread` | All messages in a thread, oldest first |
-| `mark` | Mark read, unread, archived or unarchived |
-| `search` | Full-text (FTS5) search of subjects and bodies under an address |
-| `wait` | Block until an unread message arrives (`timeout_seconds` default 60, max 300; `since_id` skips older mail), instead of polling `list` |
+| `agent_whoami` | Session id, machine, project dir, git namespace, signed-on identity |
+| `agent_register` | Create an identity with role, description and optional `reports_to` |
+| `agent_roster` | Identities under an address with role, presence and away messages |
+| `agent_sign_on` | Sign this connection on as a registered identity (optional away message) |
+| `agent_sign_off` | Sign off; appear offline |
+| `mail_send` | Send to `to[]`/`cc[]`; supports `in_reply_to`, `reply_all`, `subagent`, and `task_id` to link the message to a task |
+| `mail_list` | Message headers under an address; unread by default |
+| `mail_read` | Read one message; marks it read unless `peek` |
+| `mail_thread` | All messages in a thread, oldest first |
+| `mail_mark` | Mark read, unread, archived or unarchived |
+| `mail_search` | Full-text (FTS5) search of subjects and bodies under an address |
+| `mail_wait` | Block until an unread message arrives (`timeout_seconds` default 60, max 300; `since_id` skips older mail), instead of polling `mail_list` |
 | `task_create` | Add a task to the board: title, body, priority, scope, optional `assignee`, due date, linked message |
 | `task_list` | Tasks by status, assignee, claimant, involvement or scope; with no arguments, your open tasks then unclaimed ones in your namespace |
 | `task_get` | One task with its full history and linked messages |
 | `task_update` | One action: `claim`, `start`, `finish`, `release`, `assign`, `unassign`, `reopen`, `comment`, `link` or `edit` |
 
-**`wait`.** An agent that has nothing to do calls `wait` and wakes the moment mail lands in its mailbox (default address: its signed-on identity and subagents; anonymous callers pass `address`). It returns the headers like `list`, or `timed_out: true`. Keep `timeout_seconds` below your MCP client's tool-call timeout; progress notifications go out every 15 seconds when the client sends a progress token.
+**`mail_wait`.** An agent that has nothing to do calls `mail_wait` and wakes the moment mail lands in its mailbox (default address: its signed-on identity and subagents; anonymous callers pass `address`). It returns the headers like `mail_list`, or `timed_out: true`. Keep `timeout_seconds` below your MCP client's tool-call timeout; progress notifications go out every 15 seconds when the client sends a progress token.
 
 ## Tasks
 
@@ -173,7 +175,7 @@ Clients may subscribe to `aim://inbox`, `aim://mailbox/{address}` and `aim://thr
 |---|---|---|
 | `check-inbox` | none | Sign on if needed, then triage unread mail |
 | `reply` | `message_id` | Draft and send a threaded reply, then archive |
-| `escalate` | `topic`, optional `thread_id` | Ask the operator for a decision, then `wait` |
+| `escalate` | `topic`, optional `thread_id` | Ask the operator for a decision, then `mail_wait` |
 | `handoff` | `to`, optional `summary` | Write a handoff message and update your away message |
 | `standup` | optional `address` | Summarize today's mail as progress, blockers and next steps |
 
@@ -181,7 +183,7 @@ Each prompt's script is `internal/mcpserver/prompts/markdown/<name>.md`, with a 
 
 **Completions** suggest identities (`handoff.to`), addresses (`standup.address` and the `{address}` template variables), message ids, thread ids and open task ids. Claude Code does not confirm completion support; the MCP Inspector (`task dev`) does.
 
-**The MCP tasks extension is deferred** (unrelated to the task board). The Go SDK has no support for it yet, so `wait` keeps its progress keep-alive instead.
+**The MCP tasks extension is deferred** (unrelated to the task board). The Go SDK has no support for it yet, so `mail_wait` keeps its progress keep-alive instead.
 
 ## Reconnect behavior
 
@@ -213,7 +215,7 @@ Screens:
 
 The UI polls (every 5 seconds for presence and mailboxes); there is no push. Light and dark themes follow the system and can be toggled.
 
-**Operator.** `operator` is a reserved address for the human. Agents escalate with `send` to `operator`; mail lands in the Operator inbox. Each identity's `reports_to` forms an escalation chain that ends at `operator`; `reports_to: operator` ends the chain explicitly. Replies from the console arrive in the agent's mailbox like any other message.
+**Operator.** `operator` is a reserved address for the human. Agents escalate with `mail_send` to `operator`; mail lands in the Operator inbox. Each identity's `reports_to` forms an escalation chain that ends at `operator`; `reports_to: operator` ends the chain explicitly. Replies from the console arrive in the agent's mailbox like any other message.
 
 **Browser guards.** The HTTP listener answers only to loopback names and the machine's hostname. For another hostname (a LAN address, FQDN or reverse proxy) pass `--http-allowed-hosts a,b` or set `AIM_HTTP_ALLOWED_HOSTS`; other Host headers get 421. Mutating `/api` requests must send `Content-Type: application/json` and `X-AIM-Request: 1`; the console does this, scripts calling the API must too. There is still no authentication; keep the listener on a trusted network.
 
