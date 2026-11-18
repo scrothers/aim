@@ -20,9 +20,9 @@ let coord: Agent
 
 test.beforeAll(async () => {
   coord = await Agent.start(process.env.AIM_E2E_BIN!, process.env.AIM_E2E_SOCKET!, 'pw-editor-coordinator', 'claude-code')
-  await coord.must('register', { address: COORD, role: 'lead', description: 'coordinates work', reports_to: 'operator' })
-  await coord.must('sign_on', { address: COORD, away: 'editor spec' })
-  await coord.must('send', { to: ['operator'], subject: 'Editor styling thread', body: 'Please reply with the plan.' })
+  await coord.must('agent_register', { address: COORD, role: 'lead', description: 'coordinates work', reports_to: 'operator' })
+  await coord.must('agent_sign_on', { address: COORD, away: 'editor spec' })
+  await coord.must('mail_send', { to: ['operator'], subject: 'Editor styling thread', body: 'Please reply with the plan.' })
 })
 
 test.afterAll(async () => {

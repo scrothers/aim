@@ -132,7 +132,7 @@ func TestCheckInboxPrompt(t *testing.T) {
 		t.Fatalf("embedded = %+v", emb)
 	}
 	// Prompts never mark mail read.
-	if l := ok(t, b, "list", map[string]any{"address": bob}); len(l["items"].([]any)) != 1 {
+	if l := ok(t, b, "mail_list", map[string]any{"address": bob}); len(l["items"].([]any)) != 1 {
 		t.Fatalf("prompt marked mail read: %v", l)
 	}
 }
@@ -146,7 +146,7 @@ func TestReplyPrompt(t *testing.T) {
 	if len(emb) != 1 || emb[0].Resource.URI != "aim://thread/"+thread || !strings.Contains(emb[0].Resource.Text, "zebra") {
 		t.Fatalf("embedded = %+v", emb)
 	}
-	if l := ok(t, b, "list", map[string]any{"address": bob}); len(l["items"].([]any)) != 1 {
+	if l := ok(t, b, "mail_list", map[string]any{"address": bob}); len(l["items"].([]any)) != 1 {
 		t.Fatalf("prompt marked mail read: %v", l)
 	}
 	for name, args := range map[string]map[string]string{
@@ -205,7 +205,7 @@ func TestStandupPrompt(t *testing.T) {
 	digest := res.Messages[1].Content.(*mcp.TextContent).Text
 	mustContain(t, "digest", digest, "Mail since", id, "deploy plan")
 	// Read mail still shows in the standup digest, and standup marks nothing.
-	ok(t, b, "read", map[string]any{"message_id": id})
+	ok(t, b, "mail_read", map[string]any{"message_id": id})
 	res = getPrompt(t, b, "standup", map[string]string{"address": "github.com/acme"})
 	mustContain(t, "digest", res.Messages[1].Content.(*mcp.TextContent).Text, id)
 	if _, err := b.GetPrompt(context.Background(), &mcp.GetPromptParams{Name: "standup", Arguments: map[string]string{"address": "!!bad"}}); err == nil {

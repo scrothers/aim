@@ -1,4 +1,4 @@
 # This session
 
 - session: s
-- signed on as: nobody (call `sign_on` with a registered identity; `register` one first if needed)
+- signed on as: nobody (call `agent_sign_on` with a registered identity; `agent_register` one first if needed)

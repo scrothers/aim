@@ -20,7 +20,7 @@ type RosterOutput struct {
 }
 
 func (t *toolset) roster(ctx context.Context, _ *mcp.CallToolRequest, in AddressInput) (*mcp.CallToolResult, RosterOutput, error) {
-	if err := session.RequireAddress("roster", in.Address); err != nil {
+	if err := session.RequireAddress("agent_roster", in.Address); err != nil {
 		return nil, RosterOutput{Identities: []mail.RosterEntry{}}, err
 	}
 	es, err := t.c.Svc.Roster(ctx, in.Address)

@@ -133,7 +133,7 @@ func Text(res *mcp.CallToolResult) string {
 // Register registers addr with role through the register tool.
 func Register(t *testing.T, cs *mcp.ClientSession, addr, role string) {
 	t.Helper()
-	OK(t, cs, "register", map[string]any{"address": addr, "role": role, "description": "d"})
+	OK(t, cs, "agent_register", map[string]any{"address": addr, "role": role, "description": "d"})
 }
 
 // Identities used by TwoAgents.
@@ -149,9 +149,9 @@ func (e *Env) TwoAgents(t *testing.T) (a, b *mcp.ClientSession, msgID, threadID 
 	a, b = e.Client(t, "a"), e.Client(t, "b")
 	Register(t, a, Alice, "lead")
 	Register(t, b, Bob, "dev")
-	OK(t, a, "sign_on", map[string]any{"address": Alice})
-	OK(t, b, "sign_on", map[string]any{"address": Bob})
-	sent := OK(t, a, "send", map[string]any{"to": []string{Bob}, "subject": "deploy plan", "body": "ship the zebra rollout"})
+	OK(t, a, "agent_sign_on", map[string]any{"address": Alice})
+	OK(t, b, "agent_sign_on", map[string]any{"address": Bob})
+	sent := OK(t, a, "mail_send", map[string]any{"to": []string{Bob}, "subject": "deploy plan", "body": "ship the zebra rollout"})
 	return a, b, sent["id"].(string), sent["thread_id"].(string)
 }
 

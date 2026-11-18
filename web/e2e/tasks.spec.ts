@@ -24,9 +24,9 @@ let dev: Agent
 
 test.beforeAll(async () => {
   dev = await Agent.start(process.env.AIM_E2E_BIN!, process.env.AIM_E2E_SOCKET!, 'pw-session-tasks-dev', 'claude-code')
-  await dev.must('register', { address: DEV, role: 'dev', description: 'does tasks', reports_to: 'operator' })
-  await dev.must('sign_on', { address: DEV, away: 'tasks spec' })
-  await dev.must('send', { to: ['operator'], subject: THREAD, body: 'Please plan the migration.' })
+  await dev.must('agent_register', { address: DEV, role: 'dev', description: 'does tasks', reports_to: 'operator' })
+  await dev.must('agent_sign_on', { address: DEV, away: 'tasks spec' })
+  await dev.must('mail_send', { to: ['operator'], subject: THREAD, body: 'Please plan the migration.' })
 })
 
 test.afterAll(async () => {

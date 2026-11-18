@@ -15,7 +15,7 @@ type Presence interface {
 type OnlineStatus struct {
 	SessionID  string    `json:"session_id" jsonschema:"Session id of the signed-on connection."`
 	Machine    string    `json:"machine" jsonschema:"Hostname of the machine the session runs on."`
-	Away       string    `json:"away,omitempty" jsonschema:"Status the session set with sign_on, often its current task, for example reviewing PR 212."`
+	Away       string    `json:"away,omitempty" jsonschema:"Status the session set with agent_sign_on, often its current task, for example reviewing PR 212."`
 	SignedOnAt time.Time `json:"signed_on_at" jsonschema:"When the session signed on, RFC3339."`
 	Client     string    `json:"client,omitempty" jsonschema:"MCP client of the session, for example claude-code."`
 	// State is "online" or "idle" (no tool call within the idle threshold).
@@ -33,7 +33,7 @@ type OnlineStatus struct {
 
 // Identity is a registered identity mailbox.
 type Identity struct {
-	Address     string    `json:"address" jsonschema:"Canonical lower-case identity address, for example reviewer@github.com/acme/api. Pass it to sign_on."`
+	Address     string    `json:"address" jsonschema:"Canonical lower-case identity address, for example reviewer@github.com/acme/api. Pass it to agent_sign_on."`
 	Role        string    `json:"role" jsonschema:"Short role title shown in rosters."`
 	Description string    `json:"description" jsonschema:"What the identity does and what to send it."`
 	ReportsTo   string    `json:"reports_to,omitempty" jsonschema:"Address this identity escalates to, or operator; absent when unset."`
@@ -60,13 +60,13 @@ type RegisterInput struct {
 
 // RosterEntry is one identity in a roster listing.
 type RosterEntry struct {
-	Address     string         `json:"address" jsonschema:"Identity address, for example reviewer@github.com/acme/api. Use it as a send recipient or sign_on address."`
+	Address     string         `json:"address" jsonschema:"Identity address, for example reviewer@github.com/acme/api. Use it as a mail_send recipient or agent_sign_on address."`
 	Role        string         `json:"role" jsonschema:"Short role title."`
 	Description string         `json:"description" jsonschema:"What the identity does and what to send it; match your request against it."`
 	ReportsTo   string         `json:"reports_to,omitempty" jsonschema:"Address this identity escalates to, or operator; follow it upward for unclear or cross-repo work."`
 	Online      []OnlineStatus `json:"online" jsonschema:"Sessions signed on as this identity now. Empty means nobody is online; mail still waits in its inbox."`
 	Subagents   []string       `json:"subagents" jsonschema:"Names of subagent mailboxes under this identity, for example tests for tests@reviewer@github.com/acme/api."`
-	RetiredAt   *time.Time     `json:"retired_at,omitempty" jsonschema:"When the identity was retired; absent for active identities, which are the only ones roster lists."`
+	RetiredAt   *time.Time     `json:"retired_at,omitempty" jsonschema:"When the identity was retired; absent for active identities, which are the only ones agent_roster lists."`
 }
 
 // SendInput is the argument of Service.Send.
@@ -82,8 +82,8 @@ type SendInput struct {
 
 // Message is a full message with its recipients.
 type Message struct {
-	ID        string    `json:"id" jsonschema:"Message id (msg-...). Pass it to read, to send as in_reply_to, or to wait as since_id."`
-	ThreadID  string    `json:"thread_id" jsonschema:"Conversation id, equal to the id of the thread's first message. Pass it to thread or aim://thread/{thread_id}."`
+	ID        string    `json:"id" jsonschema:"Message id (msg-...). Pass it to mail_read, to mail_send as in_reply_to, or to mail_wait as since_id."`
+	ThreadID  string    `json:"thread_id" jsonschema:"Conversation id, equal to the id of the thread's first message. Pass it to mail_thread or aim://thread/{thread_id}."`
 	InReplyTo string    `json:"in_reply_to,omitempty" jsonschema:"Id of the message this one answers; absent for the first message of a thread."`
 	From      string    `json:"from" jsonschema:"Sender address; a subagent address such as tests@reviewer@github.com/acme/api when sent as a subagent."`
 	Subject   string    `json:"subject" jsonschema:"Subject line."`
@@ -108,8 +108,8 @@ type Message struct {
 
 // Header is a message summary as delivered to one mailbox.
 type Header struct {
-	ID         string       `json:"id" jsonschema:"Message id (msg-...). Pass it to read or mark, to send as in_reply_to, or the newest one to wait as since_id."`
-	ThreadID   string       `json:"thread_id" jsonschema:"Conversation id, equal to the id of the thread's first message. Pass it to thread."`
+	ID         string       `json:"id" jsonschema:"Message id (msg-...). Pass it to mail_read or mail_mark, to mail_send as in_reply_to, or the newest one to mail_wait as since_id."`
+	ThreadID   string       `json:"thread_id" jsonschema:"Conversation id, equal to the id of the thread's first message. Pass it to mail_thread."`
 	InReplyTo  string       `json:"in_reply_to,omitempty" jsonschema:"Id of the message this one answers; absent for the first message of a thread."`
 	From       string       `json:"from" jsonschema:"Sender address."`
 	Subject    string       `json:"subject" jsonschema:"Subject line."`
@@ -127,7 +127,7 @@ type Header struct {
 	// Snippet is a plain-text preview of the body.
 	Snippet string `json:"snippet" jsonschema:"Plain-text preview of the body, up to 140 characters. Call read for the full body."`
 	// ThreadCount is the number of messages in the thread.
-	ThreadCount int `json:"thread_count" jsonschema:"Number of messages in the thread; above 1 means there is history to read with thread."`
+	ThreadCount int `json:"thread_count" jsonschema:"Number of messages in the thread; above 1 means there is history to read with mail_thread."`
 	// Muted reports whether the thread is muted; set only on operator
 	// mailbox deliveries.
 	Muted bool `json:"muted" jsonschema:"true when the human operator muted this thread; set only on operator mailbox copies."`
@@ -241,8 +241,8 @@ type SearchInput struct {
 
 // Hit is one ranked search result.
 type Hit struct {
-	MessageID string `json:"message_id" jsonschema:"Id of the matching message; pass it to read."`
-	ThreadID  string `json:"thread_id" jsonschema:"Conversation id of the matching message; pass it to thread for the full discussion."`
+	MessageID string `json:"message_id" jsonschema:"Id of the matching message; pass it to mail_read."`
+	ThreadID  string `json:"thread_id" jsonschema:"Conversation id of the matching message; pass it to mail_thread for the full discussion."`
 	Subject   string `json:"subject" jsonschema:"Subject line."`
 	// Snippet is the matching excerpt with matches wrapped in [brackets].
 	Snippet string `json:"snippet" jsonschema:"Matching passage with matched terms in [square brackets]."`

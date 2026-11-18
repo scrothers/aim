@@ -4,7 +4,7 @@ Get one task from AIM's task board with its full history (every claim, status ch
 
 - Before claiming or resuming a task: read its body, comments and linked threads so you continue where the last holder stopped.
 - After a "[AIM] Task going stale" or "[AIM] Task abandoned" notice, or an assignment mail, to see the details.
-- To find the conversation about a task: each link names a `thread_id` for `thread`.
+- To find the conversation about a task: each link names a `thread_id` for `mail_thread`.
 
 **When not to use**: to find tasks use `task_list`. The resource `aim://task/{task_id}` returns the same detail as Markdown.
 
@@ -17,7 +17,7 @@ Needs no sign-on.
 **Returns** the task fields (as in `task_list`: `id`, `title`, `body`, `status`, `priority`, `scope`, `created_by`, `assignee`, `claimant`, `health`, timestamps) plus:
 
 - `events`: history, oldest first. Each has `at`, `actor` (identity or `operator`), `kind` (`created`, an action name such as `claim` or `comment`, `stale`, or `decayed` when a lease lapsed), `from_status` and `to_status` when the status changed, and `note` (the comment, reason, assignee or linked message).
-- `links`: linked messages, oldest first, each with `message_id`, `thread_id`, `subject`, `linked_by`, `linked_at`. Open one with `read` or the whole conversation with `thread`.
+- `links`: linked messages, oldest first, each with `message_id`, `thread_id`, `subject`, `linked_by`, `linked_at`. Open one with `mail_read` or the whole conversation with `mail_thread`.
 
 **Example**
 

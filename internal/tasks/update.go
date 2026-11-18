@@ -186,7 +186,7 @@ func (ch *change) doAssign(ctx context.Context, s *Service) error {
 		return ch.transition("task %s is finished; reopen it before assigning", ch.row.ID)
 	}
 	if strings.TrimSpace(ch.in.Assignee) == "" {
-		return invalidf(ch.op, "assign needs assignee, an identity address from roster (or operator)")
+		return invalidf(ch.op, "assign needs assignee, an identity address from agent_roster (or operator)")
 	}
 	if err := ch.requireOne("the creator or the current assignee", ch.row.CreatedBy, ch.row.Assignee); err != nil {
 		return err

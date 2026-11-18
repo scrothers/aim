@@ -53,7 +53,7 @@ func TestCompleteIdentities(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	a, b, _, _ := twoAgents(t, e)
-	ok(t, a, "sign_off", map[string]any{})
+	ok(t, a, "agent_sign_off", map[string]any{})
 
 	// bob is online, alice is not: online identities rank first.
 	got := complete(t, b, promptRef("handoff"), "to", "")
@@ -144,7 +144,7 @@ func TestCompleteMessageAndThreadIDs(t *testing.T) {
 		t.Errorf("non-matching prefix = %v", got.Values)
 	}
 	// A reply in the same thread yields one thread id but two message ids.
-	ok(t, b, "send", map[string]any{"to": []string{alice}, "subject": "re", "body": "ack", "in_reply_to": id})
+	ok(t, b, "mail_send", map[string]any{"to": []string{alice}, "subject": "re", "body": "ack", "in_reply_to": id})
 	if got := complete(t, b, promptRef("escalate"), "thread_id", ""); len(got.Values) != 1 {
 		t.Errorf("thread ids not deduplicated: %v", got.Values)
 	}

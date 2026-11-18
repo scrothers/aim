@@ -38,9 +38,9 @@ func TestOptionsReachFeatures(t *testing.T) {
 	}
 	cs := e.ClientWith(t, "a", opts, copts)
 	register(t, cs, "bob@github.com/acme/api", "dev")
-	ok(t, cs, "sign_on", map[string]any{"address": "bob@github.com/acme/api"})
+	ok(t, cs, "agent_sign_on", map[string]any{"address": "bob@github.com/acme/api"})
 
-	params := &mcp.CallToolParams{Name: "wait", Arguments: map[string]any{"timeout_seconds": 1}}
+	params := &mcp.CallToolParams{Name: "mail_wait", Arguments: map[string]any{"timeout_seconds": 1}}
 	params.SetProgressToken("p1")
 	if _, err := cs.CallTool(context.Background(), params); err != nil {
 		t.Fatal(err)
@@ -81,8 +81,8 @@ func TestToolCallsTouchTasks(t *testing.T) {
 	e := newEnv(t)
 	rt := &recordToucher{}
 	cs := e.ClientWith(t, "a", []mcpserver.Option{mcpserver.WithTaskToucher(rt)}, nil)
-	ok(t, cs, "whoami", map[string]any{})
-	ok(t, cs, "roster", map[string]any{"address": "github.com/acme"})
+	ok(t, cs, "agent_whoami", map[string]any{})
+	ok(t, cs, "agent_roster", map[string]any{"address": "github.com/acme"})
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	if len(rt.sessions) != 2 || rt.sessions[0] != "sess-a" {

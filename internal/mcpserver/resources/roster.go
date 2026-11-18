@@ -14,7 +14,7 @@ const (
 	PrefixRosterOf = "aim://roster/"
 )
 
-const noNamespaceHint = "This session has no git namespace (no `origin` remote), so there is no default roster. Read `aim://roster/{address}` or call the `roster` tool with an org or repo address."
+const noNamespaceHint = "This session has no git namespace (no `origin` remote), so there is no default roster. Read `aim://roster/{address}` or call the `agent_roster` tool with an org or repo address."
 
 var (
 	namespaceRoster = resource{name: "roster", title: "Namespace roster", uri: URIRoster, render: renderNamespaceRoster}

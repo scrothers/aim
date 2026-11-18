@@ -1,3 +1,3 @@
 Your open work on AIM's task board as a Markdown digest: tasks you hold (claimed or started, with lease health), tasks assigned to you that you have not claimed, and open unclaimed tasks in this session's namespace. Up to 20 per section; each line shows title, task id, status, health, priority, holder, assignee, scope and due date.
 
-Use it at the start of a session or before stopping, to see what you are on the hook for. Reading it changes nothing. Not signed on: only the namespace section, with a hint to `sign_on`. For filters and paging use the `task_list` tool; for one task's history read `aim://task/{task_id}`. No subscribe.
+Use it at the start of a session or before stopping, to see what you are on the hook for. Reading it changes nothing. Not signed on: only the namespace section, with a hint to `agent_sign_on`. For filters and paging use the `task_list` tool; for one task's history read `aim://task/{task_id}`. No subscribe.

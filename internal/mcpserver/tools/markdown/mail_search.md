@@ -3,18 +3,18 @@ Full-text search over message subjects and bodies at or below an address, best m
 **When to use**
 
 - Before asking a question or starting work, to check whether it was already discussed or decided.
-- To locate a thread by keyword, then read it with `thread`.
+- To locate a thread by keyword, then read it with `mail_thread`.
 
 **When not to use**
 
-- For the newest mail or a time window, use `list` with `since`; `search` ranks by relevance, not time.
-- To wait for new mail, use `wait`.
+- For the newest mail or a time window, use `mail_list` with `since`; `mail_search` ranks by relevance, not time.
+- To wait for new mail, use `mail_wait`.
 
 Needs no sign-on and never marks anything read.
 
 **Parameters**
 
-- `address`: the scope. An org searches every repo, identity and subagent under it; a repo, its identities; an identity, itself and its subagents. Use your `namespace` from `whoami` for project-wide searches.
+- `address`: the scope. An org searches every repo, identity and subagent under it; a repo, its identities; an identity, itself and its subagents. Use your `namespace` from `agent_whoami` for project-wide searches.
 - `query`: SQLite FTS5 syntax:
   - Words must all match, in any order: `session token`.
   - Quotes match a phrase: `"token format"`.
@@ -25,7 +25,7 @@ Needs no sign-on and never marks anything read.
 
 **Returns** `hits` and `next_cursor` (absent on the last page). Each hit has:
 
-- `message_id` and `thread_id`: pass them to `read` or `thread`.
+- `message_id` and `thread_id`: pass them to `mail_read` or `mail_thread`.
 - `subject`, `from`, `created_at` and `mailbox` (where it was delivered in scope).
 - `snippet`: the matching passage, matched terms in [square brackets].
 - `rank`: relevance; lower is better.
@@ -43,9 +43,9 @@ A message delivered to several mailboxes in scope appears once.
 {"address": "github.com/acme", "query": "\"token format\" mobile"}
 ```
 
-The top hit is the coordinator's escalation "Approve breaking change to /v1/sessions?" with snippet "...changes the session [token] [format]... the [mobile] client pins...". Call `thread` with its `thread_id` to read the decision.
+The top hit is the coordinator's escalation "Approve breaking change to /v1/sessions?" with snippet "...changes the session [token] [format]... the [mobile] client pins...". Call `mail_thread` with its `thread_id` to read the decision.
 
 **Errors**
 
 - "invalid search query": an empty query, an unbalanced quote, a lone `OR`, or unquoted punctuation such as `.`, `-` or `:`. Use plain words or "quoted phrases" and retry.
-- A misspelled address returns no hits rather than an error; check it with `roster` or `whoami`.
+- A misspelled address returns no hits rather than an error; check it with `agent_roster` or `agent_whoami`.

@@ -17,9 +17,9 @@ let planner: Agent
 
 test.beforeAll(async () => {
   planner = await Agent.start(process.env.AIM_E2E_BIN!, process.env.AIM_E2E_SOCKET!, 'pw-session-planner', 'claude-code')
-  await planner.must('register', { address: PLANNER, role: 'planner', description: 'plans', reports_to: 'operator' })
-  await planner.must('sign_on', { address: PLANNER, away: 'planning' })
-  await planner.must('send', { to: ['operator'], subject: 'Quokka rollout plan', body: 'The quokka launch is on track.' })
+  await planner.must('agent_register', { address: PLANNER, role: 'planner', description: 'plans', reports_to: 'operator' })
+  await planner.must('agent_sign_on', { address: PLANNER, away: 'planning' })
+  await planner.must('mail_send', { to: ['operator'], subject: 'Quokka rollout plan', body: 'The quokka launch is on track.' })
 })
 
 test.afterAll(async () => {
@@ -29,7 +29,7 @@ test.afterAll(async () => {
 const list = (page: Page) => page.getByRole('region', { name: 'Message list' })
 const thread = (page: Page) => page.getByRole('article', { name: 'Thread' })
 const row = (page: Page, subject: string) => list(page).getByRole('button', { name: new RegExp(subject) })
-const send = (subject: string) => planner.must('send', { to: ['operator'], subject, body: `Body of ${subject}.` })
+const send = (subject: string) => planner.must('mail_send', { to: ['operator'], subject, body: `Body of ${subject}.` })
 
 /** Interactive elements under 44px (height; width too for buttons) on a phone. */
 async function smallTargets(page: Page): Promise<string[]> {
@@ -59,8 +59,8 @@ test('idle buddies get a hollow ring and an idle group count', async ({ page }) 
   const agent = await Agent.start(process.env.AIM_E2E_BIN!, d.socket, 'pw-idle-session', 'codex')
   try {
     const addr = `sleepy@${ORG}`
-    await agent.must('register', { address: addr, role: 'napper', description: 'naps', reports_to: 'operator' })
-    await agent.must('sign_on', { address: addr, away: 'napping' })
+    await agent.must('agent_register', { address: addr, role: 'napper', description: 'naps', reports_to: 'operator' })
+    await agent.must('agent_sign_on', { address: addr, away: 'napping' })
     await page.goto(`${d.base}/mail`)
     const buddy = page.getByTestId('buddy').filter({ hasText: 'sleepy' })
     await expect(buddy).toHaveAttribute('data-state', 'idle', { timeout: 20_000 })

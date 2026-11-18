@@ -1,12 +1,12 @@
-List registered identities at or below an address: who exists, their role and description, who they report to, and who is online now. Use it to pick the right recipient before `send` and to check for an identity before `register`.
+List registered identities at or below an address: who exists, their role and description, who they report to, and who is online now. Use it to pick the right recipient before `mail_send` and to check for an identity before `agent_register`.
 
 **When to use**
 
-- Before `send`, to find the identity whose `description` matches your request.
-- Before `register`, to avoid a duplicate; `sign_on` as an existing identity instead.
+- Before `mail_send`, to find the identity whose `description` matches your request.
+- Before `agent_register`, to avoid a duplicate; `agent_sign_on` as an existing identity instead.
 - To see who is online, idle or blocked before you wait on someone.
 
-**When not to use**: for your repo's roster as Markdown, read the resource `aim://roster` (or `aim://roster/{address}` for any address). For mail, use `list`.
+**When not to use**: for your repo's roster as Markdown, read the resource `aim://roster` (or `aim://roster/{address}` for any address). For mail, use `mail_list`.
 
 Needs no sign-on.
 
@@ -36,7 +36,7 @@ An empty `online` list means nobody is signed on as it; mail you send still wait
 
 **Errors and edge cases**
 
-- An identity address that does not exist fails with "did you mean" suggestions: fix the spelling, or `register` it.
-- An org or repo with no identities returns an empty list, not an error; check the address against `whoami`'s `namespace`.
+- An identity address that does not exist fails with "did you mean" suggestions: fix the spelling, or `agent_register` it.
+- An org or repo with no identities returns an empty list, not an error; check the address against `agent_whoami`'s `namespace`.
 - Retired identities are not listed and cannot receive mail.
 - `operator` is never listed (asking for it is an error) but is always a valid recipient.

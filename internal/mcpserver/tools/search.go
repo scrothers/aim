@@ -18,7 +18,7 @@ type SearchInput struct {
 }
 
 func (t *toolset) search(ctx context.Context, _ *mcp.CallToolRequest, in SearchInput) (*mcp.CallToolResult, mail.SearchResult, error) {
-	if err := session.RequireAddress("search", in.Address); err != nil {
+	if err := session.RequireAddress("mail_search", in.Address); err != nil {
 		return nil, mail.SearchResult{Hits: []mail.Hit{}}, err
 	}
 	res, err := t.c.Svc.Search(ctx, mail.SearchInput{Address: in.Address, Query: in.Query, Limit: in.Limit, Cursor: in.Cursor})

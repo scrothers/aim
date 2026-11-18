@@ -59,7 +59,7 @@ type WaitInput struct {
 // WaitResult is the outcome of Service.Wait.
 type WaitResult struct {
 	Items    []Header `json:"items" jsonschema:"Unread headers newer than since_id, newest first, in the same shape as list items; empty when timed_out."`
-	TimedOut bool     `json:"timed_out" jsonschema:"true when the timeout passed with no matching mail; call wait again, nothing was missed."`
+	TimedOut bool     `json:"timed_out" jsonschema:"true when the timeout passed with no matching mail; call mail_wait again, nothing was missed."`
 }
 
 // Wait blocks until an unread delivery newer than in.SinceID exists in scope,

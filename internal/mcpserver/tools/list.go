@@ -21,7 +21,7 @@ type ListInput struct {
 }
 
 func (t *toolset) list(ctx context.Context, _ *mcp.CallToolRequest, in ListInput) (*mcp.CallToolResult, mail.ListResult, error) {
-	if err := session.RequireAddress("list", in.Address); err != nil {
+	if err := session.RequireAddress("mail_list", in.Address); err != nil {
 		return nil, mail.ListResult{Items: []mail.Header{}}, err
 	}
 	since, err := session.ParseTime("since", in.Since)

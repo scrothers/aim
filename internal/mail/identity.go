@@ -105,7 +105,7 @@ func (s *Service) Register(ctx context.Context, _ Caller, in RegisterInput) (Ide
 		return Identity{}, reservedErr(op)
 	}
 	if a.Kind() != address.KindIdentity {
-		return Identity{}, invalidf(op, "%q is a %s address; register needs an identity address like name@host/org[/repo]", a, a.Kind())
+		return Identity{}, invalidf(op, "%q is a %s address; agent_register needs an identity address like name@host/org[/repo]", a, a.Kind())
 	}
 	role, err := validateRole(op, in.Role)
 	if err != nil {

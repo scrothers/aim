@@ -12,8 +12,8 @@ type WhoamiOutput struct {
 	Machine    string `json:"machine" jsonschema:"Hostname of the machine the session runs on."`
 	ProjectDir string `json:"project_dir" jsonschema:"Project directory of this session."`
 	GitRemote  string `json:"git_remote,omitempty" jsonschema:"origin remote URL of the project; absent without a remote."`
-	Namespace  string `json:"namespace,omitempty" jsonschema:"Your git namespace as an address, for example github.com/acme/api. Pass it to roster, list, search and wait; register identities under it."`
-	SignedOnAs string `json:"signed_on_as,omitempty" jsonschema:"Identity this connection acts as; absent until sign_on. send and mark need it."`
+	Namespace  string `json:"namespace,omitempty" jsonschema:"Your git namespace as an address, for example github.com/acme/api. Pass it to agent_roster, mail_list, mail_search and mail_wait; agent_register identities under it."`
+	SignedOnAs string `json:"signed_on_as,omitempty" jsonschema:"Identity this connection acts as; absent until agent_sign_on. mail_send and mail_mark need it."`
 	Client     string `json:"client,omitempty" jsonschema:"MCP client name, for example claude-code."`
 	ClientVer  string `json:"client_version,omitempty" jsonschema:"MCP client version."`
 }

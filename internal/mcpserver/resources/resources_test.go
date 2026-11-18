@@ -85,7 +85,7 @@ func TestStaticResources(t *testing.T) {
 	}
 
 	// Reading resources must not have marked anything read.
-	if l := ok(t, b, "list", map[string]any{"address": bob}); len(l["items"].([]any)) != 1 {
+	if l := ok(t, b, "mail_list", map[string]any{"address": bob}); len(l["items"].([]any)) != 1 {
 		t.Fatalf("resources marked mail read: %v", l)
 	}
 }
@@ -102,7 +102,7 @@ func TestTemplateResources(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	_, b, id, thread := twoAgents(t, e)
-	ok(t, b, "send", map[string]any{"to": []string{alice}, "subject": "re", "body": "ack", "in_reply_to": id})
+	ok(t, b, "mail_send", map[string]any{"to": []string{alice}, "subject": "re", "body": "ack", "in_reply_to": id})
 
 	th := readRes(t, b, "aim://thread/"+thread)
 	mustContain(t, "thread", th, "2 message(s)", "zebra", "ack")
@@ -122,7 +122,7 @@ func TestTemplateResources(t *testing.T) {
 	mustContain(t, "roster of identity", readRes(t, b, "aim://roster/"+enc), bob)
 
 	// Reads through templates are peeks.
-	if l := ok(t, b, "list", map[string]any{"address": bob}); len(l["items"].([]any)) != 1 {
+	if l := ok(t, b, "mail_list", map[string]any{"address": bob}); len(l["items"].([]any)) != 1 {
 		t.Fatalf("template resources marked mail read: %v", l)
 	}
 }
@@ -187,8 +187,8 @@ func TestSubscriptions(t *testing.T) {
 	a := e.Client(t, "a")
 	register(t, a, alice, "lead")
 	register(t, b, bob, "dev")
-	ok(t, a, "sign_on", map[string]any{"address": alice})
-	ok(t, b, "sign_on", map[string]any{"address": bob})
+	ok(t, a, "agent_sign_on", map[string]any{"address": alice})
+	ok(t, b, "agent_sign_on", map[string]any{"address": bob})
 
 	ctx := context.Background()
 	if err := b.Subscribe(ctx, &mcp.SubscribeParams{URI: "aim://roster"}); err == nil {
@@ -203,7 +203,7 @@ func TestSubscriptions(t *testing.T) {
 		}
 	}
 
-	sent := ok(t, a, "send", map[string]any{"to": []string{bob}, "subject": "hi", "body": "x"})
+	sent := ok(t, a, "mail_send", map[string]any{"to": []string{bob}, "subject": "hi", "body": "x"})
 	got := map[string]bool{}
 	for range 2 {
 		select {
@@ -220,11 +220,11 @@ func TestSubscriptions(t *testing.T) {
 	// Marking read changes the unread digest, so it notifies again; a mark
 	// that changes nothing does not.
 	id := sent["id"].(string)
-	ok(t, b, "mark", map[string]any{"message_ids": []string{id}, "state": "read"})
+	ok(t, b, "mail_mark", map[string]any{"message_ids": []string{id}, "state": "read"})
 	for range 2 {
 		<-up.ch
 	}
-	ok(t, b, "mark", map[string]any{"message_ids": []string{id}, "state": "read"})
+	ok(t, b, "mail_mark", map[string]any{"message_ids": []string{id}, "state": "read"})
 	up.expectNone(t)
 
 	// After unsubscribe, no more updates for that URI.
@@ -234,7 +234,7 @@ func TestSubscriptions(t *testing.T) {
 	if err := b.Unsubscribe(ctx, &mcp.UnsubscribeParams{URI: "aim://mailbox/" + resources.EncodeSegment("github.com/acme/api")}); err != nil {
 		t.Fatal(err)
 	}
-	ok(t, a, "send", map[string]any{"to": []string{bob}, "subject": "again", "body": "x"})
+	ok(t, a, "mail_send", map[string]any{"to": []string{bob}, "subject": "again", "body": "x"})
 	up.expectNone(t)
 
 	// The watcher ends with the session.
@@ -264,8 +264,8 @@ func TestSubscriptionsModernProtocol(t *testing.T) {
 	a := e.Client(t, "a")
 	register(t, a, alice, "lead")
 	register(t, b, bob, "dev")
-	ok(t, a, "sign_on", map[string]any{"address": alice})
-	ok(t, b, "sign_on", map[string]any{"address": bob})
+	ok(t, a, "agent_sign_on", map[string]any{"address": alice})
+	ok(t, b, "agent_sign_on", map[string]any{"address": bob})
 	if err := b.Subscribe(context.Background(), &mcp.SubscribeParams{URI: "aim://inbox"}); err != nil {
 		t.Fatal(err)
 	}
@@ -273,7 +273,7 @@ func TestSubscriptionsModernProtocol(t *testing.T) {
 	// sending until the first update shows it is live.
 	deadline := time.After(5 * time.Second)
 	for {
-		ok(t, a, "send", map[string]any{"to": []string{bob}, "subject": "hi", "body": "x"})
+		ok(t, a, "mail_send", map[string]any{"to": []string{bob}, "subject": "hi", "body": "x"})
 		select {
 		case got := <-up.ch:
 			if got != "aim://inbox" {
@@ -297,11 +297,11 @@ func TestThreadSubscription(t *testing.T) {
 	_ = a
 	// Reconnect bob's side with an update handler: a second connection as bob.
 	c := e.ClientWith(t, "c", opts, &mcp.ClientOptions{ResourceUpdatedHandler: up.handler})
-	ok(t, c, "sign_on", map[string]any{"address": bob})
+	ok(t, c, "agent_sign_on", map[string]any{"address": bob})
 	uri := "aim://thread/" + thread
 	if err := c.Subscribe(context.Background(), &mcp.SubscribeParams{URI: uri}); err != nil {
 		t.Fatal(err)
 	}
-	ok(t, b, "send", map[string]any{"to": []string{alice}, "subject": "re", "body": "ack", "in_reply_to": id})
+	ok(t, b, "mail_send", map[string]any{"to": []string{alice}, "subject": "re", "body": "ack", "in_reply_to": id})
 	up.expect(t, uri)
 }

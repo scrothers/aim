@@ -149,7 +149,7 @@ func actorOf(op string, c mail.Caller) (string, error) {
 		return Operator, nil
 	}
 	if !c.SignedOn || c.Identity.Kind() != address.KindIdentity {
-		return "", fmt.Errorf("tasks: %s: %w: call sign_on with a registered identity first; unsigned sessions may only read tasks", op, mail.ErrNotSignedOn)
+		return "", fmt.Errorf("tasks: %s: %w: call agent_sign_on with a registered identity first; unsigned sessions may only read tasks", op, mail.ErrNotSignedOn)
 	}
 	return c.Identity.IdentityAddress().String(), nil
 }

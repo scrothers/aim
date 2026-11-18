@@ -79,7 +79,7 @@ func Digest(title string, items []mail.Header, more bool) string {
 		}
 	}
 	if more {
-		b.WriteString("\n_More messages exist; use the `list` tool to page through them._\n")
+		b.WriteString("\n_More messages exist; use the `mail_list` tool to page through them._\n")
 	}
 	return b.String()
 }
@@ -137,9 +137,9 @@ func Nudge(identity string, items []mail.Header, total int) string {
 		}
 	}
 	if total > len(items) {
-		fmt.Fprintf(&b, "\n%d unread in all; `list` shows the rest.\n", total)
+		fmt.Fprintf(&b, "\n%d unread in all; `mail_list` shows the rest.\n", total)
 	}
-	b.WriteString("\nRead with `read` (message id); reply with `send` and `in_reply_to`; archive with `mark`.\n")
+	b.WriteString("\nRead with `mail_read` (message id); reply with `mail_send` and `in_reply_to`; archive with `mail_mark`.\n")
 	return b.String()
 }
 
@@ -197,7 +197,7 @@ func Whoami(w WhoamiInfo) string {
 	row("namespace", w.Namespace)
 	row("client", strings.TrimSpace(w.Client+" "+w.ClientVersion))
 	if w.SignedOnAs == "" {
-		b.WriteString("- signed on as: nobody (call `sign_on` with a registered identity; `register` one first if needed)\n")
+		b.WriteString("- signed on as: nobody (call `agent_sign_on` with a registered identity; `agent_register` one first if needed)\n")
 	} else {
 		row("signed on as", w.SignedOnAs)
 	}

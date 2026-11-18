@@ -158,8 +158,8 @@ func (c *client) call(ctx context.Context, name string, args map[string]any, out
 
 func (c *client) signOn(ctx context.Context, addr string) {
 	c.t.Helper()
-	c.call(ctx, "register", map[string]any{"address": addr, "role": "dev", "description": "d"}, nil)
-	c.call(ctx, "sign_on", map[string]any{"address": addr}, nil)
+	c.call(ctx, "agent_register", map[string]any{"address": addr, "role": "dev", "description": "d"}, nil)
+	c.call(ctx, "agent_sign_on", map[string]any{"address": addr}, nil)
 }
 
 type task struct {
@@ -204,7 +204,7 @@ func TestTaskLeaseDecay(t *testing.T) {
 	var tk task
 	a.call(ctx, "task_create", map[string]any{"title": "Port the parser", "assignee": bob, "scope": "github.com/acme/api"}, &tk)
 	var inbox listOut
-	b.call(ctx, "list", map[string]any{"address": bob}, &inbox)
+	b.call(ctx, "mail_list", map[string]any{"address": bob}, &inbox)
 	if len(inbox.Items) != 1 || inbox.Items[0].Subject != "Task assigned: Port the parser" || inbox.Items[0].From != alice {
 		t.Fatalf("bob inbox = %+v", inbox.Items)
 	}
@@ -219,7 +219,7 @@ func TestTaskLeaseDecay(t *testing.T) {
 	first := *tk.LastActivityAt
 	for range 12 {
 		time.Sleep(400 * time.Millisecond)
-		b.call(ctx, "whoami", map[string]any{}, nil)
+		b.call(ctx, "agent_whoami", map[string]any{}, nil)
 		var seen task
 		a.call(ctx, "task_get", map[string]any{"task_id": tk.ID}, &seen)
 		if seen.Status != "started" || (seen.Health != "active" && seen.Health != "idle") {
@@ -244,7 +244,7 @@ func TestTaskLeaseDecay(t *testing.T) {
 		}
 		time.Sleep(200 * time.Millisecond)
 		var l listOut
-		a.call(ctx, "list", map[string]any{"address": alice}, &l)
+		a.call(ctx, "mail_list", map[string]any{"address": alice}, &l)
 		for _, it := range l.Items {
 			if strings.HasPrefix(it.Subject, "[AIM] Task abandoned: ") && it.From == bob {
 				notice = it.ID
@@ -254,7 +254,7 @@ func TestTaskLeaseDecay(t *testing.T) {
 	var msg struct {
 		Body string `json:"body"`
 	}
-	a.call(ctx, "read", map[string]any{"message_id": notice}, &msg)
+	a.call(ctx, "mail_read", map[string]any{"message_id": notice}, &msg)
 	if !strings.Contains(msg.Body, tk.ID) || !strings.Contains(msg.Body, "automatically") {
 		t.Errorf("notice body = %q", msg.Body)
 	}

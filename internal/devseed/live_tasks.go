@@ -143,7 +143,7 @@ func (l *liveLoop) createTask(ctx context.Context, a *agent) error {
 		return nil
 	}
 	say(l.out, "%s -> %s: Task: %s (linked to %s)\n", a.p, to, title, t.ID)
-	return a.call(ctx, "send", map[string]any{
+	return a.call(ctx, "mail_send", map[string]any{
 		"to": []string{to.String()}, "subject": "Task: " + title, "task_id": t.ID,
 		"body": md(fmt.Sprintf("Filed %s for ¦%s¦. %s", t.ID, file, pick(l.rng, progressNotes))),
 	})

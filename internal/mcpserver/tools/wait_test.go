@@ -19,22 +19,22 @@ func TestWaitToolWakesOnSend(t *testing.T) {
 	sender := e.Client(t, "s")
 	register(t, waiter, "bob@github.com/acme/api", "dev")
 	register(t, sender, "amy@github.com/acme/api", "dev")
-	ok(t, waiter, "sign_on", map[string]any{"address": "bob@github.com/acme/api"})
-	ok(t, sender, "sign_on", map[string]any{"address": "amy@github.com/acme/api"})
+	ok(t, waiter, "agent_sign_on", map[string]any{"address": "bob@github.com/acme/api"})
+	ok(t, sender, "agent_sign_on", map[string]any{"address": "amy@github.com/acme/api"})
 
 	type out struct {
 		m map[string]any
 	}
 	done := make(chan out, 1)
 	go func() {
-		done <- out{ok(t, waiter, "wait", map[string]any{"timeout_seconds": 30})}
+		done <- out{ok(t, waiter, "mail_wait", map[string]any{"timeout_seconds": 30})}
 	}()
 	select {
 	case <-done:
 		t.Fatal("wait returned before any mail was sent")
 	case <-time.After(100 * time.Millisecond):
 	}
-	ok(t, sender, "send", map[string]any{"to": []string{"bob@github.com/acme/api"}, "subject": "ping", "body": "b"})
+	ok(t, sender, "mail_send", map[string]any{"to": []string{"bob@github.com/acme/api"}, "subject": "ping", "body": "b"})
 	select {
 	case o := <-done:
 		items, _ := o.m["items"].([]any)
@@ -50,11 +50,11 @@ func TestWaitToolTimeoutAndValidation(t *testing.T) {
 	t.Parallel()
 	cs := newEnv(t).Client(t, "a")
 	// Anonymous callers must name an address.
-	fail(t, cs, "wait", map[string]any{"timeout_seconds": 1}, "address is required")
-	fail(t, cs, "wait", map[string]any{"address": "github.com/acme", "timeout_seconds": -1}, "negative")
-	fail(t, cs, "wait", map[string]any{"address": "github.com/acme", "since_id": "nope"}, "since_id")
+	fail(t, cs, "mail_wait", map[string]any{"timeout_seconds": 1}, "address is required")
+	fail(t, cs, "mail_wait", map[string]any{"address": "github.com/acme", "timeout_seconds": -1}, "negative")
+	fail(t, cs, "mail_wait", map[string]any{"address": "github.com/acme", "since_id": "nope"}, "since_id")
 	start := time.Now()
-	m := ok(t, cs, "wait", map[string]any{"address": "github.com/acme", "timeout_seconds": 1})
+	m := ok(t, cs, "mail_wait", map[string]any{"address": "github.com/acme", "timeout_seconds": 1})
 	if m["timed_out"] != true || len(m["items"].([]any)) != 0 {
 		t.Fatalf("wait = %v", m)
 	}
@@ -87,7 +87,7 @@ func TestWaitToolProgress(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = cs.Close(); _ = ss.Wait() })
 
-	params := &mcp.CallToolParams{Name: "wait", Arguments: map[string]any{"address": "github.com/acme", "timeout_seconds": 1}}
+	params := &mcp.CallToolParams{Name: "mail_wait", Arguments: map[string]any{"address": "github.com/acme", "timeout_seconds": 1}}
 	params.SetProgressToken("tok")
 	res, err := cs.CallTool(ctx, params)
 	if err != nil || res.IsError {

@@ -16,7 +16,7 @@ type TaskCreateInput struct {
 	Body      string         `json:"body,omitempty" jsonschema:"Markdown details, up to 32 KiB: goal, context, acceptance criteria, file paths."`
 	Priority  tasks.Priority `json:"priority,omitempty" jsonschema:"low, normal (default), high or urgent."`
 	Scope     string         `json:"scope,omitempty" jsonschema:"Org or repo address the task belongs to, for example github.com/acme/api; omit for an unscoped task. Used for filtering."`
-	Assignee  string         `json:"assignee,omitempty" jsonschema:"Identity to reserve the task for (from roster), or operator; only it may claim the task. They are mailed about it."`
+	Assignee  string         `json:"assignee,omitempty" jsonschema:"Identity to reserve the task for (from agent_roster), or operator; only it may claim the task. They are mailed about it."`
 	DueAt     string         `json:"due_at,omitempty" jsonschema:"Optional RFC3339 deadline, for example 2026-11-20T17:00:00Z."`
 	MessageID string         `json:"message_id,omitempty" jsonschema:"Optional message id (msg-...) to link at creation, such as the request that prompted the task."`
 }
@@ -43,7 +43,7 @@ type TaskUpdateInput struct {
 	TaskID     string         `json:"task_id" jsonschema:"Task id (task-...) to change."`
 	Action     tasks.Action   `json:"action" jsonschema:"What to do: claim, start, finish, release, assign, unassign, reopen, comment, link or edit. See the tool description for who may do what."`
 	Note       string         `json:"note,omitempty" jsonschema:"The comment text for comment (required); an optional reason for any other action, kept in the history."`
-	Assignee   string         `json:"assignee,omitempty" jsonschema:"For assign: the identity address (from roster) or operator to reserve the task for."`
+	Assignee   string         `json:"assignee,omitempty" jsonschema:"For assign: the identity address (from agent_roster) or operator to reserve the task for."`
 	MessageID  string         `json:"message_id,omitempty" jsonschema:"For link: the message id (msg-...) to link to the task."`
 	Title      string         `json:"title,omitempty" jsonschema:"For edit: new title; omit to keep."`
 	Body       string         `json:"body,omitempty" jsonschema:"For edit: new Markdown body; omit to keep."`

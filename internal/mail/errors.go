@@ -68,7 +68,7 @@ func invalidAddr(op string, err error) error {
 }
 
 func notSignedOn(op string) error {
-	return fmt.Errorf("mail: %s: %w: call sign_on with a registered identity first", op, ErrNotSignedOn)
+	return fmt.Errorf("mail: %s: %w: call agent_sign_on with a registered identity first", op, ErrNotSignedOn)
 }
 
 // levenshtein returns the edit distance between a and b.

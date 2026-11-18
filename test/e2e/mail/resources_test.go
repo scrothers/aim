@@ -25,12 +25,12 @@ func TestResourcesAndPrompts(t *testing.T) {
 		alice = "alice@github.com/acme/tool"
 		bob   = "bob@github.com/acme/tool"
 	)
-	a.call(ctx, "register", map[string]any{"address": alice, "role": "lead", "description": "d"}, nil)
-	a.call(ctx, "register", map[string]any{"address": bob, "role": "dev", "description": "d"}, nil)
-	a.call(ctx, "sign_on", map[string]any{"address": alice}, nil)
-	b.call(ctx, "sign_on", map[string]any{"address": bob}, nil)
+	a.call(ctx, "agent_register", map[string]any{"address": alice, "role": "lead", "description": "d"}, nil)
+	a.call(ctx, "agent_register", map[string]any{"address": bob, "role": "dev", "description": "d"}, nil)
+	a.call(ctx, "agent_sign_on", map[string]any{"address": alice}, nil)
+	b.call(ctx, "agent_sign_on", map[string]any{"address": bob}, nil)
 	var sent message
-	a.call(ctx, "send", map[string]any{"to": []string{bob}, "subject": "resource check", "body": "the quokka report"}, &sent)
+	a.call(ctx, "mail_send", map[string]any{"to": []string{bob}, "subject": "resource check", "body": "the quokka report"}, &sent)
 
 	res, err := b.cs.ReadResource(ctx, &mcp.ReadResourceParams{URI: "aim://inbox"})
 	if err != nil {
@@ -55,7 +55,7 @@ func TestResourcesAndPrompts(t *testing.T) {
 
 	// Neither read marked the message read.
 	var unread listOut
-	b.call(ctx, "list", map[string]any{"address": bob}, &unread)
+	b.call(ctx, "mail_list", map[string]any{"address": bob}, &unread)
 	if len(unread.Items) != 1 {
 		t.Fatalf("resource or prompt marked mail read: %+v", unread.Items)
 	}

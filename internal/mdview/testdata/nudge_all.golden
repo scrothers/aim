@@ -3,4 +3,4 @@
 - **re: deploy plan** from bob@github.com/acme/api (id `msg-2`, thread `thr-1`, 2026-01-02 15:04 UTC)
   > ack ok
 
-Read with `read` (message id); reply with `send` and `in_reply_to`; archive with `mark`.
+Read with `mail_read` (message id); reply with `mail_send` and `in_reply_to`; archive with `mail_mark`.

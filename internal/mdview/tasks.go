@@ -139,7 +139,7 @@ func TaskDetail(d tasks.Detail) string {
 	}
 	b.WriteString("\n## Linked messages\n\n")
 	if len(d.Links) == 0 {
-		b.WriteString("_None. Link one with `send` (task_id) or `task_update` (action link)._\n")
+		b.WriteString("_None. Link one with `mail_send` (task_id) or `task_update` (action link)._\n")
 	}
 	for _, l := range d.Links {
 		fmt.Fprintf(&b, "- **%s** (id `%s`, thread `%s`), linked by %s %s\n",

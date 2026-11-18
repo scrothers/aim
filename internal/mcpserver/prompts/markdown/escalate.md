@@ -24,7 +24,7 @@ There is no thread to continue, so this starts a new one.
 {{- end}}
 
 {{if not .SignedOn -}}
-You are not signed on, so `send` will fail. Call `sign_on` with your registered
+You are not signed on, so `mail_send` will fail. Call `agent_sign_on` with your registered
 identity first.
 
 {{end -}}
@@ -40,19 +40,19 @@ identity first.
    risk. Include "do nothing" if it is a real choice.
 4. **Make a recommendation** and say why in one or two sentences. The operator
    should be able to answer with "yes" or "option 2".
-5. **Send** with `send`:
+5. **Send** with `mail_send`:
    - `to`: `["operator"]`
    - `subject`: `Decision needed: {{.Args.topic}}`
    - `body`: use the layout below
 {{- if .Args.thread_id}}
    - `in_reply_to`: the id of the latest message in thread `{{.Args.thread_id}}`
 {{- end}}
-6. **Wait for the answer.** Call `wait` with `since_id` set to the `id` that
-   `send` returned and `timeout_seconds` up to 300; `address` defaults to your
+6. **Wait for the answer.** Call `mail_wait` with `since_id` set to the `id` that
+   `mail_send` returned and `timeout_seconds` up to 300; `address` defaults to your
    identity. Repeat while it reports `timed_out` and you have nothing else to do. While you wait, continue any work that does not
    depend on the answer.
 7. **Act on the reply**, then confirm briefly what you did and archive the
-   exchange with `mark` (`archived`).
+   exchange with `mail_mark` (`archived`).
 
 ## Body layout
 

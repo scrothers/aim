@@ -154,7 +154,7 @@ func textOf(res *mcp.CallToolResult) string {
 }
 
 func (a *agent) signOn(ctx context.Context) error {
-	if err := a.call(ctx, "sign_on", map[string]any{"address": a.p.String(), "away": a.away}); err != nil {
+	if err := a.call(ctx, "agent_sign_on", map[string]any{"address": a.p.String(), "away": a.away}); err != nil {
 		return err
 	}
 	a.signedOn = true
@@ -163,7 +163,7 @@ func (a *agent) signOn(ctx context.Context) error {
 
 func (a *agent) signOff(ctx context.Context) error {
 	a.signedOn = false
-	return a.call(ctx, "sign_off", map[string]any{})
+	return a.call(ctx, "agent_sign_off", map[string]any{})
 }
 
 func (a *agent) disconnect() {
@@ -179,7 +179,7 @@ func (a *agent) disconnect() {
 }
 
 func (a *agent) send(ctx context.Context, to []string, subject, body string) error {
-	return a.call(ctx, "send", map[string]any{"to": to, "subject": subject, "body": body})
+	return a.call(ctx, "mail_send", map[string]any{"to": to, "subject": subject, "body": body})
 }
 
 // chooseAgents picks the simulated agents: every org coordinator, then a
@@ -317,7 +317,7 @@ func registerWorld(ctx context.Context, via *agent, world []*persona) error {
 		if p.retired {
 			continue
 		}
-		err := via.call(ctx, "register", map[string]any{
+		err := via.call(ctx, "agent_register", map[string]any{
 			"address": p.String(), "role": p.title, "description": p.desc, "reports_to": p.reports,
 		})
 		if err != nil && !strings.Contains(err.Error(), "already registered") {

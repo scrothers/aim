@@ -157,7 +157,7 @@ func findIdentity(ctx context.Context, q *db.Queries, a address.Address) (db.Mai
 		return db.Mailbox{}, err
 	}
 	if m.RetiredAt.Valid {
-		return db.Mailbox{}, fmt.Errorf("mail: %w: %s was retired; ask the operator to restore it or register a new identity", ErrRetired, addrOf(m))
+		return db.Mailbox{}, fmt.Errorf("mail: %w: %s was retired; ask the operator to restore it or agent_register a new identity", ErrRetired, addrOf(m))
 	}
 	return m, nil
 }
@@ -178,7 +178,7 @@ func findIdentityAny(ctx context.Context, q *db.Queries, a address.Address) (db.
 func notFound(ctx context.Context, q *db.Queries, a address.Address) error {
 	e := &MailboxNotFoundError{
 		Address: a.String(),
-		Hint:    "Identities must be registered first (register); check the address, or register it.",
+		Hint:    "Identities must be registered first (agent_register); check the address, or agent_register it.",
 	}
 	cands, err := store.ListIdentitiesInScope(ctx, q, store.Scope{Host: a.Host, Org: a.Org})
 	if err != nil {

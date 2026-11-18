@@ -112,7 +112,7 @@ func TestSessionStartNotSignedOn(t *testing.T) {
 	if r.SignedOn {
 		t.Fatal("reply claims signed on")
 	}
-	for _, want := range []string{"not signed on", "`sign_on`", "`" + alice + "`", "Identities in `" + ns + "`"} {
+	for _, want := range []string{"not signed on", "`agent_sign_on`", "`" + alice + "`", "Identities in `" + ns + "`"} {
 		if !strings.Contains(r.Context, want) {
 			t.Errorf("context lacks %q:\n%s", want, r.Context)
 		}
@@ -127,7 +127,7 @@ func TestSessionStartWithoutNamespace(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	r := e.event(t, hook(99), wire.HookRequest{Event: wire.HookSessionStart})
-	if !strings.Contains(r.Context, "`roster` tool") {
+	if !strings.Contains(r.Context, "`agent_roster` tool") {
 		t.Errorf("context = %q", r.Context)
 	}
 }

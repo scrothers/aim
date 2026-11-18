@@ -28,11 +28,11 @@ test.beforeAll(async () => {
   coord = await Agent.start(bin, addr, 'pw-session-coordinator', 'claude-code')
   reviewer = await Agent.start(bin, addr, 'pw-session-reviewer', 'codex')
 
-  await coord.must('register', { address: COORD, role: 'lead', description: 'coordinates work', reports_to: 'operator' })
-  await reviewer.must('register', { address: REVIEWER, role: 'reviewer', description: 'reviews code', reports_to: COORD })
-  await coord.must('sign_on', { address: COORD, away: 'planning the sprint' })
-  await reviewer.must('sign_on', { address: REVIEWER, away: 'reviewing PR 42' })
-  await coord.must('send', { to: [REVIEWER], subject: 'Please review PR 42', body: 'Take a look when free.' })
+  await coord.must('agent_register', { address: COORD, role: 'lead', description: 'coordinates work', reports_to: 'operator' })
+  await reviewer.must('agent_register', { address: REVIEWER, role: 'reviewer', description: 'reviews code', reports_to: COORD })
+  await coord.must('agent_sign_on', { address: COORD, away: 'planning the sprint' })
+  await reviewer.must('agent_sign_on', { address: REVIEWER, away: 'reviewing PR 42' })
+  await coord.must('mail_send', { to: [REVIEWER], subject: 'Please review PR 42', body: 'Take a look when free.' })
 })
 
 test.afterAll(async () => {
@@ -60,7 +60,7 @@ test('buddy list and mailbox tree show the signed-on agents', async ({ page }) =
 })
 
 test('operator inbox: markdown message is rendered, sanitized and marked read', async ({ page }) => {
-  await coord.must('send', {
+  await coord.must('mail_send', {
     to: ['operator'],
     subject: 'Release plan zebrafish',
     body: [
@@ -110,7 +110,7 @@ test('operator inbox: markdown message is rendered, sanitized and marked read', 
   await page.getByRole('textbox', { name: 'Message body' }).press('Control+Enter')
   await expect(page.getByRole('form', { name: 'Reply' })).toHaveCount(0)
 
-  const got = await coord.must('list', { address: COORD, state: 'all' })
+  const got = await coord.must('mail_list', { address: COORD, state: 'all' })
   const subjects = (got.data.items as Array<{ from: string; subject: string }>).filter((m) => m.from === 'operator')
   expect(subjects.map((m) => m.subject)).toContain('Re: Release plan zebrafish')
 })
@@ -145,7 +145,7 @@ test('roster: edit role, reject cycles, retire and unretire', async ({ page }) =
   await expect(card(REVIEWER)).toContainText(/Retired/)
 
   // Agents cannot mail a retired identity.
-  const res = await coord.call('send', { to: [REVIEWER], subject: 'still there?', body: 'ping' })
+  const res = await coord.call('mail_send', { to: [REVIEWER], subject: 'still there?', body: 'ping' })
   expect(res.isError).toBe(true)
 
   // Restore for the following specs.

@@ -15,11 +15,11 @@ func TestSubagentAttributionFromToolUseID(t *testing.T) {
 	resolver := func(id string) (string, bool) { return "helper", id == "tu-sub" }
 	cs := e.ClientWith(t, "attr", []mcpserver.Option{mcpserver.WithSubagentResolver(resolver)}, nil)
 	register(t, cs, "alice@github.com/acme/api", "lead")
-	ok(t, cs, "sign_on", map[string]any{"address": "alice@github.com/acme/api"})
+	ok(t, cs, "agent_sign_on", map[string]any{"address": "alice@github.com/acme/api"})
 
 	sendAs := func(meta mcp.Meta, args map[string]any) string {
 		t.Helper()
-		res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Meta: meta, Name: "send", Arguments: args})
+		res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Meta: meta, Name: "mail_send", Arguments: args})
 		if err != nil || res.IsError {
 			t.Fatalf("send: %v %s", err, text(res))
 		}
@@ -43,5 +43,5 @@ func TestSubagentAttributionFromToolUseID(t *testing.T) {
 		t.Errorf("explicit subagent overridden: from = %q", got)
 	}
 	// Tools without a subagent argument are left alone.
-	ok(t, cs, "whoami", map[string]any{})
+	ok(t, cs, "agent_whoami", map[string]any{})
 }

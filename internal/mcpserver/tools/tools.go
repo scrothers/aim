@@ -35,18 +35,18 @@ func Register(srv *mcp.Server, c *session.Conn, o Options) {
 	if t.progressInterval <= 0 {
 		t.progressInterval = DefaultProgressInterval
 	}
-	addTool(srv, "whoami", t.whoami)
-	addTool(srv, "register", t.register)
-	addTool(srv, "roster", t.roster)
-	addTool(srv, "sign_on", t.signOn)
-	addTool(srv, "sign_off", t.signOff)
-	addTool(srv, "send", t.send)
-	addTool(srv, "list", t.list)
-	addTool(srv, "read", t.read)
-	addTool(srv, "thread", t.thread)
-	addTool(srv, "mark", t.mark)
-	addTool(srv, "search", t.search)
-	addTool(srv, "wait", t.wait)
+	addTool(srv, "agent_whoami", t.whoami)
+	addTool(srv, "agent_register", t.register)
+	addTool(srv, "agent_roster", t.roster)
+	addTool(srv, "agent_sign_on", t.signOn)
+	addTool(srv, "agent_sign_off", t.signOff)
+	addTool(srv, "mail_send", t.send)
+	addTool(srv, "mail_list", t.list)
+	addTool(srv, "mail_read", t.read)
+	addTool(srv, "mail_thread", t.thread)
+	addTool(srv, "mail_mark", t.mark)
+	addTool(srv, "mail_search", t.search)
+	addTool(srv, "mail_wait", t.wait)
 	addTool(srv, "task_create", t.taskCreate)
 	addTool(srv, "task_list", t.taskList)
 	addTool(srv, "task_get", t.taskGet)
@@ -78,26 +78,26 @@ func (m meta) annotations() *mcp.ToolAnnotations {
 // toolMeta maps each tool name to its title and hints. Registration order is
 // set by Register, not this table.
 var toolMeta = map[string]meta{
-	"whoami":   {title: "Who am I", readOnly: true},
-	"register": {title: "Register identity", idempotent: true},
-	"roster":   {title: "Roster", readOnly: true},
-	"sign_on":  {title: "Sign on", idempotent: true},
-	"sign_off": {title: "Sign off", idempotent: true},
-	"send":     {title: "Send message"},
-	"list":     {title: "List mail", readOnly: true},
-	// read marks mail read unless peek is set, so it is not read-only.
-	"read":   {title: "Read message", idempotent: true},
-	"thread": {title: "Read thread", readOnly: true},
-	// mark's archive is reversible, so it is not destructive.
-	"mark":   {title: "Mark messages", idempotent: true},
-	"search": {title: "Search mail", readOnly: true},
+	"agent_whoami":   {title: "Who am I", readOnly: true},
+	"agent_register": {title: "Register identity", idempotent: true},
+	"agent_roster":   {title: "Roster", readOnly: true},
+	"agent_sign_on":  {title: "Sign on", idempotent: true},
+	"agent_sign_off": {title: "Sign off", idempotent: true},
+	"mail_send":      {title: "Send message"},
+	"mail_list":      {title: "List mail", readOnly: true},
+	// mail_read marks mail read unless peek is set, so it is not read-only.
+	"mail_read":   {title: "Read message", idempotent: true},
+	"mail_thread": {title: "Read thread", readOnly: true},
+	// mail_mark's archive is reversible, so it is not destructive.
+	"mail_mark":   {title: "Mark messages", idempotent: true},
+	"mail_search": {title: "Search mail", readOnly: true},
 	// Creating twice makes two tasks, and update actions such as comment
 	// append history, so neither is idempotent.
 	"task_create": {title: "Create task"},
 	"task_list":   {title: "List tasks", readOnly: true},
 	"task_get":    {title: "Get task", readOnly: true},
 	"task_update": {title: "Update task"},
-	"wait":        {title: "Wait for mail", readOnly: true},
+	"mail_wait":   {title: "Wait for mail", readOnly: true},
 }
 
 // markdownDir holds one <tool name>.md description per tool. Editing these

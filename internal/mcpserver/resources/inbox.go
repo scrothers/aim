@@ -9,7 +9,7 @@ import (
 // URIInbox is the unread digest of the signed-on identity.
 const URIInbox = "aim://inbox"
 
-const notSignedOnHint = "Not signed on, so there is no inbox. Call `register` (once) and `sign_on` with your identity, then read this resource again."
+const notSignedOnHint = "Not signed on, so there is no inbox. Call `agent_register` (once) and `agent_sign_on` with your identity, then read this resource again."
 
 var inbox = resource{name: "inbox", title: unreadTitle, uri: URIInbox, render: renderInbox}
 

@@ -240,10 +240,10 @@ func TestHookAttentionAndNudge(t *testing.T) {
 		alice = "alice@github.com/acme/tool"
 		bob   = "bob@github.com/acme/tool"
 	)
-	a.call(ctx, "register", map[string]any{"address": alice, "role": "dev", "description": "d"})
-	b.call(ctx, "register", map[string]any{"address": bob, "role": "dev", "description": "d"})
-	a.call(ctx, "sign_on", map[string]any{"address": alice})
-	b.call(ctx, "sign_on", map[string]any{"address": bob})
+	a.call(ctx, "agent_register", map[string]any{"address": alice, "role": "dev", "description": "d"})
+	b.call(ctx, "agent_register", map[string]any{"address": bob, "role": "dev", "description": "d"})
+	a.call(ctx, "agent_sign_on", map[string]any{"address": alice})
+	b.call(ctx, "agent_sign_on", map[string]any{"address": bob})
 
 	cwd := t.TempDir()
 	payload := func(event, extra string) string {
@@ -259,7 +259,7 @@ func TestHookAttentionAndNudge(t *testing.T) {
 	if out := runHook(ctx, t, d, post); out != "" {
 		t.Fatalf("post-tool without mail printed %q", out)
 	}
-	b.call(ctx, "send", map[string]any{"to": []string{alice}, "subject": "midturn-subject", "body": "hi"})
+	b.call(ctx, "mail_send", map[string]any{"to": []string{alice}, "subject": "midturn-subject", "body": "hi"})
 	out := runHook(ctx, t, d, post)
 	if got := additionalContext(t, out); !strings.Contains(got, "midturn-subject") {
 		t.Fatalf("post-tool context does not name the subject: %q", got)
@@ -281,10 +281,10 @@ func TestHookFlow(t *testing.T) {
 		alice = "alice@github.com/acme/tool"
 		bob   = "bob@github.com/acme/tool"
 	)
-	a.call(ctx, "register", map[string]any{"address": alice, "role": "dev", "description": "d"})
-	b.call(ctx, "register", map[string]any{"address": bob, "role": "dev", "description": "d"})
-	a.call(ctx, "sign_on", map[string]any{"address": alice})
-	b.call(ctx, "sign_on", map[string]any{"address": bob})
+	a.call(ctx, "agent_register", map[string]any{"address": alice, "role": "dev", "description": "d"})
+	b.call(ctx, "agent_register", map[string]any{"address": bob, "role": "dev", "description": "d"})
+	a.call(ctx, "agent_sign_on", map[string]any{"address": alice})
+	b.call(ctx, "agent_sign_on", map[string]any{"address": bob})
 
 	cwd := t.TempDir()
 	payload := func(event string) string {
@@ -300,7 +300,7 @@ func TestHookFlow(t *testing.T) {
 		t.Fatalf("prompt without mail printed %q", out)
 	}
 
-	b.call(ctx, "send", map[string]any{"to": []string{alice}, "subject": "ping", "body": "hello alice"})
+	b.call(ctx, "mail_send", map[string]any{"to": []string{alice}, "subject": "ping", "body": "hello alice"})
 	out = runHook(ctx, t, d, payload("UserPromptSubmit"))
 	if got := additionalContext(t, out); got == "" {
 		t.Fatalf("prompt with mail printed nothing")
@@ -317,7 +317,7 @@ func TestHookFlow(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- wcmd.Wait() }()
 	time.Sleep(500 * time.Millisecond)
-	b.call(ctx, "send", map[string]any{"to": []string{alice}, "subject": "wake up", "body": "second mail"})
+	b.call(ctx, "mail_send", map[string]any{"to": []string{alice}, "subject": "wake up", "body": "second mail"})
 	select {
 	case err := <-done:
 		var ee *exec.ExitError

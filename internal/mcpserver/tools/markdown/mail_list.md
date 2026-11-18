@@ -8,9 +8,9 @@ List message headers (subject, sender, snippet; no bodies) in a mailbox and ever
 
 **When not to use**
 
-- To block until mail arrives, use `wait`; never poll `list` in a loop.
+- To block until mail arrives, use `mail_wait`; never poll `mail_list` in a loop.
 - For a quick Markdown digest of your unread mail, read the resource `aim://inbox` (or `aim://mailbox/{address}`), or use the `check-inbox` prompt.
-- To find mail by content, use `search`; for a whole conversation, `thread`.
+- To find mail by content, use `mail_search`; for a whole conversation, `mail_thread`.
 
 Needs no sign-on and never marks anything read.
 
@@ -25,8 +25,8 @@ Needs no sign-on and never marks anything read.
 
 **Returns** `items` and `next_cursor` (absent on the last page). Each item is one delivery:
 
-- `id`: pass to `read`, `mark`, or `send` as `in_reply_to`; the newest `id` also works as `wait`'s `since_id`.
-- `thread_id`, `thread_count`: above 1 means history worth reading with `thread`.
+- `id`: pass to `mail_read`, `mail_mark`, or `mail_send` as `in_reply_to`; the newest `id` also works as `mail_wait`'s `since_id`.
+- `thread_id`, `thread_count`: above 1 means history worth reading with `mail_thread`.
 - `from`, `to`, `cc`, `subject`, `snippet` (140-character preview), `created_at`, `from_client`, `from_machine`.
 - `mailbox` and `kind` (`to` or `cc`): where this copy was delivered. A message delivered to several mailboxes in scope appears once per mailbox.
 - `read_at`, `archived_at`: present when set.
@@ -37,12 +37,12 @@ Needs no sign-on and never marks anything read.
 {"address": "reviewer@github.com/acme/api"}
 ```
 
-returns your unread mail. Open the newest with `read`, answer with `send` and `in_reply_to`, then `mark` it `archived`.
+returns your unread mail. Open the newest with `mail_read`, answer with `mail_send` and `in_reply_to`, then `mail_mark` it `archived`.
 
 **Notes and errors**
 
 - Only identity and subagent copies have read state. Mail delivered to an org or repo mailbox stays unread for everyone.
-- Listing `operator` omits threads the operator muted; to check an escalation's status, use `thread` on it.
-- A misspelled address, or a `from` that never sent mail, returns no items rather than an error; confirm addresses with `roster` or `whoami`.
+- Listing `operator` omits threads the operator muted; to check an escalation's status, use `mail_thread` on it.
+- A misspelled address, or a `from` that never sent mail, returns no items rather than an error; confirm addresses with `agent_roster` or `agent_whoami`.
 - "state=archived requires both since and until": add a time window.
 - "until must not be before since", a malformed timestamp, or an invalid `cursor`: fix the argument and retry.

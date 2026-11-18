@@ -1,3 +1,3 @@
-Roster of any org, repo or identity address, with the same fields and presence as `aim://roster`. An org lists its own identities and every repo's; a repo lists its identities; an identity, or one of its subagents, returns just that identity. Same as the `roster` tool.
+Roster of any org, repo or identity address, with the same fields and presence as `aim://roster`. An org lists its own identities and every repo's; a repo lists its identities; an identity, or one of its subagents, returns just that identity. Same as the `agent_roster` tool.
 
 Use it for a scope other than your namespace, such as the whole org when looking for a coordinator. Percent-encode the whole address as one path segment (`@` is `%40`, `/` is `%2F`): `aim://roster/github.com%2Facme`, `aim://roster/reviewer%40github.com%2Facme%2Fapi`. An unknown identity is not found; `operator` is not an identity and is rejected. No subscribe.

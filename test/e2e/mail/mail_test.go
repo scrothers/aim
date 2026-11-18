@@ -268,13 +268,13 @@ func TestMailFlow(t *testing.T) {
 		repo     = "github.com/acme/tool"
 	)
 
-	a.call(ctx, "register", map[string]any{"address": coord, "role": "lead", "description": "coordinates work"}, nil)
-	a.call(ctx, "register", map[string]any{"address": reviewer, "role": "reviewer", "description": "reviews code"}, nil)
-	a.call(ctx, "sign_on", map[string]any{"address": coord}, nil)
-	b.call(ctx, "sign_on", map[string]any{"address": reviewer}, nil)
+	a.call(ctx, "agent_register", map[string]any{"address": coord, "role": "lead", "description": "coordinates work"}, nil)
+	a.call(ctx, "agent_register", map[string]any{"address": reviewer, "role": "reviewer", "description": "reviews code"}, nil)
+	a.call(ctx, "agent_sign_on", map[string]any{"address": coord}, nil)
+	b.call(ctx, "agent_sign_on", map[string]any{"address": reviewer}, nil)
 
 	var roster rosterOut
-	a.call(ctx, "roster", map[string]any{"address": org}, &roster)
+	a.call(ctx, "agent_roster", map[string]any{"address": org}, &roster)
 	for _, addr := range []string{coord, reviewer} {
 		if found, n := roster.online(addr); !found || n != 1 {
 			t.Fatalf("roster %s: found=%v online=%d", addr, found, n)
@@ -282,7 +282,7 @@ func TestMailFlow(t *testing.T) {
 	}
 
 	var sent message
-	a.call(ctx, "send", map[string]any{
+	a.call(ctx, "mail_send", map[string]any{
 		"to": []string{reviewer}, "cc": []string{repo},
 		"subject": "please review", "body": "the zebra patch is ready",
 	}, &sent)
@@ -291,23 +291,23 @@ func TestMailFlow(t *testing.T) {
 	}
 
 	var unread listOut
-	b.call(ctx, "list", map[string]any{"address": reviewer}, &unread)
+	b.call(ctx, "mail_list", map[string]any{"address": reviewer}, &unread)
 	if len(unread.Items) != 1 || unread.Items[0].ID != sent.ID {
 		t.Fatalf("unread = %+v, want %s", unread.Items, sent.ID)
 	}
 
 	var got message
-	b.call(ctx, "read", map[string]any{"message_id": sent.ID}, &got)
+	b.call(ctx, "mail_read", map[string]any{"message_id": sent.ID}, &got)
 	if got.Body != "the zebra patch is ready" || got.From != coord {
 		t.Fatalf("read = %+v", got)
 	}
-	b.call(ctx, "list", map[string]any{"address": reviewer}, &unread)
+	b.call(ctx, "mail_list", map[string]any{"address": reviewer}, &unread)
 	if len(unread.Items) != 0 {
 		t.Fatalf("unread after read = %+v", unread.Items)
 	}
 
 	var reply message
-	b.call(ctx, "send", map[string]any{
+	b.call(ctx, "mail_send", map[string]any{
 		"to": []string{}, "subject": "Re: please review", "body": "looks good",
 		"in_reply_to": sent.ID, "reply_all": true,
 	}, &reply)
@@ -316,7 +316,7 @@ func TestMailFlow(t *testing.T) {
 	}
 
 	var all listOut
-	a.call(ctx, "list", map[string]any{"address": org, "state": "all"}, &all)
+	a.call(ctx, "mail_list", map[string]any{"address": org, "state": "all"}, &all)
 	seen := map[string]bool{}
 	for _, h := range all.Items {
 		seen[h.ID] = true
@@ -327,7 +327,7 @@ func TestMailFlow(t *testing.T) {
 	var thread struct {
 		Messages []message `json:"messages"`
 	}
-	a.call(ctx, "thread", map[string]any{"thread_id": sent.ThreadID}, &thread)
+	a.call(ctx, "mail_thread", map[string]any{"thread_id": sent.ThreadID}, &thread)
 	if len(thread.Messages) != 2 {
 		t.Fatalf("thread = %+v", thread.Messages)
 	}
@@ -337,14 +337,14 @@ func TestMailFlow(t *testing.T) {
 			MessageID string `json:"message_id"`
 		} `json:"hits"`
 	}
-	a.call(ctx, "search", map[string]any{"address": org, "query": "zebra"}, &hits)
+	a.call(ctx, "mail_search", map[string]any{"address": org, "query": "zebra"}, &hits)
 	if len(hits.Hits) == 0 || hits.Hits[0].MessageID != sent.ID {
 		t.Fatalf("search hits = %+v", hits.Hits)
 	}
 
 	// The agent escalates to the operator, who sees it over HTTP and replies.
 	var esc message
-	a.call(ctx, "send", map[string]any{
+	a.call(ctx, "mail_send", map[string]any{
 		"to": []string{"operator"}, "subject": "need a decision", "body": "ship the **zebra** patch?",
 	}, &esc)
 	var inbox listOut
@@ -366,7 +366,7 @@ func TestMailFlow(t *testing.T) {
 		t.Fatalf("operator send: status=%d %+v", status, opReply)
 	}
 	var coordInbox listOut
-	a.call(ctx, "list", map[string]any{"address": coord}, &coordInbox)
+	a.call(ctx, "mail_list", map[string]any{"address": coord}, &coordInbox)
 	if !slices.ContainsFunc(coordInbox.Items, func(h header) bool { return h.ID == opReply.ID && h.From == "operator" }) {
 		t.Fatalf("coordinator inbox = %+v, want %s", coordInbox.Items, opReply.ID)
 	}
@@ -380,7 +380,7 @@ func TestMailFlow(t *testing.T) {
 	}
 	deadline := time.Now().Add(10 * time.Second)
 	for {
-		a.call(ctx, "roster", map[string]any{"address": org}, &roster)
+		a.call(ctx, "agent_roster", map[string]any{"address": org}, &roster)
 		if found, n := roster.online(reviewer); found && n == 0 {
 			break
 		}
@@ -426,10 +426,10 @@ func TestDaemonRestartMidSession(t *testing.T) {
 		alice = "alice@github.com/acme/tool"
 		bob   = "bob@github.com/acme/tool"
 	)
-	a.call(ctx, "register", map[string]any{"address": alice, "role": "dev", "description": "d"}, nil)
-	a.call(ctx, "register", map[string]any{"address": bob, "role": "dev", "description": "d"}, nil)
-	a.call(ctx, "sign_on", map[string]any{"address": alice}, nil)
-	b.call(ctx, "sign_on", map[string]any{"address": bob}, nil)
+	a.call(ctx, "agent_register", map[string]any{"address": alice, "role": "dev", "description": "d"}, nil)
+	a.call(ctx, "agent_register", map[string]any{"address": bob, "role": "dev", "description": "d"}, nil)
+	a.call(ctx, "agent_sign_on", map[string]any{"address": alice}, nil)
+	b.call(ctx, "agent_sign_on", map[string]any{"address": bob}, nil)
 
 	// bob blocks in wait while the daemon goes away and comes back.
 	type waited struct {
@@ -439,7 +439,7 @@ func TestDaemonRestartMidSession(t *testing.T) {
 	waitDone := make(chan error, 1)
 	var w waited
 	go func() {
-		res, err := b.cs.CallTool(ctx, &mcp.CallToolParams{Name: "wait", Arguments: map[string]any{"timeout_seconds": 40}})
+		res, err := b.cs.CallTool(ctx, &mcp.CallToolParams{Name: "mail_wait", Arguments: map[string]any{"timeout_seconds": 40}})
 		if err == nil {
 			// The restart fails the in-flight wait with a retryable error, as
 			// the plan specifies; callers re-issue it.
@@ -471,7 +471,7 @@ func TestDaemonRestartMidSession(t *testing.T) {
 		var who struct {
 			SignedOnAs string `json:"signed_on_as"`
 		}
-		callRetry(ctx, t, c, "whoami", nil, &who)
+		callRetry(ctx, t, c, "agent_whoami", nil, &who)
 		if who.SignedOnAs != name {
 			t.Fatalf("whoami after restart = %q, want %q", who.SignedOnAs, name)
 		}
@@ -481,12 +481,12 @@ func TestDaemonRestartMidSession(t *testing.T) {
 	reWait := make(chan error, 1)
 	go func() {
 		var err error
-		callRetryErr(ctx, b, "wait", map[string]any{"timeout_seconds": 30}, &w, &err)
+		callRetryErr(ctx, b, "mail_wait", map[string]any{"timeout_seconds": 30}, &w, &err)
 		reWait <- err
 	}()
 	time.Sleep(300 * time.Millisecond)
 	var sent message
-	callRetry(ctx, t, a, "send", map[string]any{"to": []string{bob}, "subject": "after restart", "body": "hello"}, &sent)
+	callRetry(ctx, t, a, "mail_send", map[string]any{"to": []string{bob}, "subject": "after restart", "body": "hello"}, &sent)
 	select {
 	case err := <-reWait:
 		if err != nil || w.TimedOut || len(w.Items) != 1 || w.Items[0].ID != sent.ID {

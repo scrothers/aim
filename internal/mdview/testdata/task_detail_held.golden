@@ -18,4 +18,4 @@ _No history._
 
 ## Linked messages
 
-_None. Link one with `send` (task_id) or `task_update` (action link)._
+_None. Link one with `mail_send` (task_id) or `task_update` (action link)._

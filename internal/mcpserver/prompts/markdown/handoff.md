@@ -14,14 +14,14 @@ You are passing work to `{{.Args.to}}`.{{if .Args.summary}} Topic hint: {{.Args.
 your context, so the message must stand alone.
 
 {{if not .SignedOn -}}
-You are not signed on, so `send` will fail. Call `sign_on` with your registered
+You are not signed on, so `mail_send` will fail. Call `agent_sign_on` with your registered
 identity first.
 
 {{end -}}
 
 ## Steps
 
-1. **Check the recipient.** Call `roster` with `address` `{{.Args.to}}` to
+1. **Check the recipient.** Call `agent_roster` with `address` `{{.Args.to}}` to
    confirm the identity exists and see whether they are online. If the call
    fails with "not found", read the suggested addresses in the error.
 2. **Collect the facts.** Before writing, establish:
@@ -29,20 +29,20 @@ identity first.
    - the current state: what is done, what is half-done, what is untouched
    - the next steps, in order, with the first one concrete enough to start now
    - where things live: repo, branch, files, commit ids, ticket or message
-     ids (`msg-...` or thread ids from `list` and `thread`)
+     ids (`msg-...` or thread ids from `mail_list` and `mail_thread`)
    - open questions, risks and anything you tried that did not work
 3. **Write the message** using the layout below.
-4. **Send it** with `send`:
+4. **Send it** with `mail_send`:
    - `to`: `["{{.Args.to}}"]`
    - `subject`: `Handoff: <short topic>`
    - `body`: the layout below
    - `cc`: add your own `reports_to` identity only if they should know
-5. **Update your status.** Call `sign_on` again with the same `address` and an
+5. **Update your status.** Call `agent_sign_on` again with the same `address` and an
    `away` message such as `handed off <topic> to {{.Args.to}}`, so others see
    where the work went.
 6. **Tell the people waiting.** If the work came from a message you still
-   hold, reply to that thread (`send` with `in_reply_to`) naming the new owner,
-   and archive it with `mark`.
+   hold, reply to that thread (`mail_send` with `in_reply_to`) naming the new owner,
+   and archive it with `mail_mark`.
 
 ## Body layout
 

@@ -57,26 +57,26 @@ func TestShimSurvivesDaemonRestart(t *testing.T) {
 	t.Cleanup(func() { _ = cs.Close() })
 
 	const id = "alice@github.com/acme/api"
-	call(t, cs, "register", map[string]any{"address": id, "role": "dev", "description": "d"})
-	call(t, cs, "sign_on", map[string]any{"address": id, "away": "brb"})
+	call(t, cs, "agent_register", map[string]any{"address": id, "role": "dev", "description": "d"})
+	call(t, cs, "agent_sign_on", map[string]any{"address": id, "away": "brb"})
 
 	r1.stop(t)
 	r2 := start(t, cfg) // same database, same socket path
 
-	res := callRetry(t, cs, "whoami", map[string]any{})
+	res := callRetry(t, cs, "agent_whoami", map[string]any{})
 	m, ok := res.StructuredContent.(map[string]any)
 	if !ok || m["session_id"] != "sess-restart" || m["signed_on_as"] != id {
 		t.Fatalf("whoami after restart = %v, want signed on as %s", res.StructuredContent, id)
 	}
 
 	// Mail tools that need the sign-on work without signing on again.
-	callRetry(t, cs, "send", map[string]any{"to": []string{id}, "subject": "after restart", "body": "hi"})
+	callRetry(t, cs, "mail_send", map[string]any{"to": []string{id}, "subject": "after restart", "body": "hi"})
 
 	// An explicit sign-off must not be resurrected by a second restart.
-	callRetry(t, cs, "sign_off", map[string]any{})
+	callRetry(t, cs, "agent_sign_off", map[string]any{})
 	r2.stop(t)
 	_ = start(t, cfg)
-	res = callRetry(t, cs, "whoami", map[string]any{})
+	res = callRetry(t, cs, "agent_whoami", map[string]any{})
 	if m, _ := res.StructuredContent.(map[string]any); m["signed_on_as"] != nil {
 		t.Fatalf("whoami after sign_off and restart = %v, want signed off", res.StructuredContent)
 	}

@@ -49,7 +49,7 @@ func (m *middleware) touchTasks(ctx context.Context) {
 	}
 }
 
-// attributeSubagent sets the subagent argument of a send, read or mark call
+// attributeSubagent sets the subagent argument of a mail_send, mail_read or mail_mark call
 // that left it empty, when the resolver knows the call's subagent.
 func (m *middleware) attributeSubagent(req mcp.Request) {
 	ctr, ok := req.(*mcp.CallToolRequest)
@@ -57,7 +57,7 @@ func (m *middleware) attributeSubagent(req mcp.Request) {
 		return
 	}
 	switch ctr.Params.Name {
-	case "send", "read", "mark":
+	case "mail_send", "mail_read", "mail_mark":
 	default:
 		return
 	}

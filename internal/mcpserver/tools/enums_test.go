@@ -77,11 +77,11 @@ func TestEnumsInToolSchemas(t *testing.T) {
 		path   []string
 		want   []string
 	}{
-		{"list input state", tools["list"].InputSchema, []string{"state"}, []string{"unread", "inbox", "read", "archived", "all"}},
-		{"mark input state", tools["mark"].InputSchema, []string{"state"}, []string{"read", "unread", "archived", "unarchived"}},
-		{"list output kind", tools["list"].OutputSchema, []string{"items", "kind"}, []string{"to", "cc"}},
-		{"roster output session state", tools["roster"].OutputSchema, []string{"identities", "online", "state"}, []string{"online", "idle"}},
-		{"roster output attention", tools["roster"].OutputSchema, []string{"identities", "online", "attention"}, []string{"blocked", "waiting", "failed", "interrupted"}},
+		{"list input state", tools["mail_list"].InputSchema, []string{"state"}, []string{"unread", "inbox", "read", "archived", "all"}},
+		{"mark input state", tools["mail_mark"].InputSchema, []string{"state"}, []string{"read", "unread", "archived", "unarchived"}},
+		{"list output kind", tools["mail_list"].OutputSchema, []string{"items", "kind"}, []string{"to", "cc"}},
+		{"roster output session state", tools["agent_roster"].OutputSchema, []string{"identities", "online", "state"}, []string{"online", "idle"}},
+		{"roster output attention", tools["agent_roster"].OutputSchema, []string{"identities", "online", "attention"}, []string{"blocked", "waiting", "failed", "interrupted"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -104,7 +104,7 @@ func TestEnumRejectsUnknownValue(t *testing.T) {
 	t.Parallel()
 	cs := mcptest.New(t).Client(t, "a")
 	res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{
-		Name: "list", Arguments: map[string]any{"address": "github.com/acme/api", "state": "done"},
+		Name: "mail_list", Arguments: map[string]any{"address": "github.com/acme/api", "state": "done"},
 	})
 	if err != nil {
 		t.Fatalf("protocol error %v; want a tool error the model can read and correct", err)

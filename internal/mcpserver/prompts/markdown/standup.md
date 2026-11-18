@@ -15,13 +15,13 @@ message delivered to several mailboxes appears once per mailbox.
 ## Steps
 
 1. **Read the digest.** Group messages by thread, not by message: a thread with
-   five replies is one story. Use `thread` with `thread_id` for any thread you
-   cannot follow from the snippets, and `read` with `peek` set to true when you
+   five replies is one story. Use `mail_thread` with `thread_id` for any thread you
+   cannot follow from the snippets, and `mail_read` with `peek` set to true when you
    need a full body without marking it read.
 2. **Sort each thread** into one of: finished, in progress, blocked, or
    decision pending. A thread is blocked when someone is waiting on someone
    else, or an agent has asked the operator a question that has no reply.
-3. **Check who is around.** Call `roster` with `address`
+3. **Check who is around.** Call `agent_roster` with `address`
    `{{.Args.address}}` to see which identities are online or away; mention
    anyone who is silent but holds work.
 4. **Write the summary** in the layout below. Name identities and message ids so
@@ -51,5 +51,5 @@ Next
 - Quiet days say so in one line instead of padding.
 - Blockers are specific about who can unblock them.
 - You do not mark mail read, archive or reply while writing a standup; this is
-  a read-only report. Send it only if the user asks (`send`, to the address
+  a read-only report. Send it only if the user asks (`mail_send`, to the address
   they name).

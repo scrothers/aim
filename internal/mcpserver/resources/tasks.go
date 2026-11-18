@@ -67,7 +67,7 @@ func renderTasks(ctx context.Context, c *session.Conn, _ string) (string, error)
 	}
 	text := mdview.TaskDigest("Your tasks", sections)
 	if !signedOn {
-		text += "\nNot signed on, so nothing is yours yet: call `sign_on` to claim or create tasks.\n"
+		text += "\nNot signed on, so nothing is yours yet: call `agent_sign_on` to claim or create tasks.\n"
 	}
 	return text, nil
 }

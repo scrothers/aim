@@ -107,15 +107,15 @@ func exercise(t *testing.T, network, addr, session string) {
 	t.Helper()
 	cs, _ := connect(t, network, addr, wire.Preamble{SessionID: session, Machine: "box", ProjectDir: "/p"})
 	defer func() { _ = cs.Close() }()
-	res := call(t, cs, "whoami", map[string]any{})
+	res := call(t, cs, "agent_whoami", map[string]any{})
 	m, ok := res.StructuredContent.(map[string]any)
 	if !ok || m["session_id"] != session {
 		t.Fatalf("whoami = %v", res.StructuredContent)
 	}
 	id := session + "@github.com/acme/api"
-	call(t, cs, "register", map[string]any{"address": id, "role": "r", "description": "d"})
-	call(t, cs, "sign_on", map[string]any{"address": id})
-	call(t, cs, "send", map[string]any{"to": []string{id}, "subject": "s", "body": "b"})
+	call(t, cs, "agent_register", map[string]any{"address": id, "role": "r", "description": "d"})
+	call(t, cs, "agent_sign_on", map[string]any{"address": id})
+	call(t, cs, "mail_send", map[string]any{"to": []string{id}, "subject": "s", "body": "b"})
 }
 
 func TestServeUnixAndTCP(t *testing.T) {
@@ -167,11 +167,11 @@ func TestPresenceRemovedOnDisconnect(t *testing.T) {
 	r := start(t, testCfg(t))
 	cs, _ := connect(t, "unix", r.addrs.Socket, wire.Preamble{SessionID: "carol", Machine: "box"})
 	id := "carol@github.com/acme/api"
-	call(t, cs, "register", map[string]any{"address": id, "role": "r", "description": "d"})
-	call(t, cs, "sign_on", map[string]any{"address": id})
+	call(t, cs, "agent_register", map[string]any{"address": id, "role": "r", "description": "d"})
+	call(t, cs, "agent_sign_on", map[string]any{"address": id})
 
 	online := func(c *mcp.ClientSession) int {
-		res := call(t, c, "roster", map[string]any{"address": "github.com/acme"})
+		res := call(t, c, "agent_roster", map[string]any{"address": "github.com/acme"})
 		ids := res.StructuredContent.(map[string]any)["identities"].([]any)
 		return len(ids[0].(map[string]any)["online"].([]any))
 	}

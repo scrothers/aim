@@ -11,7 +11,7 @@ import (
 
 // ReadInput is the input of read.
 type ReadInput struct {
-	MessageID string `json:"message_id" jsonschema:"Id of the message to read, for example msg-01jcz6x2k3, from list, wait, search or thread."`
+	MessageID string `json:"message_id" jsonschema:"Id of the message to read, for example msg-01jcz6x2k3, from mail_list, mail_wait, mail_search or mail_thread."`
 	Peek      bool   `json:"peek,omitempty" jsonschema:"true reads without marking anything read; default false. Use it to inspect mail you are not handling now."`
 	Subagent  string `json:"subagent,omitempty" jsonschema:"Mark the copy delivered to this subagent of your identity, for example tests. An unknown subagent is not an error; nothing is marked. Filled in automatically for Claude Code subagents when AIM hooks are installed."`
 }

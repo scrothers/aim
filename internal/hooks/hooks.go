@@ -256,11 +256,11 @@ func (s *Server) sessionStart(ctx context.Context, p wire.Preamble, id address.A
 func (s *Server) notSignedOn(ctx context.Context, p wire.Preamble) (string, error) {
 	var b strings.Builder
 	b.WriteString("# AIM\n\nThis session is not signed on to AIM (agent instant messaging). " +
-		"To send or receive mail, call `sign_on` with your identity address " +
-		"(`register` it first if it is new; `whoami` shows this session's namespace).\n")
+		"To send or receive mail, call `agent_sign_on` with your identity address " +
+		"(`agent_register` it first if it is new; `agent_whoami` shows this session's namespace).\n")
 	ns := s.namespace(p)
 	if ns == "" {
-		b.WriteString("\nUse the `roster` tool to find identities.\n")
+		b.WriteString("\nUse the `agent_roster` tool to find identities.\n")
 		return b.String(), nil
 	}
 	es, err := s.mail.Roster(ctx, ns)
@@ -323,7 +323,7 @@ func (s *Server) subagentStart(ctx context.Context, id address.Address, req wire
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "# AIM\n\nYou are subagent `%s` of `%s`. Your AIM mailbox is `%s`: "+
-		"pass `subagent: \"%s\"` to `send`, `read` and `mark`.\n", sub, id, addr, sub)
+		"pass `subagent: \"%s\"` to `mail_send`, `mail_read` and `mail_mark`.\n", sub, id, addr, sub)
 	items, total, err := s.unread(ctx, addr.String(), "")
 	if err != nil {
 		return "", err

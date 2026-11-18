@@ -66,8 +66,8 @@ func TestTaskToolsFlow(t *testing.T) {
 	fail(t, b, "task_update", map[string]any{"task_id": id, "action": "edit", "due_at": "soon"}, "due_at must be")
 
 	// send with task_id links the message.
-	sent := ok(t, b, "send", map[string]any{"to": []string{mcptest.Alice}, "subject": "done soon", "body": "b", "task_id": id})
-	fail(t, b, "send", map[string]any{"to": []string{mcptest.Alice}, "subject": "s", "body": "b", "task_id": "task-nope"}, "nothing was sent")
+	sent := ok(t, b, "mail_send", map[string]any{"to": []string{mcptest.Alice}, "subject": "done soon", "body": "b", "task_id": id})
+	fail(t, b, "mail_send", map[string]any{"to": []string{mcptest.Alice}, "subject": "s", "body": "b", "task_id": "task-nope"}, "nothing was sent")
 
 	detail := ok(t, a, "task_get", map[string]any{"task_id": id})
 	links, _ := detail["links"].([]any)
@@ -149,7 +149,7 @@ func TestTaskToolsWithoutBoard(t *testing.T) {
 		"task_list":   {},
 		"task_get":    {"task_id": "task-x"},
 		"task_update": {"task_id": "task-x", "action": "claim"},
-		"send":        {"to": []string{"operator"}, "subject": "s", "body": "b", "task_id": "task-x"},
+		"mail_send":   {"to": []string{"operator"}, "subject": "s", "body": "b", "task_id": "task-x"},
 	} {
 		fail(t, cs, name, args, "task board is not available")
 	}

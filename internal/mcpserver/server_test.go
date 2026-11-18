@@ -36,7 +36,7 @@ func TestClientInfoCaptured(t *testing.T) {
 	if st := e.Reg.All()[0]; st.Client != "" {
 		t.Fatalf("client before first call = %q", st.Client)
 	}
-	w := ok(t, cs, "whoami", map[string]any{})
+	w := ok(t, cs, "agent_whoami", map[string]any{})
 	if w["client"] != "t" || w["client_version"] != "0" {
 		t.Fatalf("whoami = %v", w)
 	}
@@ -44,12 +44,12 @@ func TestClientInfoCaptured(t *testing.T) {
 		t.Errorf("status = %+v", st)
 	}
 	register(t, cs, "bob@github.com/acme/api", "dev")
-	ok(t, cs, "sign_on", map[string]any{"address": "bob@github.com/acme/api"})
-	m := ok(t, cs, "send", map[string]any{"to": []string{"operator"}, "subject": "help", "body": "need a decision"})
+	ok(t, cs, "agent_sign_on", map[string]any{"address": "bob@github.com/acme/api"})
+	m := ok(t, cs, "mail_send", map[string]any{"to": []string{"operator"}, "subject": "help", "body": "need a decision"})
 	if m["from_client"] != "t" || m["from_machine"] != "box" {
 		t.Errorf("send = %v", m)
 	}
-	l := ok(t, cs, "list", map[string]any{"address": "operator"})
+	l := ok(t, cs, "mail_list", map[string]any{"address": "operator"})
 	if items, _ := l["items"].([]any); len(items) != 1 {
 		t.Errorf("operator inbox = %v", l)
 	}
