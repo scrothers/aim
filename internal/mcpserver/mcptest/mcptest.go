@@ -130,3 +130,45 @@ func Register(t *testing.T, cs *mcp.ClientSession, addr, role string) {
 	t.Helper()
 	OK(t, cs, "register", map[string]any{"address": addr, "role": role, "description": "d"})
 }
+
+// Identities used by TwoAgents.
+const (
+	Alice = "alice@github.com/acme/api"
+	Bob   = "bob@github.com/acme/api"
+)
+
+// TwoAgents registers and signs on Alice (session "a") and Bob (session "b")
+// and has Alice mail Bob "deploy plan".
+func (e *Env) TwoAgents(t *testing.T) (a, b *mcp.ClientSession, msgID, threadID string) {
+	t.Helper()
+	a, b = e.Client(t, "a"), e.Client(t, "b")
+	Register(t, a, Alice, "lead")
+	Register(t, b, Bob, "dev")
+	OK(t, a, "sign_on", map[string]any{"address": Alice})
+	OK(t, b, "sign_on", map[string]any{"address": Bob})
+	sent := OK(t, a, "send", map[string]any{"to": []string{Bob}, "subject": "deploy plan", "body": "ship the zebra rollout"})
+	return a, b, sent["id"].(string), sent["thread_id"].(string)
+}
+
+// ReadResource reads a single-content Markdown resource and returns its text.
+func ReadResource(t *testing.T, cs *mcp.ClientSession, uri string) string {
+	t.Helper()
+	res, err := cs.ReadResource(context.Background(), &mcp.ReadResourceParams{URI: uri})
+	if err != nil {
+		t.Fatalf("read %s: %v", uri, err)
+	}
+	if len(res.Contents) != 1 || res.Contents[0].MIMEType != "text/markdown" || res.Contents[0].URI != uri {
+		t.Fatalf("read %s: contents = %+v", uri, res.Contents)
+	}
+	return res.Contents[0].Text
+}
+
+// MustContain reports each of wants missing from got.
+func MustContain(t *testing.T, what, got string, wants ...string) {
+	t.Helper()
+	for _, w := range wants {
+		if !strings.Contains(got, w) {
+			t.Errorf("%s lacks %q:\n%s", what, w, got)
+		}
+	}
+}

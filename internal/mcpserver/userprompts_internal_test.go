@@ -68,21 +68,3 @@ func TestEmbeddedWorkflowsParse(t *testing.T) {
 		}
 	}
 }
-
-func TestEncodeDecodeSegmentRoundTrip(t *testing.T) {
-	t.Parallel()
-	for _, s := range []string{"github.com/acme/api", "bob@github.com/acme/api", "sub@bob@h/o/r", "msg-01abc", "a b+c%d", "ünï", "~._-"} {
-		enc := encodeSegment(s)
-		if strings.ContainsAny(enc, "/@ +") {
-			t.Errorf("encodeSegment(%q) = %q keeps reserved characters", s, enc)
-		}
-		if got, ok := decodeSegment(enc); !ok || got != s {
-			t.Errorf("decodeSegment(%q) = %q, %v; want %q", enc, got, ok, s)
-		}
-	}
-	for _, s := range []string{"", "a/b", "%zz", "%"} {
-		if _, ok := decodeSegment(s); ok {
-			t.Errorf("decodeSegment(%q) accepted", s)
-		}
-	}
-}

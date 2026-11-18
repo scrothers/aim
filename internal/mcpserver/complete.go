@@ -10,6 +10,7 @@ import (
 
 	"github.com/scrothers/aim/internal/address"
 	"github.com/scrothers/aim/internal/mail"
+	"github.com/scrothers/aim/internal/mcpserver/resources"
 )
 
 // maxCompletions is the protocol's cap on values per completion response.
@@ -46,19 +47,19 @@ func promptCompletion(prompt, arg string) completeKind {
 // holds.
 func templateCompletion(uriTemplate, variable string) completeKind {
 	switch uriTemplate {
-	case prefixThread + "{thread_id}":
+	case resources.PrefixThread + "{thread_id}":
 		if variable == "thread_id" {
 			return completeThreadID
 		}
-	case prefixMessage + "{message_id}":
+	case resources.PrefixMessage + "{message_id}":
 		if variable == "message_id" {
 			return completeMessageID
 		}
-	case prefixMailbox + "{address}":
+	case resources.PrefixMailbox + "{address}":
 		if variable == "address" {
 			return completeAddress
 		}
-	case prefixRosterOf + "{address}":
+	case resources.PrefixRosterOf + "{address}":
 		if variable == "address" {
 			return completeRosterAddress
 		}
@@ -121,7 +122,7 @@ func completion(candidates []string, typed string, encode bool) *mcp.CompleteRes
 		total++
 		if len(values) < maxCompletions {
 			if encode {
-				c = encodeSegment(c)
+				c = resources.EncodeSegment(c)
 			}
 			values = append(values, c)
 		}

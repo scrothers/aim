@@ -13,6 +13,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/scrothers/aim/internal/mail"
+	"github.com/scrothers/aim/internal/mcpserver/resources"
 	"github.com/scrothers/aim/internal/mcpserver/session"
 	"github.com/scrothers/aim/internal/mdview"
 )
@@ -233,11 +234,11 @@ func (h *handlers) workflowHandler(w workflow) mcp.PromptHandler {
 func (h *handlers) attachments(ctx context.Context, name string, args map[string]string, now time.Time) ([]*mcp.PromptMessage, error) {
 	switch name {
 	case "check-inbox":
-		text, err := h.inboxMarkdown(ctx)
+		text, err := resources.Inbox(ctx, h.c)
 		if err != nil {
 			return nil, err
 		}
-		return []*mcp.PromptMessage{embedded(uriInbox, text)}, nil
+		return []*mcp.PromptMessage{embedded(resources.URIInbox, text)}, nil
 	case "reply":
 		m, err := h.svc.Read(ctx, h.caller(), mail.ReadInput{MessageID: args["message_id"], Peek: true})
 		if err != nil {
@@ -262,15 +263,15 @@ func (h *handlers) attachments(ctx context.Context, name string, args map[string
 }
 
 func (h *handlers) threadAttachment(ctx context.Context, threadID string) ([]*mcp.PromptMessage, error) {
-	text, err := h.threadMarkdown(ctx, threadID)
+	text, err := resources.Thread(ctx, h.c, threadID)
 	if err != nil {
 		return nil, err
 	}
-	return []*mcp.PromptMessage{embedded(prefixThread+encodeSegment(threadID), text)}, nil
+	return []*mcp.PromptMessage{embedded(resources.ThreadURI(threadID), text)}, nil
 }
 
 func embedded(uri, text string) *mcp.PromptMessage {
 	return &mcp.PromptMessage{Role: "user", Content: &mcp.EmbeddedResource{
-		Resource: &mcp.ResourceContents{URI: uri, MIMEType: markdownMIME, Text: text},
+		Resource: &mcp.ResourceContents{URI: uri, MIMEType: resources.MIMEMarkdown, Text: text},
 	}}
 }

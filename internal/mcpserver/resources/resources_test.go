@@ -1,4 +1,4 @@
-package mcpserver_test
+package resources_test
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/scrothers/aim/internal/mcpserver"
 	"github.com/scrothers/aim/internal/mcpserver/mcptest"
+	"github.com/scrothers/aim/internal/mcpserver/resources"
 )
 
 // legacyProtocol is the pre-SEP-2575 protocol, where resources/subscribe is a
@@ -17,41 +18,22 @@ import (
 const legacyProtocol = "2025-11-25"
 
 const (
-	alice = "alice@github.com/acme/api"
-	bob   = "bob@github.com/acme/api"
+	alice = mcptest.Alice
+	bob   = mcptest.Bob
 )
 
-func readRes(t *testing.T, cs *mcp.ClientSession, uri string) string {
-	t.Helper()
-	res, err := cs.ReadResource(context.Background(), &mcp.ReadResourceParams{URI: uri})
-	if err != nil {
-		t.Fatalf("read %s: %v", uri, err)
-	}
-	if len(res.Contents) != 1 || res.Contents[0].MIMEType != "text/markdown" || res.Contents[0].URI != uri {
-		t.Fatalf("read %s: contents = %+v", uri, res.Contents)
-	}
-	return res.Contents[0].Text
-}
+// Short names for the shared test helpers.
+var (
+	newEnv      = mcptest.New
+	ok          = mcptest.OK
+	register    = mcptest.Register
+	readRes     = mcptest.ReadResource
+	mustContain = mcptest.MustContain
+)
 
-func mustContain(t *testing.T, what, got string, wants ...string) {
-	t.Helper()
-	for _, w := range wants {
-		if !strings.Contains(got, w) {
-			t.Errorf("%s lacks %q:\n%s", what, w, got)
-		}
-	}
-}
-
-// twoAgents registers and signs on alice and bob and has alice mail bob.
 func twoAgents(t *testing.T, e *mcptest.Env) (a, b *mcp.ClientSession, msgID, threadID string) {
 	t.Helper()
-	a, b = e.Client(t, "a"), e.Client(t, "b")
-	register(t, a, alice, "lead")
-	register(t, b, bob, "dev")
-	ok(t, a, "sign_on", map[string]any{"address": alice})
-	ok(t, b, "sign_on", map[string]any{"address": bob})
-	sent := ok(t, a, "send", map[string]any{"to": []string{bob}, "subject": "deploy plan", "body": "ship the zebra rollout"})
-	return a, b, sent["id"].(string), sent["thread_id"].(string)
+	return e.TwoAgents(t)
 }
 
 func TestResourceListAndTemplates(t *testing.T) {
@@ -130,13 +112,13 @@ func TestTemplateResources(t *testing.T) {
 	mustContain(t, "message", readRes(t, b, "aim://message/"+id), "deploy plan", "zebra")
 
 	// Addresses are percent-encoded into one segment and decoded by the handler.
-	enc := mcpserver.EncodeSegment(bob)
+	enc := resources.EncodeSegment(bob)
 	if strings.ContainsAny(enc, "@/") {
 		t.Fatalf("encoded segment %q keeps reserved characters", enc)
 	}
 	mustContain(t, "mailbox", readRes(t, b, "aim://mailbox/"+enc), "deploy plan")
-	mustContain(t, "mailbox of repo", readRes(t, b, "aim://mailbox/"+mcpserver.EncodeSegment("github.com/acme/api")), "deploy plan")
-	mustContain(t, "roster", readRes(t, b, "aim://roster/"+mcpserver.EncodeSegment("github.com/acme")), alice, bob)
+	mustContain(t, "mailbox of repo", readRes(t, b, "aim://mailbox/"+resources.EncodeSegment("github.com/acme/api")), "deploy plan")
+	mustContain(t, "roster", readRes(t, b, "aim://roster/"+resources.EncodeSegment("github.com/acme")), alice, bob)
 	mustContain(t, "roster of identity", readRes(t, b, "aim://roster/"+enc), bob)
 
 	// Reads through templates are peeks.
@@ -157,7 +139,7 @@ func TestResourceNotFound(t *testing.T) {
 			t.Errorf("read %s: want an error", uri)
 		}
 	}
-	if _, err := cs.ReadResource(context.Background(), &mcp.ReadResourceParams{URI: "aim://mailbox/" + mcpserver.EncodeSegment("!!bad")}); err == nil ||
+	if _, err := cs.ReadResource(context.Background(), &mcp.ReadResourceParams{URI: "aim://mailbox/" + resources.EncodeSegment("!!bad")}); err == nil ||
 		!strings.Contains(err.Error(), "address grammar") {
 		t.Errorf("invalid address error = %v", err)
 	}
@@ -215,7 +197,7 @@ func TestSubscriptions(t *testing.T) {
 	if err := b.Subscribe(ctx, &mcp.SubscribeParams{URI: "aim://thread/nope"}); err == nil {
 		t.Error("subscribing to an unknown thread should fail")
 	}
-	for _, u := range []string{"aim://inbox", "aim://mailbox/" + mcpserver.EncodeSegment("github.com/acme/api")} {
+	for _, u := range []string{"aim://inbox", "aim://mailbox/" + resources.EncodeSegment("github.com/acme/api")} {
 		if err := b.Subscribe(ctx, &mcp.SubscribeParams{URI: u}); err != nil {
 			t.Fatalf("subscribe %s: %v", u, err)
 		}
@@ -231,7 +213,7 @@ func TestSubscriptions(t *testing.T) {
 			t.Fatalf("updates so far: %v", got)
 		}
 	}
-	if !got["aim://inbox"] || !got["aim://mailbox/"+mcpserver.EncodeSegment("github.com/acme/api")] {
+	if !got["aim://inbox"] || !got["aim://mailbox/"+resources.EncodeSegment("github.com/acme/api")] {
 		t.Fatalf("updates = %v", got)
 	}
 
@@ -249,7 +231,7 @@ func TestSubscriptions(t *testing.T) {
 	if err := b.Unsubscribe(ctx, &mcp.UnsubscribeParams{URI: "aim://inbox"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.Unsubscribe(ctx, &mcp.UnsubscribeParams{URI: "aim://mailbox/" + mcpserver.EncodeSegment("github.com/acme/api")}); err != nil {
+	if err := b.Unsubscribe(ctx, &mcp.UnsubscribeParams{URI: "aim://mailbox/" + resources.EncodeSegment("github.com/acme/api")}); err != nil {
 		t.Fatal(err)
 	}
 	ok(t, a, "send", map[string]any{"to": []string{bob}, "subject": "again", "body": "x"})

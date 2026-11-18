@@ -19,6 +19,15 @@ func TestEnvClientAndHelpers(t *testing.T) {
 		t.Error("error text is empty")
 	}
 
+	e2 := mcptest.New(t)
+	a, b, msgID, threadID := e2.TwoAgents(t)
+	if msgID == "" || threadID == "" {
+		t.Fatalf("ids = %q %q", msgID, threadID)
+	}
+	inbox := mcptest.ReadResource(t, b, "aim://inbox")
+	mcptest.MustContain(t, "bob's inbox", inbox, "deploy plan", mcptest.Alice)
+	mcptest.MustContain(t, "alice's session", mcptest.ReadResource(t, a, "aim://me"), mcptest.Alice)
+
 	e.NoNamespace = true
 	if w := mcptest.OK(t, e.Client(t, "b"), "whoami", map[string]any{}); w["namespace"] != nil {
 		t.Errorf("no-namespace whoami = %v", w)
