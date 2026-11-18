@@ -46,6 +46,9 @@ const (
 	HealthAbandoned Health = "abandoned"
 )
 
+// Healths lists every health stage, healthiest first.
+var Healths = []Health{HealthActive, HealthIdle, HealthStale, HealthAbandoned}
+
 // Action is a change Update applies.
 type Action string
 

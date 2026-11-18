@@ -25,6 +25,11 @@ func TestToolAnnotations(t *testing.T) {
 		"mark":     {"Mark messages", false, true},
 		"search":   {"Search mail", true, false},
 		"wait":     {"Wait for mail", true, false},
+		// Task tools.
+		"task_create": {"Create task", false, false},
+		"task_list":   {"List tasks", true, false},
+		"task_get":    {"Get task", true, false},
+		"task_update": {"Update task", false, false},
 	}
 	cs := newEnv(t).Client(t, "a")
 	res, err := cs.ListTools(context.Background(), nil)

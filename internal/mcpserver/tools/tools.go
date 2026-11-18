@@ -47,6 +47,10 @@ func Register(srv *mcp.Server, c *session.Conn, o Options) {
 	addTool(srv, "mark", t.mark)
 	addTool(srv, "search", t.search)
 	addTool(srv, "wait", t.wait)
+	addTool(srv, "task_create", t.taskCreate)
+	addTool(srv, "task_list", t.taskList)
+	addTool(srv, "task_get", t.taskGet)
+	addTool(srv, "task_update", t.taskUpdate)
 }
 
 // meta is one tool's human title and behavior hints. Every AIM tool is
@@ -87,7 +91,13 @@ var toolMeta = map[string]meta{
 	// mark's archive is reversible, so it is not destructive.
 	"mark":   {title: "Mark messages", idempotent: true},
 	"search": {title: "Search mail", readOnly: true},
-	"wait":   {title: "Wait for mail", readOnly: true},
+	// Creating twice makes two tasks, and update actions such as comment
+	// append history, so neither is idempotent.
+	"task_create": {title: "Create task"},
+	"task_list":   {title: "List tasks", readOnly: true},
+	"task_get":    {title: "Get task", readOnly: true},
+	"task_update": {title: "Update task"},
+	"wait":        {title: "Wait for mail", readOnly: true},
 }
 
 // markdownDir holds one <tool name>.md description per tool. Editing these

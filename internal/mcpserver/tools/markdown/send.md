@@ -20,6 +20,7 @@ The `handoff`, `reply`, `escalate` and `standup` prompts draft these for you.
 - `in_reply_to` (optional): the `id` of the message you are answering; the reply joins its thread. Without it a new thread starts.
 - `reply_all` (optional, needs `in_reply_to`): also address the original sender and its `to` and `cc` (cc stays cc), minus yourself and retired identities. Add `to` or `cc` to include more people.
 - `subagent` (optional): send as one of your subagents, for example `tests` sends from `tests@reviewer@github.com/acme/api`. With AIM hooks installed, Claude Code subagents get this filled in automatically.
+- `task_id` (optional): link the message to a task (`task-...`) so it shows in the task's history. An unknown task fails before anything is sent.
 
 **Recipients**
 

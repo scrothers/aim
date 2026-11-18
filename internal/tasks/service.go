@@ -198,7 +198,7 @@ func normalizeScope(op, scope string) (string, error) {
 		return "", invalidf(op, "scope: %v", err)
 	}
 	if a.Kind() != address.KindNamespace {
-		return "", invalidf(op, "scope %q is a %s address; use an org or repo address like github.com/acme or github.com/acme/api", scope, a.Kind())
+		return "", invalidf(op, "scope %q is not an org or repo address (it names a %s); use one like github.com/acme or github.com/acme/api", scope, a.Kind())
 	}
 	return a.String(), nil
 }

@@ -26,8 +26,8 @@ func TestToolList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Tools) != 12 {
-		t.Fatalf("tools = %d, want 12", len(res.Tools))
+	if len(res.Tools) != 16 {
+		t.Fatalf("tools = %d, want 16", len(res.Tools))
 	}
 	registered := map[string]bool{}
 	for _, tool := range res.Tools {

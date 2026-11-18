@@ -7,6 +7,7 @@ import (
 
 	"github.com/scrothers/aim/internal/mail"
 	"github.com/scrothers/aim/internal/presence"
+	"github.com/scrothers/aim/internal/tasks"
 	"github.com/scrothers/aim/internal/wire"
 )
 
@@ -28,6 +29,20 @@ var enumSchemas = map[reflect.Type]*jsonschema.Schema{
 	reflect.TypeFor[mail.DeliveryKind](): enum(string(mail.DeliveryTo), string(mail.DeliveryCc)),
 	reflect.TypeFor[mail.SessionState](): enum(presence.StateOnline, presence.StateIdle),
 	reflect.TypeFor[mail.Attention]():    enum(wire.AttentionBlocked, wire.AttentionWaiting, wire.AttentionFailed, wire.AttentionInterrupted),
+	reflect.TypeFor[tasks.Status]():      enumOf(tasks.Statuses),
+	reflect.TypeFor[tasks.Priority]():    enumOf(tasks.Priorities),
+	reflect.TypeFor[tasks.Action]():      enumOf(tasks.Actions),
+	reflect.TypeFor[tasks.Health]():      enumOf(tasks.Healths),
+}
+
+// enumOf returns a string schema restricted to the values of a named string
+// type.
+func enumOf[T ~string](values []T) *jsonschema.Schema {
+	s := &jsonschema.Schema{Type: "string"}
+	for _, v := range values {
+		s.Enum = append(s.Enum, string(v))
+	}
+	return s
 }
 
 // enum returns a string schema restricted to values.
