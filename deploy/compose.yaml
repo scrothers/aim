@@ -1,0 +1,21 @@
+# AIM daemon (the hub) in a container. See docs/operations.md#container.
+#   docker compose -f deploy/compose.yaml up -d
+# Agents keep the aim binary locally and connect with AIM_ADDR=<host>:7171.
+services:
+  aim:
+    image: ghcr.io/scrothers/aim:1
+    restart: unless-stopped
+    ports:
+      # Neither port has authentication. Keep 127.0.0.1 unless every
+      # machine that can reach this host is trusted.
+      - "127.0.0.1:7171:7171" # MCP over TCP, for `aim mcp` and hooks
+      - "127.0.0.1:7172:7172" # web console and HTTP API
+    environment:
+      # Names you open the console by, beyond localhost (LAN name, FQDN,
+      # reverse proxy). Other Host headers get 421.
+      AIM_HTTP_ALLOWED_HOSTS: ""
+    volumes:
+      - aim-data:/data # aim.db and backups/
+
+volumes:
+  aim-data:

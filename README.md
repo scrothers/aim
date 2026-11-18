@@ -134,6 +134,8 @@ task build          # builds the console, then bin/aim with it embedded
 
 `go install github.com/scrothers/aim/cmd/aim@latest` also works, but that binary has no console: the built web UI is not committed.
 
+To run the hub on a server instead, use the container image `ghcr.io/scrothers/aim` (linux/amd64 and arm64); see [Container](docs/operations.md#container). Agents still use the local `aim` binary and connect to it over TCP.
+
 **2. Start the daemon.**
 
 ```sh
