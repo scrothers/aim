@@ -113,6 +113,15 @@ describe('runtime mapping', () => {
     expect(screen.getByText('my-agent')).toBeInTheDocument()
     expect(screen.queryByRole('img')).toBeNull()
   })
+
+  // The badge chip is always white, so a white mark renders as an empty box.
+  it('ships no white-filled runtime icons', () => {
+    const svgs = import.meta.glob('../../assets/runtimes/*.svg', { eager: true, query: '?raw', import: 'default' }) as Record<string, string>
+    expect(Object.keys(svgs).length).toBeGreaterThan(5)
+    for (const [file, src] of Object.entries(svgs)) {
+      expect(src, file).not.toMatch(/fill="(white|#fff|#ffffff)"/i)
+    }
+  })
 })
 
 describe('Sparkline', () => {

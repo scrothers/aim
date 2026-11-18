@@ -10,10 +10,10 @@ Source URL pattern:
 | claude.svg | claude / default |
 | codex.svg | codex / default |
 | gemini.svg | gemini / default |
-| grok.svg | grok / default |
+| grok.svg | grok / default, fill changed from `white` to `#111111` so it shows on the white badge chip |
 | opencode.svg | opencode / default |
 | cline.svg | cline / default |
-| kilo-code.svg | kilo-code / default |
+| kilo-code.svg | kilo-code / default, fill changed from `#fff` to `#111111` so it shows on the white badge chip |
 | deepseek.svg | deepseek / color |
 | model-context-protocol.svg | model-context-protocol / default, fill changed from `#ffffff` to `#111111` so it shows on the white badge chip |
 
