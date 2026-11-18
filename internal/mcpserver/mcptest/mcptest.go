@@ -13,6 +13,7 @@ import (
 	"github.com/scrothers/aim/internal/mcpserver"
 	"github.com/scrothers/aim/internal/presence"
 	"github.com/scrothers/aim/internal/store"
+	"github.com/scrothers/aim/internal/tasks"
 	"github.com/scrothers/aim/internal/wire"
 )
 
@@ -21,6 +22,8 @@ import (
 type Env struct {
 	Svc *mail.Service
 	Reg *presence.Registry
+	// Tasks is the task board every client's server is given.
+	Tasks *tasks.Service
 	// NoNamespace makes later clients connect from a directory without a
 	// git remote.
 	NoNamespace bool
@@ -38,7 +41,8 @@ func New(t *testing.T) *Env {
 	}
 	t.Cleanup(func() { _ = st.Close() })
 	reg := presence.New()
-	return &Env{Svc: mail.New(st, mcpserver.NewPresence(reg)), Reg: reg}
+	svc := mail.New(st, mcpserver.NewPresence(reg))
+	return &Env{Svc: svc, Reg: reg, Tasks: tasks.New(st, svc, tasks.WithSessions(reg))}
 }
 
 // Client connects a client as session "sess-<id>" on machine "box" in the
@@ -62,6 +66,7 @@ func (e *Env) ClientWith(t *testing.T, id string, opts []mcpserver.Option, copts
 	entry := e.Reg.Add("conn-"+id, pre, time.Now())
 	t.Cleanup(func() { e.Reg.Remove("conn-" + id) })
 	ct, st := mcp.NewInMemoryTransports()
+	opts = append([]mcpserver.Option{mcpserver.WithTasks(e.Tasks)}, opts...)
 	ss, err := mcpserver.New(e.Svc, entry, "test", opts...).Connect(ctx, st, nil)
 	if err != nil {
 		t.Fatal(err)

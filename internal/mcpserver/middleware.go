@@ -17,6 +17,7 @@ func (m *middleware) captureClient(next mcp.MethodHandler) mcp.MethodHandler {
 	return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
 		if method == "tools/call" {
 			m.conn.Touch(time.Now())
+			m.touchTasks(ctx)
 			m.attributeSubagent(req)
 		}
 		if method == "tools/call" && !m.clientSeen.Load() {
@@ -28,6 +29,23 @@ func (m *middleware) captureClient(next mcp.MethodHandler) mcp.MethodHandler {
 			}
 		}
 		return next(ctx, method, req)
+	}
+}
+
+// TaskToucher records lease activity for an agent session's held tasks.
+type TaskToucher interface {
+	Touch(ctx context.Context, sessionID string) error
+}
+
+// touchTasks counts the tool call as activity on the tasks the session
+// holds. It is best-effort: a failed touch never fails the call, and the
+// next call or hook retries it.
+func (m *middleware) touchTasks(ctx context.Context) {
+	if m.toucher == nil {
+		return
+	}
+	if sid := m.conn.Preamble().SessionID; sid != "" {
+		_ = m.toucher.Touch(ctx, sid)
 	}
 }
 

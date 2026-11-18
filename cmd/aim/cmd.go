@@ -16,6 +16,7 @@ import (
 	"github.com/scrothers/aim/internal/httpapi"
 	"github.com/scrothers/aim/internal/presence"
 	"github.com/scrothers/aim/internal/shim"
+	"github.com/scrothers/aim/internal/tasks"
 )
 
 // version reports the main module version from the embedded build info.
@@ -125,6 +126,14 @@ func newDaemonCmd() *cobra.Command {
 		"report a session idle after this long without a tool call (AIM_IDLE_AFTER)")
 	f.DurationVar(&cfg.AttentionAlert, "attention-alert", envDuration(os.Getenv, "AIM_ATTENTION_ALERT", defaultAttentionAlert),
 		"message the operator when an agent's hooks report it blocked or failed for this long; 0 disables (AIM_ATTENTION_ALERT)")
+	f.DurationVar(&cfg.TaskDecay.IdleAfter, "task-idle-after", envDuration(os.Getenv, "AIM_TASK_IDLE_AFTER", tasks.DefaultIdleAfter),
+		"report a claimed task idle after this long without activity from its claimant's session (AIM_TASK_IDLE_AFTER)")
+	f.DurationVar(&cfg.TaskDecay.StaleAfter, "task-stale-after", envDuration(os.Getenv, "AIM_TASK_STALE_AFTER", tasks.DefaultStaleAfter),
+		"mark a claimed task stale and mail its claimant and creator after this long without activity (AIM_TASK_STALE_AFTER)")
+	f.DurationVar(&cfg.TaskDecay.AbandonAfter, "task-abandon-after", envDuration(os.Getenv, "AIM_TASK_ABANDON_AFTER", tasks.DefaultAbandonAfter),
+		"abandon a claimed task after this long without activity once its claimant's session disconnected (AIM_TASK_ABANDON_AFTER)")
+	f.DurationVar(&cfg.TaskDecay.MaxHold, "task-max-hold", envDuration(os.Getenv, "AIM_TASK_MAX_HOLD", tasks.DefaultMaxHold),
+		"abandon a claimed task after this long without activity even while its claimant is connected (AIM_TASK_MAX_HOLD)")
 	f.StringVar(&level, "log-level", "info", "log level: debug, info, warn, error")
 	return cmd
 }

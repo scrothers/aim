@@ -282,6 +282,22 @@ func (r *Registry) Agent(machine, sessionID string, agentPID int) (*Entry, bool)
 	return best, best != nil
 }
 
+// Connected reports whether any registered connection belongs to the agent
+// session sessionID. It satisfies tasks.Sessions.
+func (r *Registry) Connected(sessionID string) bool {
+	if sessionID == "" {
+		return false
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, e := range r.entries {
+		if e.preamble.SessionID == sessionID {
+			return true
+		}
+	}
+	return false
+}
+
 // better reports whether a is a better agent match than b. The caller must
 // hold r.mu.
 func better(a, b *Entry) bool {

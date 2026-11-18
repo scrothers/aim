@@ -45,6 +45,24 @@ func TestAddRemoveLen(t *testing.T) {
 	}
 }
 
+func TestConnected(t *testing.T) {
+	t.Parallel()
+	r := New()
+	r.Add("c1", preamble("s1"), t0)
+	r.Add("c2", preamble("s1"), t0)
+	if !r.Connected("s1") || r.Connected("s2") || r.Connected("") {
+		t.Fatal("Connected mismatch")
+	}
+	r.Remove("c1")
+	if !r.Connected("s1") {
+		t.Error("s1 still has c2")
+	}
+	r.Remove("c2")
+	if r.Connected("s1") {
+		t.Error("s1 connected after removing all")
+	}
+}
+
 func TestZeroValueRegistryAdd(t *testing.T) {
 	t.Parallel()
 	var r Registry

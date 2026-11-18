@@ -13,6 +13,7 @@ import (
 	"github.com/scrothers/aim/internal/mcpserver/session"
 	"github.com/scrothers/aim/internal/mcpserver/tools"
 	"github.com/scrothers/aim/internal/presence"
+	"github.com/scrothers/aim/internal/tasks"
 )
 
 // New returns an MCP server for one connection. Handlers act on behalf of
@@ -22,7 +23,7 @@ func New(svc *mail.Service, conn *presence.Entry, version string, opts ...Option
 	for _, o := range opts {
 		o(&cfg)
 	}
-	c := &session.Conn{Svc: svc, Entry: conn}
+	c := &session.Conn{Svc: svc, Entry: conn, Tasks: cfg.tasks}
 	subs := resources.NewSubscriptions(c, cfg.subscribeDebounce, cfg.watcherExit)
 	srv := mcp.NewServer(
 		&mcp.Implementation{Name: "aim", Version: version},
@@ -36,7 +37,10 @@ func New(svc *mail.Service, conn *presence.Entry, version string, opts ...Option
 	subs.Bind(srv)
 	resources.Register(srv, c)
 	prompts.Register(srv, c)
-	mw := &middleware{conn: conn, resolveSubagent: cfg.resolveSubagent}
+	mw := &middleware{conn: conn, resolveSubagent: cfg.resolveSubagent, toucher: cfg.toucher}
+	if mw.toucher == nil && cfg.tasks != nil {
+		mw.toucher = cfg.tasks
+	}
 	srv.AddReceivingMiddleware(mw.captureClient)
 	tools.Register(srv, c, tools.Options{ProgressInterval: cfg.progressInterval})
 	return srv
@@ -48,6 +52,20 @@ type config struct {
 	subscribeDebounce time.Duration
 	watcherExit       chan<- struct{}
 	resolveSubagent   SubagentResolver
+	tasks             *tasks.Service
+	toucher           TaskToucher
+}
+
+// WithTasks gives the server the task board: it enables the task tools and
+// resources, and makes every tool call lease activity for the session.
+func WithTasks(t *tasks.Service) Option {
+	return func(c *config) { c.tasks = t }
+}
+
+// WithTaskToucher overrides what records a tool call as task lease
+// activity; the default is the WithTasks board.
+func WithTaskToucher(t TaskToucher) Option {
+	return func(c *config) { c.toucher = t }
 }
 
 // Option configures a per-connection server.
@@ -87,5 +105,6 @@ func WithSubagentResolver(r SubagentResolver) Option {
 type middleware struct {
 	conn            *presence.Entry
 	resolveSubagent SubagentResolver
+	toucher         TaskToucher // nil without a task board
 	clientSeen      atomic.Bool
 }

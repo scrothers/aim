@@ -2,6 +2,8 @@ package mcpserver_test
 
 import (
 	"context"
+	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -57,5 +59,33 @@ func TestOptionsReachFeatures(t *testing.T) {
 	case <-exit:
 	case <-time.After(5 * time.Second):
 		t.Fatal("subscription watcher did not exit after the session closed")
+	}
+}
+
+type recordToucher struct {
+	mu       sync.Mutex
+	sessions []string
+}
+
+func (r *recordToucher) Touch(_ context.Context, sessionID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.sessions = append(r.sessions, sessionID)
+	return errors.New("ignored")
+}
+
+// TestToolCallsTouchTasks checks every tool call is task lease activity for
+// the connection's session, and that a failed touch never fails the call.
+func TestToolCallsTouchTasks(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	rt := &recordToucher{}
+	cs := e.ClientWith(t, "a", []mcpserver.Option{mcpserver.WithTaskToucher(rt)}, nil)
+	ok(t, cs, "whoami", map[string]any{})
+	ok(t, cs, "roster", map[string]any{"address": "github.com/acme"})
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	if len(rt.sessions) != 2 || rt.sessions[0] != "sess-a" {
+		t.Errorf("touched = %v", rt.sessions)
 	}
 }

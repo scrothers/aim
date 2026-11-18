@@ -9,13 +9,29 @@ import (
 	"github.com/scrothers/aim/internal/address"
 	"github.com/scrothers/aim/internal/mail"
 	"github.com/scrothers/aim/internal/presence"
+	"github.com/scrothers/aim/internal/tasks"
 )
 
-// Conn is one MCP connection: the mail service it acts through and the
-// presence entry whose preamble and sign-on identify the caller.
+// Conn is one MCP connection: the mail service it acts through, the task
+// board, and the presence entry whose preamble and sign-on identify the
+// caller.
 type Conn struct {
 	Svc   *mail.Service
 	Entry *presence.Entry
+	// Tasks is the task board; nil when the server was built without one,
+	// in which case task tools and resources report it unavailable.
+	Tasks *tasks.Service
+}
+
+// ErrNoTasks is returned by task tools on a server without a task board.
+var ErrNoTasks = errors.New("the task board is not available on this server")
+
+// TaskBoard returns the task board or ErrNoTasks.
+func (c *Conn) TaskBoard() (*tasks.Service, error) {
+	if c.Tasks == nil {
+		return nil, ErrNoTasks
+	}
+	return c.Tasks, nil
 }
 
 // Caller returns the mail caller for the connection's current sign-on.

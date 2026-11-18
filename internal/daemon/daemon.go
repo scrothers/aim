@@ -24,6 +24,7 @@ import (
 	"github.com/scrothers/aim/internal/notify"
 	"github.com/scrothers/aim/internal/presence"
 	"github.com/scrothers/aim/internal/store"
+	"github.com/scrothers/aim/internal/tasks"
 	"github.com/scrothers/aim/internal/webui"
 	"github.com/scrothers/aim/internal/wire"
 )
@@ -75,6 +76,9 @@ type Config struct {
 	// AttentionAlert is how long an agent may stay blocked or failed, as its
 	// hooks report, before the operator gets a message; zero sends none.
 	AttentionAlert time.Duration
+	// TaskDecay holds the task lease thresholds; zero fields use the tasks
+	// defaults.
+	TaskDecay tasks.Decay
 	// Ready, if set, is called once all listeners are bound.
 	Ready func(Addrs)
 }
@@ -90,6 +94,7 @@ type daemon struct {
 	maint  *maintenance.Runner
 	notify *notify.Manager
 	hooks  *hooks.Server
+	tasks  *tasks.Service
 
 	mu    sync.Mutex
 	conns map[net.Conn]struct{}
@@ -118,8 +123,9 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) (err error) {
 		cfg: cfg, logger: logger, reg: reg, conns: make(map[net.Conn]struct{}),
 		svc: mail.New(st, mcpserver.NewPresence(reg)),
 	}
+	d.tasks = tasks.New(st, d.svc, tasks.WithDecay(cfg.TaskDecay), tasks.WithSessions(reg), tasks.WithLogger(logger))
 	d.hooks = hooks.New(d.svc, reg, hooks.WithAlertAfter(cfg.AttentionAlert), hooks.WithLogger(logger),
-		hooks.WithApprovalMode(approvalMode(d.svc)))
+		hooks.WithApprovalMode(approvalMode(d.svc)), hooks.WithTasks(d.tasks))
 	defer d.hooks.Close() // runs before the store closes (registered first, runs last otherwise)
 
 	if err := d.svc.EnsureOperator(ctx); err != nil {
@@ -142,10 +148,12 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) (err error) {
 	mctx, stopMaint := context.WithCancel(ctx)
 	maintDone := d.startMaintenance(mctx, st)
 	notifyDone := d.startNotify(mctx)
+	sweepDone := d.startTaskSweeper(mctx)
 	defer func() { // registered after the store close, so it runs before it
 		stopMaint()
 		<-maintDone
 		<-notifyDone
+		<-sweepDone
 	}()
 
 	var addrs Addrs
@@ -386,7 +394,7 @@ func (d *daemon) serve(ctx context.Context, c net.Conn) {
 
 	d.restoreSignon(ctx, log, entry, p)
 
-	srv := mcpserver.New(d.svc, entry, d.cfg.Version, mcpserver.WithSubagentResolver(d.hooks.SubagentFor))
+	srv := mcpserver.New(d.svc, entry, d.cfg.Version, mcpserver.WithSubagentResolver(d.hooks.SubagentFor), mcpserver.WithTasks(d.tasks))
 	f := newInflight(halfCloseGrace)
 	ss, err := srv.Connect(ctx, &mcp.IOTransport{Reader: f.reader(br, c), Writer: f.writer(c)}, nil)
 	if err != nil {

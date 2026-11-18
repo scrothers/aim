@@ -17,6 +17,7 @@ import (
 	"github.com/scrothers/aim/internal/mail"
 	"github.com/scrothers/aim/internal/mdview"
 	"github.com/scrothers/aim/internal/presence"
+	"github.com/scrothers/aim/internal/tasks"
 	"github.com/scrothers/aim/internal/wire"
 )
 
@@ -42,10 +43,18 @@ type Mail interface {
 	Send(ctx context.Context, c mail.Caller, in mail.SendInput) (mail.Message, error)
 }
 
+// Tasks is the slice of the task board the hook server uses: every hook
+// event is lease activity for the session, and nudges mention open work.
+type Tasks interface {
+	Touch(ctx context.Context, sessionID string) error
+	Counts(ctx context.Context, identity string) (tasks.Counts, error)
+}
+
 // Server answers hook requests. Use New to create one; it is safe for
 // concurrent use.
 type Server struct {
 	mail       Mail
+	tasks      Tasks // nil disables task activity and nudges
 	reg        *presence.Registry
 	log        *slog.Logger
 	now        func() time.Time
@@ -104,6 +113,10 @@ func WithAlertAfter(d time.Duration) Option { return func(s *Server) { s.alertAf
 // alerts. The default is slog.Default().
 func WithLogger(l *slog.Logger) Option { return func(s *Server) { s.log = l } }
 
+// WithTasks makes every hook event count as task lease activity for its
+// session and adds open-task counts to session-start and prompt nudges.
+func WithTasks(t Tasks) Option { return func(s *Server) { s.tasks = t } }
+
 // New returns a Server over the mail service and the presence registry.
 func New(m Mail, reg *presence.Registry, opts ...Option) *Server {
 	s := &Server{
@@ -152,6 +165,7 @@ func (s *Server) Serve(ctx context.Context, c net.Conn, br *bufio.Reader, p wire
 
 // Handle answers one event request.
 func (s *Server) Handle(ctx context.Context, p wire.Preamble, req wire.HookRequest) (wire.HookReply, error) {
+	s.touchTasks(ctx, p)
 	id, ok := s.identity(ctx, p)
 	reply := wire.HookReply{SignedOn: ok}
 	if ok {
@@ -162,10 +176,16 @@ func (s *Server) Handle(ctx context.Context, p wire.Preamble, req wire.HookReque
 	case wire.HookSessionStart:
 		s.setAttention(ctx, p, wire.HookRequest{}, id, ok)
 		reply.Context, err = s.sessionStart(ctx, p, id, ok)
+		if err == nil && ok {
+			reply.Context = joinContext(reply.Context, s.taskNudge(ctx, id))
+		}
 	case wire.HookPrompt, wire.HookPostTool:
 		s.setAttention(ctx, p, wire.HookRequest{}, id, ok)
 		if ok {
 			reply.Context, err = s.nudgeAgent(ctx, p, id, req)
+		}
+		if err == nil && ok && req.Event == wire.HookPrompt {
+			reply.Context = joinContext(reply.Context, s.taskNudge(ctx, id))
 		}
 	case wire.HookSubagentStart:
 		s.setAttention(ctx, p, wire.HookRequest{}, id, ok)
