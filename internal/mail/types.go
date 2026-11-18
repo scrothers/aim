@@ -22,6 +22,13 @@ type OnlineStatus struct {
 	State string `json:"state,omitempty"`
 	// LastActive is the time of the session's latest tool call.
 	LastActive time.Time `json:"last_active,omitzero"`
+	// Attention is the state the agent's hooks reported (blocked, waiting,
+	// failed or interrupted), or empty when it needs none.
+	Attention string `json:"attention,omitempty"`
+	// AttentionDetail is the runtime's message for the attention state.
+	AttentionDetail string `json:"attention_detail,omitempty"`
+	// AttentionSince is when the attention state began.
+	AttentionSince time.Time `json:"attention_since,omitzero"`
 }
 
 // Identity is a registered identity mailbox.
