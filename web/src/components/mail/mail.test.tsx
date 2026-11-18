@@ -10,6 +10,14 @@ import { helpFlag, paletteFlag } from '@/lib/flag'
 const mocks = vi.hoisted(() => ({ GET: vi.fn(), POST: vi.fn() }))
 vi.mock('@/api/client', async (orig) => ({ ...(await orig<typeof import('@/api/client')>()), api: mocks }))
 
+// jsdom cannot run Lexical: stand in for the lazy editor with the same contract
+// (Markdown string in, Markdown string out through onChange).
+vi.mock('./MarkdownEditor', () => ({
+  default: ({ value, onChange, label = 'Message body' }: { value: string; onChange: (m: string) => void; label?: string }) => (
+    <textarea aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} />
+  ),
+}))
+
 import { Composer, replyDefaults } from './Composer'
 import { MailView } from './MailView'
 import { ThreadView } from './ThreadView'
@@ -331,7 +339,7 @@ describe('Composer', () => {
     await user.type(screen.getByLabelText('To recipients'), 'ops@github.com/acme/api{Enter}')
     await user.type(screen.getByLabelText('To recipients'), 'bad!!')
     await user.type(screen.getByLabelText('Subject'), 'S')
-    await user.type(screen.getByLabelText('Message body'), 'B')
+    await user.type(await screen.findByLabelText('Message body'), 'B')
     await user.click(screen.getByRole('button', { name: /^Send/ }))
     const alerts = await screen.findAllByRole('alert')
     expect(alerts.some((a) => a.textContent?.includes('Invalid address: bad!!'))).toBe(true)
@@ -349,7 +357,7 @@ describe('Composer', () => {
     await user.type(to, 'ops@github.com/acme/api{Enter}')
     expect(screen.getByRole('button', { name: 'Remove ops@github.com/acme/api' })).toBeInTheDocument()
     await user.type(to, 'coord')
-    await user.click(await screen.findByRole('button', { name: /coordinator/ }))
+    await user.click(await screen.findByRole('option', { name: /coordinator/ }))
     expect(screen.getByRole('button', { name: 'Remove coordinator@github.com/acme' })).toBeInTheDocument()
     await user.type(to, 'operator,')
     expect(screen.getByRole('button', { name: 'Remove operator' })).toBeInTheDocument()
@@ -357,14 +365,18 @@ describe('Composer', () => {
     expect(screen.queryByRole('button', { name: 'Remove operator' })).toBeNull()
   })
 
-  it('previews through renderMarkdown', async () => {
+  it('sends the editor Markdown verbatim', async () => {
     const user = userEvent.setup()
     routes()
     wrap(<Composer mode={{ kind: 'new' }} onClose={() => {}} />)
-    await user.type(screen.getByLabelText('Message body'), '**rendered**')
-    await user.click(screen.getByRole('button', { name: /Preview/ }))
-    await screen.findByText('rendered')
-    expect(calls(mocks.POST, '/api/render')[0]![1].body).toEqual({ markdown: '**rendered**' })
+    await user.type(screen.getByLabelText('To recipients'), 'ops@github.com/acme/api{Enter}')
+    await user.type(screen.getByLabelText('Subject'), 'S')
+    const editor = await screen.findByLabelText('Message body')
+    fireEvent.change(editor, { target: { value: '**bold**\n\n- one\n- two' } })
+    await user.click(screen.getByRole('button', { name: /^Send/ }))
+    await waitFor(() => expect(calls(mocks.POST, '/api/messages')).toHaveLength(1))
+    expect(calls(mocks.POST, '/api/messages')[0]![1].body).toMatchObject({ body: '**bold**\n\n- one\n- two' })
+    expect(calls(mocks.POST, '/api/render')).toHaveLength(0)
   })
 
   it('sends with Ctrl+Enter and the right payload', async () => {
@@ -374,7 +386,7 @@ describe('Composer', () => {
     wrap(<Composer mode={{ kind: 'new' }} onClose={onClose} />)
     await user.type(screen.getByLabelText('To recipients'), 'ops@github.com/acme/api{Enter}')
     await user.type(screen.getByLabelText('Subject'), 'Hello')
-    await user.type(screen.getByLabelText('Message body'), 'Hi there')
+    await user.type(await screen.findByLabelText('Message body'), 'Hi there')
     await user.keyboard('{Control>}{Enter}{/Control}')
     await waitFor(() => expect(calls(mocks.POST, '/api/messages')).toHaveLength(1))
     expect(calls(mocks.POST, '/api/messages')[0]![1].body).toEqual({
@@ -390,7 +402,7 @@ describe('Composer', () => {
     const user = userEvent.setup()
     routes()
     wrap(<Composer mode={{ kind: 'reply', original: msg('4') }} onClose={() => {}} />)
-    await user.type(screen.getByLabelText('Message body'), 'Thanks')
+    await user.type(await screen.findByLabelText('Message body'), 'Thanks')
     await user.keyboard('{Control>}{Enter}{/Control}')
     await waitFor(() => expect(calls(mocks.POST, '/api/messages')).toHaveLength(1))
     expect(calls(mocks.POST, '/api/messages')[0]![1].body).toMatchObject({
@@ -408,7 +420,7 @@ describe('Composer', () => {
     wrap(<Composer mode={{ kind: 'new' }} onClose={() => {}} />)
     await user.type(screen.getByLabelText('To recipients'), 'ops@github.com/acme/ap{Enter}')
     await user.type(screen.getByLabelText('Subject'), 'S')
-    await user.type(screen.getByLabelText('Message body'), 'B')
+    await user.type(await screen.findByLabelText('Message body'), 'B')
     await user.click(screen.getByRole('button', { name: /^Send/ }))
     const fix = await screen.findByRole('button', { name: 'ops@github.com/acme/api' })
     await user.click(fix)

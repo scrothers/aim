@@ -1,14 +1,17 @@
-import { useRef, useState, type KeyboardEvent } from 'react'
+import { lazy, Suspense, useRef, useState, type KeyboardEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Eye, Pencil, Send } from 'lucide-react'
+import { Send } from 'lucide-react'
 import { ApiError } from '@/api/client'
-import { renderQuery, rosterQuery, useSend, type MessageView } from '@/api/mail'
+import { rosterQuery, useSend, type MessageView } from '@/api/mail'
 import { isValidAddress, OPERATOR } from '@/lib/address'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { RecipientInput } from './RecipientInput'
+
+// The editor (Lexical + CodeMirror) is a separate chunk, fetched on first compose.
+const MarkdownEditor = lazy(() => import('./MarkdownEditor'))
 
 export type ComposerMode = { kind: 'new' } | { kind: 'reply'; original: MessageView }
 
@@ -33,14 +36,12 @@ export function Composer({ mode, onClose, onSent }: { mode: ComposerMode; onClos
   const [showCc, setShowCc] = useState(defaults.cc.length > 0)
   const [subject, setSubject] = useState(defaults.subject)
   const [body, setBody] = useState('')
-  const [preview, setPreview] = useState(false)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [error, setError] = useState('')
   const toPending = useRef('')
   const ccPending = useRef('')
   const send = useSend()
   const roster = useQuery(rosterQuery(true))
-  const options = (roster.data?.items ?? []).filter((r) => !r.retired_at).map((r) => r.address)
   // The roster may arrive after the reply prefill, so retired participants are
   // hidden at render time rather than removed from state.
   const retired = new Set((roster.data?.items ?? []).filter((r) => r.retired_at).map((r) => r.address))
@@ -48,7 +49,6 @@ export function Composer({ mode, onClose, onSent }: { mode: ComposerMode; onClos
   const keep = (a: string) => !(reply && retired.has(a) && prefilled.has(a))
   const to = toRaw.filter(keep)
   const cc = ccRaw.filter(keep)
-  const rendered = useQuery({ ...renderQuery(body), enabled: preview && body.trim() !== '' })
 
   const submit = () => {
     if (send.isPending) return
@@ -103,11 +103,17 @@ export function Composer({ mode, onClose, onSent }: { mode: ComposerMode; onClos
     setError('')
   }
 
-  const onKeyDown = (e: KeyboardEvent) => {
+  // Capture phase, so the editor never sees the send chord and inserts a newline.
+  const onKeyDownCapture = (e: KeyboardEvent) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault()
+      e.stopPropagation()
       submit()
-    } else if (e.key === 'Escape') {
+    }
+  }
+
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
       e.stopPropagation()
       onClose()
     }
@@ -116,6 +122,7 @@ export function Composer({ mode, onClose, onSent }: { mode: ComposerMode; onClos
   return (
     <form
       aria-label={reply ? 'Reply' : 'New message'}
+      onKeyDownCapture={onKeyDownCapture}
       onKeyDown={onKeyDown}
       onSubmit={(e) => {
         e.preventDefault()
@@ -123,9 +130,9 @@ export function Composer({ mode, onClose, onSent }: { mode: ComposerMode; onClos
       }}
       className="flex flex-col gap-2.5 rounded-xl border bg-panel p-3"
     >
-      <RecipientInput label="To" value={to} onChange={setTo} options={options} pendingRef={toPending} />
+      <RecipientInput label="To" value={to} onChange={setTo} pendingRef={toPending} />
       {showCc ? (
-        <RecipientInput label="Cc" value={cc} onChange={setCc} options={options} pendingRef={ccPending} />
+        <RecipientInput label="Cc" value={cc} onChange={setCc} pendingRef={ccPending} />
       ) : (
         <button type="button" onClick={() => setShowCc(true)} className="self-start pl-10 text-xs text-accent-text hover:underline">
           Add Cc
@@ -139,23 +146,11 @@ export function Composer({ mode, onClose, onSent }: { mode: ComposerMode; onClos
           <Input id="composer-subject" aria-label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
         </div>
       )}
-      {preview ? (
-        <div
-          aria-label="Preview"
-          className="prose-aim min-h-32 rounded-md border bg-panel2 p-3"
-          // Sanitized server-side by /api/render.
-          dangerouslySetInnerHTML={{ __html: rendered.data?.html ?? '' }}
-        />
-      ) : (
-        <Textarea
-          aria-label="Message body"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Write in Markdown…"
-          rows={8}
-          className="min-h-32 font-mono text-[13px]"
-        />
-      )}
+      <Suspense
+        fallback={<Textarea aria-label="Message body" disabled rows={8} placeholder="Loading editor…" className="min-h-32 font-mono text-[13px]" />}
+      >
+        <MarkdownEditor value={body} onChange={setBody} placeholder="Write a message…" autoFocus={!!reply} />
+      </Suspense>
       {error && (
         <div role="alert" className="text-[13px] text-destructive">
           <p className="m-0">{error}</p>
@@ -180,10 +175,6 @@ export function Composer({ mode, onClose, onSent }: { mode: ComposerMode; onClos
       <div className="flex items-center gap-2">
         <span className="text-xs text-faint">Sending as operator</span>
         <span className="flex-1" />
-        <Button type="button" variant="ghost" size="sm" aria-pressed={preview} onClick={() => setPreview((p) => !p)}>
-          {preview ? <Pencil aria-hidden="true" /> : <Eye aria-hidden="true" />}
-          {preview ? 'Edit' : 'Preview'}
-        </Button>
         <Button type="button" variant="ghost" size="sm" onClick={onClose}>
           Discard
         </Button>

@@ -1,0 +1,73 @@
+/* Maps MDXEditor's palette variables onto the console tokens so the editor
+   follows light and dark. Specificity beats MDXEditor's own :root/.dark. */
+html:root,
+html.dark {
+  --baseBase: var(--panel);
+  --baseBgSubtle: var(--panel);
+  --baseBg: var(--panel2);
+  --baseBgHover: var(--hover);
+  --baseBgActive: var(--accent-soft);
+  --baseLine: var(--border);
+  --baseBorder: var(--border);
+  --baseBorderHover: var(--faint);
+  --baseSolid: var(--faint);
+  --baseSolidHover: var(--muted);
+  --baseText: var(--text);
+  --baseTextContrast: var(--text);
+  --basePageBg: var(--panel);
+  --accentBase: var(--panel);
+  --accentBgSubtle: var(--accent-soft);
+  --accentBg: var(--accent-soft);
+  --accentBgHover: var(--accent-soft);
+  --accentBgActive: var(--accent-soft);
+  --accentLine: var(--accent);
+  --accentBorder: var(--accent);
+  --accentBorderHover: var(--accent);
+  --accentSolid: var(--accent);
+  --accentSolidHover: var(--accent);
+  --accentText: var(--accent-text);
+  --accentTextContrast: var(--on-accent);
+  --font-body: inherit;
+  --font-mono: var(--font-mono, ui-monospace, monospace);
+}
+
+.aim-editor.mdxeditor {
+  display: flex;
+  flex-direction: column;
+  min-height: 9rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+}
+.aim-editor.mdxeditor:focus-within {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.aim-editor .mdxeditor-toolbar {
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 2px 4px;
+  border-radius: 6px 6px 0 0;
+  background: var(--panel2);
+  border-bottom: 1px solid var(--border);
+}
+.aim-editor .mdxeditor-toolbar button,
+.aim-editor .mdxeditor-toolbar [role='button'] {
+  padding: 3px;
+}
+.aim-editor .aim-editor-content {
+  min-height: 7rem;
+  max-height: 24rem;
+  overflow-y: auto;
+  padding: 8px 12px;
+  outline: none;
+}
+.aim-editor .aim-editor-content:focus-visible {
+  outline: none;
+}
+.aim-editor [data-lexical-editor] p:first-child {
+  margin-top: 0;
+}
+.aim-editor-placeholder {
+  color: var(--faint);
+}
