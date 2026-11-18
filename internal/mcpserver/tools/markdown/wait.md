@@ -43,3 +43,4 @@ wakes when anyone replies after the request you sent as `msg-01jcz6x2k3`.
 - "since_id ... is not a message id": pass an id starting with `msg-`.
 - A negative `timeout_seconds` is rejected.
 - A misspelled address is not an error: the call simply times out. Check it with `roster`.
+- Watching `operator` ignores threads the operator muted.
