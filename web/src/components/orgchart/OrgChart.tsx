@@ -69,7 +69,8 @@ export function OrgChart() {
   }, [box, measured, rootCenter, scaledW])
 
   const clamp = (s: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(s * 100) / 100))
-  const fit = () => setScale(clamp(boxW > 0 ? Math.min(1, (boxW - 2) / layout.width) : 1))
+  // Round down: rounding a fit of 0.355 up to 0.36 would overflow by a few pixels.
+  const fit = () => setScale(clamp(boxW > 0 ? Math.floor(Math.min(1, (boxW - 2) / layout.width) * 100) / 100 : 1))
 
   return (
     <section aria-label="Org chart" className="box-border flex min-w-0 flex-1 flex-col gap-4 p-6 max-md:p-4">
