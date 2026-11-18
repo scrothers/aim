@@ -2,6 +2,8 @@ module github.com/scrothers/aim
 
 go 1.26.0
 
+toolchain go1.26.11
+
 require (
 	github.com/danielgtaylor/huma/v2 v2.40.0
 	github.com/go-chi/chi/v5 v5.5.0
