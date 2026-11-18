@@ -5,11 +5,14 @@ import { api, unwrap } from '@/api/client'
 import { viewsQuery } from '@/api/queries'
 import { notificationsActive, useNotificationsEnabled } from '@/lib/notify'
 
+/** The AIM mark, served from web/public. */
+const NOTIFY_ICON = '/icon-192.png'
+
 async function announce(): Promise<void> {
   const res = unwrap(await api.GET('/api/messages', { params: { query: { address: 'operator', state: 'unread', limit: 1 } } }))
   const newest = res.items?.[0]
   if (!newest) return
-  new Notification(newest.from, { body: newest.subject, tag: newest.id })
+  new Notification(newest.from, { body: newest.subject, tag: newest.id, icon: NOTIFY_ICON })
 }
 
 /**
@@ -38,7 +41,7 @@ export function OperatorAlerts() {
     if (!before || !notificationsActive()) return
     for (const a of approvals.filter((x) => !before.has(x.id)).slice(0, 3)) {
       try {
-        new Notification('Approval needed', { body: `${a.identity || a.client || 'agent'}: ${a.summary || a.tool}`, tag: a.id })
+        new Notification('Approval needed', { body: `${a.identity || a.client || 'agent'}: ${a.summary || a.tool}`, tag: a.id, icon: NOTIFY_ICON })
       } catch {
         /* notifications unavailable */
       }

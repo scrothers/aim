@@ -59,6 +59,26 @@ func TestStaticServing(t *testing.T) {
 	}
 }
 
+func TestStaticContentTypes(t *testing.T) {
+	t.Parallel()
+	h := httpapi.New(httpapi.Deps{Pinger: fakePinger{}, Static: fstest.MapFS{
+		"index.html":           {Data: []byte("<html>spa</html>")},
+		"favicon.svg":          {Data: []byte("<svg/>")},
+		"manifest.webmanifest": {Data: []byte(`{"name":"AIM"}`)},
+		"icon-192.png":         {Data: []byte("\x89PNG\r\n\x1a\n")},
+	}})
+	for p, want := range map[string]string{
+		"/manifest.webmanifest": "application/manifest+json",
+		"/icon-192.png":         "image/png",
+		"/favicon.svg":          "image/svg+xml",
+	} {
+		rec := serve(h, http.MethodGet, p)
+		if got := rec.Header().Get("Content-Type"); rec.Code != http.StatusOK || got != want {
+			t.Errorf("%s: status = %d, Content-Type = %q, want %q", p, rec.Code, got, want)
+		}
+	}
+}
+
 func TestStaticPlaceholder(t *testing.T) {
 	t.Parallel()
 	for name, fsys := range map[string]fstest.MapFS{"nil": nil, "empty": {".gitkeep": {}}} {

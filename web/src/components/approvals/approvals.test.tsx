@@ -182,7 +182,7 @@ describe('OperatorAlerts approvals', () => {
       await client.invalidateQueries({ queryKey: ['approvals'] })
     })
     await waitFor(() => expect(notes).toHaveLength(1))
-    expect(notes[0]).toMatchObject({ title: 'Approval needed', opts: { body: 'builder@x: Run tests', tag: 'new' } })
+    expect(notes[0]).toMatchObject({ title: 'Approval needed', opts: { body: 'builder@x: Run tests', tag: 'new', icon: '/icon-192.png' } })
     await waitFor(() => expect(document.title).toBe('(2!) AIM'))
   })
 })

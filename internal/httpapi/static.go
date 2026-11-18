@@ -67,6 +67,11 @@ func serveFile(w http.ResponseWriter, r *http.Request, fsys fs.FS, name, cache s
 		return
 	}
 	w.Header().Set("Cache-Control", cache)
+	// Go's built-in MIME table lacks .webmanifest and the host's may too;
+	// without this, ServeContent would sniff it as text/plain.
+	if path.Ext(name) == ".webmanifest" {
+		w.Header().Set("Content-Type", "application/manifest+json")
+	}
 	http.ServeContent(w, r, name, time.Time{}, bytes.NewReader(b))
 }
 
