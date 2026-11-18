@@ -23,7 +23,9 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: go.mod
+          # Latest 1.26 patch: go.mod pins only the language version (1.26.0),
+          # and stdlib fixes ship in patch releases.
+          go-version: "1.26.x"
       # internal/webui/dist only holds .gitkeep here; the embed still
       # compiles, so the Go checks don't need the web build.
       - run: go vet ./...
@@ -42,7 +44,9 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: go.mod
+          # Latest 1.26 patch: go.mod pins only the language version (1.26.0),
+          # and stdlib fixes ship in patch releases.
+          go-version: "1.26.x"
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           version: 11.4.0
@@ -102,7 +106,9 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: go.mod
+          # Latest 1.26 patch: go.mod pins only the language version (1.26.0),
+          # and stdlib fixes ship in patch releases.
+          go-version: "1.26.x"
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           version: 11.4.0
@@ -150,7 +156,9 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: go.mod
+          # Latest 1.26 patch: go.mod pins only the language version (1.26.0),
+          # and stdlib fixes ship in patch releases.
+          go-version: "1.26.x"
       - name: gitleaks (full history)
         run: |
           set -euo pipefail
