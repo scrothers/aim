@@ -17,7 +17,9 @@ func hookEntries(bin string) []harness.HookEntry {
 		{"SessionStart", 10},
 		{"UserPromptSubmit", 10},
 		{"SubagentStart", 10},
-		// Codex caps SessionEnd at 3 seconds.
+		{"PostToolUse", 5},
+		// Codex caps SessionEnd and Interrupt at 3 seconds.
+		{"Interrupt", 2},
 		{"SessionEnd", 2},
 	}
 	entries := make([]harness.HookEntry, 0, len(timeouts))

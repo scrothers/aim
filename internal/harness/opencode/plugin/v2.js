@@ -46,6 +46,21 @@ function sessionOf(event) {
   return p.sessionID ?? (p.info && p.info.id) ?? p.id
 }
 
+// errorText extracts a message from a session.error event, if it has one.
+function errorText(event) {
+  const p = (event && event.properties) || event || {}
+  const e = p.error || {}
+  const m = (e.data && e.data.message) ?? e.message ?? e.name
+  return typeof m === "string" ? m : ""
+}
+
+// permissionText names the permission being asked for, if the event does.
+function permissionText(event) {
+  const p = (event && event.properties) || event || {}
+  const m = p.title ?? p.permission ?? p.type
+  return typeof m === "string" ? m : ""
+}
+
 export default Plugin.define({
   id: "aim",
   async setup(ctx) {
@@ -57,7 +72,12 @@ export default Plugin.define({
 
     const payload = (sessionID) => ({ sessionID, directory, agent: agents.get(sessionID) ?? "" })
 
-    const wakeAllowed = (sessionID) => {
+    // status reports an attention state ("" clears it). Fire-and-forget.
+    const status = (sessionID, attention, detail) => {
+      run("status", { ...payload(sessionID), attention, detail: detail ?? "" }, HOOK_TIMEOUT_MS).promise.catch(() => {})
+    }
+
+    const wakeAllowed =(sessionID) => {
       const now = Date.now()
       const recent = (wakes.get(sessionID) ?? []).filter((t) => now - t < WAKE_WINDOW_MS)
       wakes.set(sessionID, recent)
@@ -102,12 +122,30 @@ export default Plugin.define({
 
     ;(async () => {
       try {
-        const types = ["session.created", "session.idle", "session.deleted"]
+        const types = [
+          "session.created",
+          "session.idle",
+          "session.deleted",
+          "session.error",
+          "permission.asked",
+          "permission.updated",
+          "permission.replied",
+        ]
         for await (const event of ctx.event.subscribe({ types, signal: abort.signal })) {
           try {
             const sessionID = sessionOf(event)
             if (!sessionID) continue
             switch (event.type) {
+              case "session.error":
+                status(sessionID, "failed", errorText(event))
+                break
+              case "permission.asked":
+              case "permission.updated":
+                status(sessionID, "blocked", permissionText(event))
+                break
+              case "permission.replied":
+                status(sessionID, "")
+                break
               case "session.created":
                 await inject("session-start", sessionID)
                 break

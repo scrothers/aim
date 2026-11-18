@@ -51,6 +51,35 @@ func TestParse(t *testing.T) {
 			wantOK: true,
 			want:   harness.Parsed{SessionID: "e1", Request: wire.HookRequest{Op: wire.HookOpEvent, Event: wire.HookSessionEnd}},
 		},
+		{
+			name:   "camel permission notification",
+			stdin:  `{"hookEventName":"Notification","sessionId":"g","notificationType":"permission_prompt","message":"m"}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "g", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookStatus, Attention: wire.AttentionBlocked, Detail: "m"}},
+		},
+		{
+			name:   "snake idle notification",
+			stdin:  `{"hook_event_name":"notification","session_id":"g","notification_type":"idle_prompt"}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "g", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookStatus, Attention: wire.AttentionWaiting}},
+		},
+		{name: "other notification", stdin: `{"hookEventName":"Notification","notificationType":"info"}`},
+		{
+			name:   "stop failure",
+			stdin:  `{"hookEventName":"StopFailure","sessionId":"g","errorMessage":"rate limited"}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "g", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookStatus, Attention: wire.AttentionFailed, Detail: "rate limited"}},
+		},
+		{
+			name:   "stop cancelled",
+			stdin:  `{"hook_event_name":"stop_cancelled","session_id":"g"}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "g", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookStatus, Attention: wire.AttentionInterrupted}},
+		},
 		{name: "other event", stdin: `{"hookEventName":"pre_tool_use"}`},
 		{name: "no watch", event: "watch", stdin: `{}`},
 		{name: "bad json", stdin: `[`, wantErr: true},
@@ -81,6 +110,7 @@ func TestRender(t *testing.T) {
 	}{
 		{name: "session start", event: wire.HookSessionStart, reply: wire.HookReply{Context: "hello"}},
 		{name: "post tool", event: wire.HookPostTool, reply: wire.HookReply{Context: "mail"}},
+		{name: "status", event: wire.HookStatus, reply: wire.HookReply{Context: "ignored"}},
 		{name: "empty", event: wire.HookPostTool},
 	}
 	for _, tt := range tests {

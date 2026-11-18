@@ -53,6 +53,63 @@ func TestParse(t *testing.T) {
 		},
 		{name: "pre tool in main agent", stdin: `{"hook_event_name":"PreToolUse","tool_name":"Bash"}`},
 		{
+			name:   "post tool in main agent",
+			stdin:  `{"session_id":"s1","hook_event_name":"PostToolUse","tool_use_id":"tu","tool_name":"Bash"}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "s1", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookPostTool, ToolUseID: "tu", ToolName: "Bash"}},
+		},
+		{
+			name:   "post tool in subagent",
+			stdin:  `{"session_id":"s1","hook_event_name":"PostToolUse","agent_id":"a1","agent_type":"x","tool_use_id":"tu","tool_name":"Bash"}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "s1", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookPostTool, AgentID: "a1", AgentType: "x", ToolUseID: "tu", ToolName: "Bash"}},
+		},
+		{
+			name:   "permission prompt",
+			stdin:  `{"session_id":"s1","hook_event_name":"Notification","notification_type":"permission_prompt","message":"needs permission"}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "s1", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookStatus, Attention: wire.AttentionBlocked, Detail: "needs permission"}},
+		},
+		{
+			name:   "agent needs input",
+			stdin:  `{"session_id":"s1","hook_event_name":"Notification","notification_type":"agent_needs_input","message":"q"}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "s1", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookStatus, Attention: wire.AttentionBlocked, Detail: "q"}},
+		},
+		{
+			name:   "elicitation dialog",
+			stdin:  `{"session_id":"s1","hook_event_name":"Notification","notification_type":"elicitation_dialog"}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "s1", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookStatus, Attention: wire.AttentionBlocked}},
+		},
+		{
+			name:   "idle prompt",
+			stdin:  `{"session_id":"s1","hook_event_name":"Notification","notification_type":"idle_prompt","message":"idle"}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "s1", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookStatus, Attention: wire.AttentionWaiting, Detail: "idle"}},
+		},
+		{name: "other notification", stdin: `{"hook_event_name":"Notification","notification_type":"auth_success"}`},
+		{
+			name:   "stop failure details",
+			stdin:  `{"session_id":"s1","hook_event_name":"StopFailure","error":"rate_limit","error_details":"429","last_assistant_message":"API Error"}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "s1", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookStatus, Attention: wire.AttentionFailed, Detail: "429"}},
+		},
+		{
+			name:   "stop failure error only",
+			stdin:  `{"session_id":"s1","hook_event_name":"StopFailure","error":"server_error"}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "s1", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookStatus, Attention: wire.AttentionFailed, Detail: "server_error"}},
+		},
+		{
 			name:   "session end",
 			stdin:  `{"session_id":"s1","hook_event_name":"SessionEnd"}`,
 			wantOK: true,
@@ -105,6 +162,10 @@ func TestRender(t *testing.T) {
 			reply: wire.HookReply{Context: "sub"}},
 		{name: "pre tool", req: wire.HookRequest{Op: wire.HookOpEvent, Event: wire.HookPreTool},
 			reply: wire.HookReply{Context: "tool"}},
+		{name: "post tool", req: wire.HookRequest{Op: wire.HookOpEvent, Event: wire.HookPostTool},
+			reply: wire.HookReply{Context: "mail"}},
+		{name: "status", req: wire.HookRequest{Op: wire.HookOpEvent, Event: wire.HookStatus},
+			reply: wire.HookReply{Context: "ignored"}},
 		{name: "empty context", req: wire.HookRequest{Op: wire.HookOpEvent, Event: wire.HookPrompt}},
 		{name: "watch wake", req: wire.HookRequest{Op: wire.HookOpWatch},
 			reply: wire.HookReply{Wake: true, Context: "new mail"}, wantExit: 2, wantErr: "new mail\n"},

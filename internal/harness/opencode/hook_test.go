@@ -38,6 +38,18 @@ func TestParse(t *testing.T) {
 			name: "watch", event: "watch", stdin: `{"sessionID":"o1","directory":"/p"}`, wantOK: true,
 			want: harness.Parsed{SessionID: "o1", Cwd: "/p", Request: wire.HookRequest{Op: wire.HookOpWatch}},
 		},
+		{
+			name: "status failed", event: "status", wantOK: true,
+			stdin: `{"sessionID":"o1","directory":"/p","attention":"failed","detail":"boom"}`,
+			want: harness.Parsed{SessionID: "o1", Cwd: "/p", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookStatus, Attention: wire.AttentionFailed, Detail: "boom"}},
+		},
+		{
+			name: "status clear", event: "status", stdin: in, wantOK: true,
+			want: harness.Parsed{SessionID: "o1", Cwd: "/p", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookStatus}},
+		},
+		{name: "status invalid attention", event: "status", stdin: `{"sessionID":"o1","attention":"bogus"}`},
 		{name: "missing event", stdin: in},
 		{name: "unknown event", event: "idle", stdin: in},
 		{name: "bad json", event: "prompt", stdin: `{`, wantErr: true},
@@ -68,6 +80,7 @@ func TestRender(t *testing.T) {
 		want  string
 	}{
 		{"event context", wire.HookRequest{Op: wire.HookOpEvent, Event: wire.HookPrompt}, wire.HookReply{Context: "## Mail"}, "## Mail\n"},
+		{"status", wire.HookRequest{Op: wire.HookOpEvent, Event: wire.HookStatus}, wire.HookReply{Context: "x"}, ""},
 		{"event empty", wire.HookRequest{Op: wire.HookOpEvent, Event: wire.HookPrompt}, wire.HookReply{}, ""},
 		{"watch wake", wire.HookRequest{Op: wire.HookOpWatch}, wire.HookReply{Wake: true, Context: "new"}, "new\n"},
 		{"watch no wake", wire.HookRequest{Op: wire.HookOpWatch}, wire.HookReply{Context: "stale"}, ""},

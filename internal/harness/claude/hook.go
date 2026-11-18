@@ -23,6 +23,31 @@ type payload struct {
 	AgentType string `json:"agent_type"`
 	ToolUseID string `json:"tool_use_id"`
 	ToolName  string `json:"tool_name"`
+
+	NotificationType string `json:"notification_type"`
+	Message          string `json:"message"`
+	Error            string `json:"error"`
+	ErrorDetails     string `json:"error_details"`
+	ErrorMessage     string `json:"error_message"`
+	LastAssistantMsg string `json:"last_assistant_message"`
+}
+
+// notificationAttention maps Claude's notification_type to an attention
+// state; other types are ignored.
+var notificationAttention = map[string]string{
+	"permission_prompt":  wire.AttentionBlocked,
+	"agent_needs_input":  wire.AttentionBlocked,
+	"elicitation_dialog": wire.AttentionBlocked,
+	"idle_prompt":        wire.AttentionWaiting,
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // eventNames maps normalized events to Claude's PascalCase names.
@@ -31,6 +56,7 @@ var eventNames = map[string]string{
 	wire.HookPrompt:        "UserPromptSubmit",
 	wire.HookSubagentStart: "SubagentStart",
 	wire.HookPreTool:       "PreToolUse",
+	wire.HookPostTool:      "PostToolUse",
 	wire.HookSessionEnd:    "SessionEnd",
 }
 
@@ -64,6 +90,18 @@ func (Runtime) Parse(event string, stdin []byte, getenv func(string) string) (ha
 		}
 		req.Event, req.AgentID, req.AgentType = wire.HookPreTool, in.AgentID, in.AgentType
 		req.ToolUseID, req.ToolName = in.ToolUseID, in.ToolName
+	case "PostToolUse":
+		req.Event, req.AgentID, req.AgentType = wire.HookPostTool, in.AgentID, in.AgentType
+		req.ToolUseID, req.ToolName = in.ToolUseID, in.ToolName
+	case "Notification":
+		att, ok := notificationAttention[in.NotificationType]
+		if !ok {
+			return harness.Parsed{}, false, nil
+		}
+		req.Event, req.Attention, req.Detail = wire.HookStatus, att, in.Message
+	case "StopFailure":
+		req.Event, req.Attention = wire.HookStatus, wire.AttentionFailed
+		req.Detail = firstNonEmpty(in.ErrorDetails, in.ErrorMessage, in.LastAssistantMsg, in.Message, in.Error)
 	case "SessionEnd":
 		req.Event = wire.HookSessionEnd
 	default:
@@ -80,6 +118,9 @@ func (Runtime) Render(req wire.HookRequest, reply wire.HookReply) harness.Output
 		if reply.Wake && reply.Context != "" {
 			return harness.Output{Stderr: []byte(reply.Context + "\n"), Exit: 2}
 		}
+		return harness.Output{}
+	}
+	if req.Event == wire.HookStatus {
 		return harness.Output{}
 	}
 	return harness.Output{Stdout: harness.AdditionalContext(eventNames[req.Event], reply.Context)}

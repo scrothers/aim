@@ -10,14 +10,20 @@ var _ harness.Installer = Runtime{}
 
 func hookEntries(bin string) []harness.HookEntry {
 	cmd := harness.HookCommand(bin, "gemini")
-	events := []string{"SessionStart", "BeforeAgent", "SessionEnd"}
+	events := []struct {
+		name    string
+		timeout int
+	}{
+		{"SessionStart", 10000}, {"BeforeAgent", 10000}, {"AfterTool", 5000},
+		{"Notification", 5000}, {"SessionEnd", 10000},
+	}
 	entries := make([]harness.HookEntry, 0, len(events))
 	for _, ev := range events {
 		entries = append(entries, harness.HookEntry{
-			Event:   ev,
+			Event:   ev.name,
 			Matcher: "*",
 			// Gemini timeouts are milliseconds.
-			Handler: harness.Obj("name", "aim", "type", "command", "command", cmd, "timeout", 10000),
+			Handler: harness.Obj("name", "aim", "type", "command", "command", cmd, "timeout", ev.timeout),
 		})
 	}
 	return entries

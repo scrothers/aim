@@ -14,12 +14,18 @@ const mcpHeader = "[mcp_servers.aim]"
 
 func hookEntries(bin string) []harness.HookEntry {
 	cmd := harness.HookCommand(bin, "grok")
-	events := []string{"SessionStart", "PostToolUse", "SessionEnd"}
+	events := []struct {
+		name    string
+		timeout int
+	}{
+		{"SessionStart", 10}, {"PostToolUse", 10}, {"Notification", 5},
+		{"StopFailure", 5}, {"StopCancelled", 5}, {"SessionEnd", 10},
+	}
 	entries := make([]harness.HookEntry, 0, len(events))
 	for _, ev := range events {
 		entries = append(entries, harness.HookEntry{
-			Event:   ev,
-			Handler: harness.Obj("type", "command", "command", cmd, "timeout", 10),
+			Event:   ev.name,
+			Handler: harness.Obj("type", "command", "command", cmd, "timeout", ev.timeout),
 		})
 	}
 	return entries

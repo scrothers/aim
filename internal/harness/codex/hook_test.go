@@ -52,6 +52,27 @@ func TestParse(t *testing.T) {
 		},
 		{name: "stop is ignored", stdin: `{"hook_event_name":"Stop"}`},
 		{name: "pre tool is ignored", stdin: `{"hook_event_name":"PreToolUse","agent_id":"a"}`},
+		{
+			name:   "post tool",
+			stdin:  `{"session_id":"s1","hook_event_name":"PostToolUse"}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "s1", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookPostTool}},
+		},
+		{
+			name:   "post tool in subagent",
+			stdin:  `{"session_id":"s1","hook_event_name":"PostToolUse","agent_id":"a","agent_type":"t"}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "s1", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookPostTool, AgentID: "a", AgentType: "t"}},
+		},
+		{
+			name:   "interrupt",
+			stdin:  `{"session_id":"s1","hook_event_name":"Interrupt"}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "s1", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookStatus, Attention: wire.AttentionInterrupted}},
+		},
 		{name: "no watch", event: "watch", stdin: `{"hook_event_name":"Stop"}`},
 		{name: "bad json", stdin: `nope`, wantErr: true},
 	}
@@ -82,6 +103,8 @@ func TestRender(t *testing.T) {
 		{name: "session start", event: wire.HookSessionStart, reply: wire.HookReply{Context: "hello"}},
 		{name: "prompt", event: wire.HookPrompt, reply: wire.HookReply{Context: "mail"}},
 		{name: "subagent start", event: wire.HookSubagentStart, reply: wire.HookReply{Context: "sub"}},
+		{name: "post tool", event: wire.HookPostTool, reply: wire.HookReply{Context: "mail"}},
+		{name: "status", event: wire.HookStatus, reply: wire.HookReply{Context: "ignored"}},
 		{name: "empty", event: wire.HookPrompt},
 	}
 	for _, tt := range tests {

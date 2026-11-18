@@ -60,7 +60,22 @@ func TestParse(t *testing.T) {
 			want: harness.Parsed{Cwd: "/d", Request: wire.HookRequest{
 				Op: wire.HookOpEvent, Event: wire.HookPrompt}},
 		},
-		{name: "other event", stdin: `{"hook_event_name":"AfterTool"}`},
+		{
+			name:   "after tool is post tool",
+			stdin:  `{"session_id":"g1","hook_event_name":"AfterTool","tool_name":"x"}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "g1", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookPostTool}},
+		},
+		{
+			name:   "tool permission notification",
+			stdin:  `{"session_id":"g1","hook_event_name":"Notification","notification_type":"ToolPermission","message":"run ls?"}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "g1", Request: wire.HookRequest{
+				Op: wire.HookOpEvent, Event: wire.HookStatus, Attention: wire.AttentionBlocked, Detail: "run ls?"}},
+		},
+		{name: "other notification", stdin: `{"hook_event_name":"Notification","notification_type":"Other"}`},
+		{name: "other event", stdin: `{"hook_event_name":"BeforeTool"}`},
 		{name: "no watch", event: "watch", stdin: `{}`},
 		{name: "bad json", stdin: `x`, wantErr: true},
 	}
@@ -90,6 +105,8 @@ func TestRender(t *testing.T) {
 	}{
 		{name: "session start", event: wire.HookSessionStart, reply: wire.HookReply{Context: "hello"}},
 		{name: "before agent", event: wire.HookPrompt, reply: wire.HookReply{Context: "mail"}},
+		{name: "after tool", event: wire.HookPostTool, reply: wire.HookReply{Context: "mail"}},
+		{name: "status", event: wire.HookStatus, reply: wire.HookReply{Context: "ignored"}},
 		{name: "empty", event: wire.HookPrompt},
 	}
 	for _, tt := range tests {

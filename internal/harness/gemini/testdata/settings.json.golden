@@ -26,6 +26,32 @@
         ]
       }
     ],
+    "AfterTool": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "aim",
+            "type": "command",
+            "command": "/opt/aim hook gemini",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "aim",
+            "type": "command",
+            "command": "/opt/aim hook gemini",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
     "SessionEnd": [
       {
         "matcher": "*",

@@ -18,11 +18,15 @@ type payload struct {
 	Cwd       string `json:"cwd"`
 	Event     string `json:"hook_event_name"`
 	Source    string `json:"source"`
+
+	NotificationType string `json:"notification_type"`
+	Message          string `json:"message"`
 }
 
 var eventNames = map[string]string{
 	wire.HookSessionStart: "SessionStart",
 	wire.HookPrompt:       "BeforeAgent",
+	wire.HookPostTool:     "AfterTool",
 	wire.HookSessionEnd:   "SessionEnd",
 }
 
@@ -52,6 +56,13 @@ func (Runtime) Parse(event string, stdin []byte, getenv func(string) string) (ha
 		req.Event, req.Source = wire.HookSessionStart, in.Source
 	case "BeforeAgent":
 		req.Event = wire.HookPrompt
+	case "AfterTool":
+		req.Event = wire.HookPostTool
+	case "Notification":
+		if in.NotificationType != "ToolPermission" {
+			return harness.Parsed{}, false, nil
+		}
+		req.Event, req.Attention, req.Detail = wire.HookStatus, wire.AttentionBlocked, in.Message
 	case "SessionEnd":
 		req.Event = wire.HookSessionEnd
 	default:
@@ -63,5 +74,8 @@ func (Runtime) Parse(event string, stdin []byte, getenv func(string) string) (ha
 // Render writes one hookSpecificOutput JSON object, or nothing: Gemini
 // requires stdout to hold only that object.
 func (Runtime) Render(req wire.HookRequest, reply wire.HookReply) harness.Output {
+	if req.Event == wire.HookStatus {
+		return harness.Output{}
+	}
 	return harness.Output{Stdout: harness.AdditionalContext(eventNames[req.Event], reply.Context)}
 }

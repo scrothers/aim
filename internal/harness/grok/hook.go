@@ -25,6 +25,13 @@ type payload struct {
 	SubagentType   string `json:"subagentType"`
 	SubagentSnake  string `json:"subagent_type"`
 	Source         string `json:"source"`
+
+	NotificationType      string `json:"notificationType"`
+	NotificationTypeSnake string `json:"notification_type"`
+	Message               string `json:"message"`
+	Error                 string `json:"error"`
+	ErrorMessage          string `json:"errorMessage"`
+	ErrorMessageSnake     string `json:"error_message"`
 }
 
 func first(vals ...string) string {
@@ -47,6 +54,9 @@ var canonical = map[string]string{
 	"session_start": "SessionStart", "SessionStart": "SessionStart",
 	"post_tool_use": "PostToolUse", "PostToolUse": "PostToolUse",
 	"session_end": "SessionEnd", "SessionEnd": "SessionEnd",
+	"notification": "Notification", "Notification": "Notification",
+	"stop_failure": "StopFailure", "StopFailure": "StopFailure",
+	"stop_cancelled": "StopCancelled", "StopCancelled": "StopCancelled",
 }
 
 // Parse normalizes a Grok Build hook payload, falling back to GROK_SESSION_ID
@@ -66,6 +76,21 @@ func (Runtime) Parse(event string, stdin []byte, getenv func(string) string) (ha
 		req.Event, req.Source = wire.HookSessionStart, in.Source
 	case "PostToolUse":
 		req.Event, req.AgentType = wire.HookPostTool, first(in.SubagentType, in.SubagentSnake)
+	case "Notification":
+		switch first(in.NotificationType, in.NotificationTypeSnake) {
+		case "permission_prompt":
+			req.Attention = wire.AttentionBlocked
+		case "idle_prompt":
+			req.Attention = wire.AttentionWaiting
+		default:
+			return harness.Parsed{}, false, nil
+		}
+		req.Event, req.Detail = wire.HookStatus, in.Message
+	case "StopFailure":
+		req.Event, req.Attention = wire.HookStatus, wire.AttentionFailed
+		req.Detail = first(in.ErrorMessage, in.ErrorMessageSnake, in.Message, in.Error)
+	case "StopCancelled":
+		req.Event, req.Attention = wire.HookStatus, wire.AttentionInterrupted
 	case "SessionEnd":
 		req.Event = wire.HookSessionEnd
 	default:
@@ -80,5 +105,8 @@ func (Runtime) Parse(event string, stdin []byte, getenv func(string) string) (ha
 
 // Render writes hookSpecificOutput.additionalContext.
 func (Runtime) Render(req wire.HookRequest, reply wire.HookReply) harness.Output {
+	if req.Event == wire.HookStatus {
+		return harness.Output{}
+	}
 	return harness.Output{Stdout: harness.AdditionalContext(eventNames[req.Event], reply.Context)}
 }

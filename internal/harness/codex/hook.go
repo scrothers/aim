@@ -26,12 +26,14 @@ var eventNames = map[string]string{
 	wire.HookSessionStart:  "SessionStart",
 	wire.HookPrompt:        "UserPromptSubmit",
 	wire.HookSubagentStart: "SubagentStart",
+	wire.HookPostTool:      "PostToolUse",
 	wire.HookSessionEnd:    "SessionEnd",
 }
 
 // Parse normalizes a Codex hook payload. Events other than session start,
-// prompt, subagent start and session end are ignored: Codex fails a Stop hook
-// that prints plain text, so AIM never answers those. Codex has no watch.
+// prompt, subagent start, post-tool, interrupt and session end are ignored:
+// Codex fails a Stop hook that prints plain text, so AIM never answers those.
+// Codex has no watch.
 func (Runtime) Parse(event string, stdin []byte, _ func(string) string) (harness.Parsed, bool, error) {
 	if event == "watch" {
 		return harness.Parsed{}, false, nil
@@ -48,6 +50,10 @@ func (Runtime) Parse(event string, stdin []byte, _ func(string) string) (harness
 		req.Event = wire.HookPrompt
 	case "SubagentStart":
 		req.Event, req.AgentID, req.AgentType = wire.HookSubagentStart, in.AgentID, in.AgentType
+	case "PostToolUse":
+		req.Event, req.AgentID, req.AgentType = wire.HookPostTool, in.AgentID, in.AgentType
+	case "Interrupt":
+		req.Event, req.Attention = wire.HookStatus, wire.AttentionInterrupted
 	case "SessionEnd":
 		req.Event = wire.HookSessionEnd
 	default:
@@ -58,5 +64,9 @@ func (Runtime) Parse(event string, stdin []byte, _ func(string) string) (harness
 
 // Render writes hookSpecificOutput.additionalContext.
 func (Runtime) Render(req wire.HookRequest, reply wire.HookReply) harness.Output {
+	if req.Event == wire.HookStatus {
+		// Codex fails Interrupt hooks that print plain text.
+		return harness.Output{}
+	}
 	return harness.Output{Stdout: harness.AdditionalContext(eventNames[req.Event], reply.Context)}
 }

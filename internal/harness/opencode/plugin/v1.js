@@ -45,6 +45,20 @@ function sessionOf(event) {
   return p.sessionID ?? (p.info && p.info.id) ?? p.id
 }
 
+// errorText extracts a message from a session.error event, if it has one.
+function errorText(event) {
+  const e = (event && event.properties && event.properties.error) || {}
+  const m = (e.data && e.data.message) ?? e.message ?? e.name
+  return typeof m === "string" ? m : ""
+}
+
+// permissionText names the permission being asked for, if the event does.
+function permissionText(event) {
+  const p = (event && event.properties) || {}
+  const m = p.title ?? p.permission ?? p.type
+  return typeof m === "string" ? m : ""
+}
+
 export const AimPlugin = async ({ client, directory }) => {
   const agents = new Map() // session id -> agent name
   const watchers = new Map() // session id -> in-flight watch
@@ -91,12 +105,27 @@ export const AimPlugin = async ({ client, directory }) => {
     if (w) w.kill()
   }
 
+  // status reports an attention state ("" clears it). Fire-and-forget.
+  const status = (sessionID, attention, detail) => {
+    run("status", { ...payload(sessionID), attention, detail: detail ?? "" }, HOOK_TIMEOUT_MS).promise.catch(() => {})
+  }
+
   return {
     event: async ({ event }) => {
       try {
         const sessionID = sessionOf(event)
         if (!sessionID) return
         switch (event.type) {
+          case "session.error":
+            status(sessionID, "failed", errorText(event))
+            break
+          case "permission.asked":
+          case "permission.updated":
+            status(sessionID, "blocked", permissionText(event))
+            break
+          case "permission.replied":
+            status(sessionID, "")
+            break
           case "session.created":
             await inject("session-start", sessionID)
             break

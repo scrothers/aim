@@ -176,6 +176,49 @@ func additionalContext(t *testing.T, out string) string {
 	return v.Out.Context
 }
 
+// TestHookAttentionAndNudge covers the status event (silent) and the
+// mid-turn PostToolUse nudge (once per mail).
+func TestHookAttentionAndNudge(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
+	defer cancel()
+
+	d := startDaemon(t)
+	a := startShim(ctx, t, "sess-attn", d.socket)
+	b := startShim(ctx, t, "sess-attn-other", d.socket)
+
+	const (
+		alice = "alice@github.com/acme/tool"
+		bob   = "bob@github.com/acme/tool"
+	)
+	a.call(ctx, "register", map[string]any{"address": alice, "role": "dev", "description": "d"})
+	b.call(ctx, "register", map[string]any{"address": bob, "role": "dev", "description": "d"})
+	a.call(ctx, "sign_on", map[string]any{"address": alice})
+	b.call(ctx, "sign_on", map[string]any{"address": bob})
+
+	cwd := t.TempDir()
+	payload := func(event, extra string) string {
+		return fmt.Sprintf(`{"session_id":"sess-attn","cwd":%q,"hook_event_name":%q%s}`, cwd, event, extra)
+	}
+
+	notify := payload("Notification", `,"notification_type":"permission_prompt","message":"needs permission"`)
+	if out := runHook(ctx, t, d, notify); out != "" {
+		t.Fatalf("notification printed %q", out)
+	}
+
+	post := payload("PostToolUse", `,"tool_use_id":"tu1","tool_name":"Bash"`)
+	if out := runHook(ctx, t, d, post); out != "" {
+		t.Fatalf("post-tool without mail printed %q", out)
+	}
+	b.call(ctx, "send", map[string]any{"to": []string{alice}, "subject": "midturn-subject", "body": "hi"})
+	out := runHook(ctx, t, d, post)
+	if got := additionalContext(t, out); !strings.Contains(got, "midturn-subject") {
+		t.Fatalf("post-tool context does not name the subject: %q", got)
+	}
+	if out := runHook(ctx, t, d, post); out != "" {
+		t.Fatalf("second post-tool nudged again: %q", out)
+	}
+}
+
 func TestHookFlow(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
 	defer cancel()

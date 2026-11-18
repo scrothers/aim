@@ -15,12 +15,15 @@ func hookEntries(bin string) []harness.HookEntry {
 		return harness.Obj("type", "command", "command", cmd, "timeout", timeout)
 	}
 	events := []string{"SessionStart", "UserPromptSubmit", "SubagentStart", "SessionEnd"}
-	entries := make([]harness.HookEntry, 0, len(events)+2)
+	entries := make([]harness.HookEntry, 0, len(events)+6)
 	for _, ev := range events {
 		entries = append(entries, harness.HookEntry{Event: ev, Handler: handler(10)})
 	}
 	entries = append(entries,
 		harness.HookEntry{Event: "PreToolUse", Matcher: "mcp__aim__.*", Handler: handler(5)},
+		harness.HookEntry{Event: "PostToolUse", Handler: handler(5)},
+		harness.HookEntry{Event: "Notification", Matcher: "permission_prompt|idle_prompt|agent_needs_input|elicitation_dialog", Handler: handler(5)},
+		harness.HookEntry{Event: "StopFailure", Handler: handler(5)},
 		harness.HookEntry{Event: "Stop", Handler: harness.Obj(
 			"type", "command",
 			"command", harness.HookCommand(bin, "claude", "watch"),
