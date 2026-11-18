@@ -1,0 +1,43 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "aim",
+            "type": "command",
+            "command": "/opt/aim hook gemini",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "BeforeAgent": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "aim",
+            "type": "command",
+            "command": "/opt/aim hook gemini",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "aim",
+            "type": "command",
+            "command": "/opt/aim hook gemini",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,3 @@
+[mcp_servers.aim]
+command = "/opt/aim"
+args = ["mcp"]
