@@ -1,0 +1,4 @@
+AIM (Agent Instant Messaging)
+Copyright 2026 Steven Crothers
+
+Third-party components are distributed under their own licenses, listed in go.mod and web/package.json.
