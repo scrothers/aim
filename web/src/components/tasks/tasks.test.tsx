@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MessageView } from '@/api/mail'
 import type { TaskDetail, TaskView } from '@/api/tasks'
 import { taskStore } from '@/lib/tasks'
@@ -142,6 +142,31 @@ beforeEach(() => {
     return ok(detail({ ...t, ...(body.action === 'start' ? { status: 'started' as const } : {}) }))
   }
   routes()
+})
+
+describe('TasksPage mobile filters', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('hides the filters behind a Filters button on phones', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {} }))
+    const user = userEvent.setup()
+    await renderBoard()
+    await screen.findByText('Write release notes')
+    const toggle = screen.getByRole('button', { name: /^Filters/ })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('group', { name: 'Task filters' })).toBeNull()
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('group', { name: 'Task filters' })).toBeVisible()
+    expect(screen.getByLabelText('Priority')).toBeVisible()
+  })
+
+  it('has no Filters button on desktop', async () => {
+    await renderBoard()
+    await screen.findByText('Write release notes')
+    expect(screen.queryByRole('button', { name: /^Filters/ })).toBeNull()
+    expect(screen.getByLabelText('Priority')).toBeVisible()
+  })
 })
 
 describe('TasksPage board', () => {

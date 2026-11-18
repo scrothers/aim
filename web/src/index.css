@@ -192,6 +192,9 @@
   .prose-aim hr { border: 0; border-top: 1px solid var(--border); margin: 1.25em 0; }
   .prose-aim img { max-width: 100%; }
   .prose-aim input[type='checkbox'] { margin-right: 0.4em; }
+  /* Task-list items show the checkbox only, with no bullet beside it. */
+  .prose-aim li:has(> input[type='checkbox']),
+  .prose-aim li:has(> p:first-child > input[type='checkbox']) { list-style: none; margin-left: -1.5em; }
 }
 
 /* Touch targets: every control is at least 44px on phones. */

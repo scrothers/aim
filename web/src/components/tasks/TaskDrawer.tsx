@@ -121,8 +121,11 @@ function Title({ task, onSave }: { task: TaskDetail; onSave: (title: string) => 
       }}
       className="group -mx-1 flex items-start gap-2 rounded px-1 text-left text-lg leading-6 font-semibold break-words hover:bg-hover max-md:min-h-11"
     >
-      <span className="min-w-0 flex-1">{task.title}</span>
-      <Pencil aria-hidden="true" className="mt-1 size-3.5 shrink-0 text-faint opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 max-md:opacity-100" />
+      <span className="min-w-0">
+        {task.title}
+        {/* Inline after the text, so it never sits under the sheet's close button at the right edge. */}
+        <Pencil aria-hidden="true" className="ml-2 inline size-3.5 align-baseline text-faint opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 max-md:opacity-100" />
+      </span>
     </button>
   )
 }
@@ -209,7 +212,7 @@ function Details({ task }: { task: TaskDetail }) {
             aria-label="Priority"
             value={task.priority}
             onChange={(e) => edit({ priority: e.target.value as TaskPriority })}
-            className={`${selectCls} h-9 text-sm font-normal text-text`}
+            className={`${selectCls} h-9 text-sm font-normal text-text uppercase`}
           >
             {PRIORITIES.map((p) => (
               <option key={p} value={p}>

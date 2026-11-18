@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState, type DragEvent } from 'react'
-import { ChevronsLeftRight, Plus } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { ChevronsLeftRight, ListFilter, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTaskAction, useTasks, type TaskPriority, type TaskStatus, type TaskView } from '@/api/tasks'
 import { OPERATOR } from '@/lib/address'
 import { helpFlag, isTyping, paletteFlag } from '@/lib/flag'
 import { taskStore } from '@/lib/tasks'
+import { useIsMobile } from '@/lib/viewport'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useAssigneeCandidates } from './AssigneeInput'
@@ -92,7 +93,7 @@ function Column({ status, tasks, now, dragging, collapsed, onToggle, onOpen, onD
   }
 
   return (
-    <section aria-label={label} data-status={status} className={cn(frame, 'flex min-w-56 flex-1 basis-56 flex-col gap-2 p-2.5')} {...dnd}>
+    <section aria-label={label} data-status={status} className={cn(frame, 'flex min-w-48 flex-1 basis-48 flex-col gap-2 p-2.5')} {...dnd}>
       <header className="flex items-center gap-2 px-1 pt-0.5">
         <StatusDot status={status} />
         <h2 className="m-0 flex-1 text-[13px] font-semibold">{label}</h2>
@@ -118,7 +119,33 @@ function Column({ status, tasks, now, dragging, collapsed, onToggle, onOpen, onD
   )
 }
 
+/** Tracks whether the board has more to scroll to on either side, so edge fades can say so. */
+function useScrollEdges() {
+  const ref = useRef<HTMLDivElement>(null)
+  const [edges, setEdges] = useState({ left: false, right: false })
+  const measure = useCallback(() => {
+    const el = ref.current
+    if (!el) return
+    const left = el.scrollLeft > 1
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1
+    setEdges((e) => (e.left === left && e.right === right ? e : { left, right }))
+  }, [])
+  // Re-measure after every render: columns come and go with the data.
+  useEffect(() => {
+    measure()
+    const el = ref.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  })
+  return { ref, edges, measure }
+}
+
 export function TasksPage() {
+  const board = useScrollEdges()
+  const mobile = useIsMobile()
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [scope, setScope] = useState('')
   const [assignee, setAssignee] = useState('')
   const [priority, setPriority] = useState<TaskPriority | ''>('')
@@ -191,13 +218,25 @@ export function TasksPage() {
     <section aria-label="Tasks" className="box-border flex min-w-0 flex-1 flex-col gap-4 p-6 max-md:p-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h1 className="m-0 mr-auto text-[22px] leading-[30px] font-semibold">Tasks</h1>
+        {mobile && (
+          <Button variant="outline" aria-expanded={filtersOpen} aria-controls="task-filters" onClick={() => setFiltersOpen((o) => !o)}>
+            <ListFilter aria-hidden="true" />
+            Filters{filtered ? ' (active)' : ''}
+          </Button>
+        )}
         <Button onClick={() => taskStore.openCreate()}>
           <Plus aria-hidden="true" />
           New task
         </Button>
       </div>
 
-      <div role="group" aria-label="Task filters" className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px]">
+      <div
+        id="task-filters"
+        role="group"
+        aria-label="Task filters"
+        hidden={mobile && !filtersOpen}
+        className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] max-md:flex-col max-md:items-stretch"
+      >
         <label className="flex items-center gap-1.5 text-muted-foreground">
           Scope
           <select aria-label="Scope" value={scope} onChange={(e) => setScope(e.target.value)} className={cn(selectCls, 'max-w-56')}>
@@ -278,7 +317,14 @@ export function TasksPage() {
             </p>
           )}
           {/* relative: absolutely positioned sr-only text in cards must be clipped by this scroller, not widen the page. */}
-          <div className="relative flex min-h-64 items-stretch gap-3 overflow-x-auto pb-2" data-testid="task-board">
+          <div className="relative flex min-h-0 min-w-0 flex-col">
+            {board.edges.left && (
+              <div aria-hidden="true" data-testid="board-fade-left" className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-background to-transparent" />
+            )}
+            {board.edges.right && (
+              <div aria-hidden="true" data-testid="board-fade-right" className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-background to-transparent" />
+            )}
+          <div ref={board.ref} onScroll={board.measure} className="relative flex min-h-64 items-stretch gap-3 overflow-x-auto pb-2" data-testid="task-board">
             {STATUSES.map((s) => (
               <Column
                 key={s}
@@ -294,6 +340,7 @@ export function TasksPage() {
                 onDropTask={drop}
               />
             ))}
+          </div>
           </div>
         </>
       )}
