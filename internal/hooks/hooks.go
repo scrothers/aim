@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"strconv"
 	"strings"
@@ -38,20 +39,24 @@ type Mail interface {
 	Roster(ctx context.Context, addr string) ([]mail.RosterEntry, error)
 	RestoreSignon(ctx context.Context, sessionID string) (mail.Signon, bool, error)
 	Changed() <-chan struct{}
+	Send(ctx context.Context, c mail.Caller, in mail.SendInput) (mail.Message, error)
 }
 
 // Server answers hook requests. Use New to create one; it is safe for
 // concurrent use.
 type Server struct {
-	mail     Mail
-	reg      *presence.Registry
-	now      func() time.Time
-	debounce time.Duration
-	poll     time.Duration
+	mail       Mail
+	reg        *presence.Registry
+	log        *slog.Logger
+	now        func() time.Time
+	debounce   time.Duration
+	poll       time.Duration
+	alertAfter time.Duration
 
 	mu     sync.Mutex
 	agents map[string]*agentState
 	tools  map[string]toolUse
+	closed bool
 }
 
 // agentState is what the server remembers about one agent between hooks.
@@ -62,6 +67,9 @@ type agentState struct {
 	seen      time.Time
 	// watch is closed to end the agent's current watch, if any.
 	watch chan struct{}
+	// alert fires the operator alert for alertState, if one is pending.
+	alert      *time.Timer
+	alertState string
 }
 
 type toolUse struct {
@@ -83,10 +91,18 @@ func WithDebounce(d time.Duration) Option { return func(s *Server) { s.debounce 
 // catches sign-ons. The default is 5s.
 func WithPoll(d time.Duration) Option { return func(s *Server) { s.poll = d } }
 
+// WithAlertAfter sets how long an agent may stay blocked or failed before
+// the operator gets a message about it. Zero, the default, sends none.
+func WithAlertAfter(d time.Duration) Option { return func(s *Server) { s.alertAfter = d } }
+
+// WithLogger sets the logger for failures no hook waits on, such as operator
+// alerts. The default is slog.Default().
+func WithLogger(l *slog.Logger) Option { return func(s *Server) { s.log = l } }
+
 // New returns a Server over the mail service and the presence registry.
 func New(m Mail, reg *presence.Registry, opts ...Option) *Server {
 	s := &Server{
-		mail: m, reg: reg, now: time.Now, debounce: defaultDebounce, poll: defaultPoll,
+		mail: m, reg: reg, log: slog.Default(), now: time.Now, debounce: defaultDebounce, poll: defaultPoll,
 		agents: make(map[string]*agentState), tools: make(map[string]toolUse),
 	}
 	for _, o := range opts {
@@ -133,17 +149,23 @@ func (s *Server) Handle(ctx context.Context, p wire.Preamble, req wire.HookReque
 	var err error
 	switch req.Event {
 	case wire.HookSessionStart:
+		s.setAttention(ctx, p, wire.HookRequest{}, id, ok)
 		reply.Context, err = s.sessionStart(ctx, p, id, ok)
 	case wire.HookPrompt, wire.HookPostTool:
+		s.setAttention(ctx, p, wire.HookRequest{}, id, ok)
 		if ok {
-			reply.Context, err = s.nudge(ctx, agentKey(p), id)
+			reply.Context, err = s.nudgeAgent(ctx, p, id, req)
 		}
 	case wire.HookSubagentStart:
+		s.setAttention(ctx, p, wire.HookRequest{}, id, ok)
 		if ok {
 			reply.Context, err = s.subagentStart(ctx, id, req)
 		}
 	case wire.HookPreTool:
+		s.setAttention(ctx, p, wire.HookRequest{}, id, ok)
 		s.recordTool(req)
+	case wire.HookStatus:
+		s.setAttention(ctx, p, req, id, ok)
 	case wire.HookSessionEnd:
 		s.end(agentKey(p))
 	}
@@ -235,6 +257,25 @@ func (s *Server) nudge(ctx context.Context, key string, id address.Address) (str
 		return "", nil
 	}
 	return mdview.Nudge(id.String(), fresh[:min(len(fresh), nudgeLimit)], total), nil
+}
+
+// nudgeAgent nudges the agent, or the subagent the hook fired inside: a
+// subagent sees only its own mailbox, under its own watermark, so it never
+// consumes its parent's nudges.
+func (s *Server) nudgeAgent(ctx context.Context, p wire.Preamble, id address.Address, req wire.HookRequest) (string, error) {
+	key := agentKey(p)
+	sub := req.Subagent
+	if sub == "" {
+		sub = SubagentName(req.AgentType)
+	}
+	if sub == "" || key == "" {
+		return s.nudge(ctx, key, id)
+	}
+	addr, err := id.WithSubagent(sub)
+	if err != nil {
+		return "", nil //nolint:nilerr // an unusable name just means no subagent mailbox
+	}
+	return s.nudge(ctx, key+"/"+sub, addr)
 }
 
 func (s *Server) subagentStart(ctx context.Context, id address.Address, req wire.HookRequest) (string, error) {
@@ -403,6 +444,24 @@ func (s *Server) end(key string) {
 		if a.watch != nil {
 			close(a.watch)
 		}
+		a.stopAlert()
 		delete(s.agents, key)
 	}
+}
+
+// Close stops pending operator alerts. Hooks served afterward schedule none.
+func (s *Server) Close() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.closed = true
+	for _, a := range s.agents {
+		a.stopAlert()
+	}
+}
+
+func (a *agentState) stopAlert() {
+	if a.alert != nil {
+		a.alert.Stop()
+	}
+	a.alert, a.alertState = nil, ""
 }

@@ -72,6 +72,9 @@ type Config struct {
 	// IdleAfter is how long a session may go without a tool call before it is
 	// reported idle; zero means presence.DefaultIdleAfter.
 	IdleAfter time.Duration
+	// AttentionAlert is how long an agent may stay blocked or failed, as its
+	// hooks report, before the operator gets a message; zero sends none.
+	AttentionAlert time.Duration
 	// Ready, if set, is called once all listeners are bound.
 	Ready func(Addrs)
 }
@@ -115,7 +118,8 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) (err error) {
 		cfg: cfg, logger: logger, reg: reg, conns: make(map[net.Conn]struct{}),
 		svc: mail.New(st, mcpserver.NewPresence(reg)),
 	}
-	d.hooks = hooks.New(d.svc, reg)
+	d.hooks = hooks.New(d.svc, reg, hooks.WithAlertAfter(cfg.AttentionAlert), hooks.WithLogger(logger))
+	defer d.hooks.Close() // runs before the store closes (registered first, runs last otherwise)
 
 	if err := d.svc.EnsureOperator(ctx); err != nil {
 		_ = st.Close()

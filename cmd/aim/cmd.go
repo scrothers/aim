@@ -36,8 +36,13 @@ func envOr(getenv func(string) string, key, def string) string {
 
 // envDuration returns the duration in the environment value for key, or def
 // when it is unset or not a valid duration.
+// defaultAttentionAlert is how long an agent stays blocked or failed before
+// the operator is messaged: long enough that an operator at the terminal
+// answers first.
+const defaultAttentionAlert = 2 * time.Minute
+
 func envDuration(getenv func(string) string, key string, def time.Duration) time.Duration {
-	if d, err := time.ParseDuration(getenv(key)); err == nil && d > 0 {
+	if d, err := time.ParseDuration(getenv(key)); err == nil && d >= 0 {
 		return d
 	}
 	return def
@@ -118,6 +123,8 @@ func newDaemonCmd() *cobra.Command {
 	f.StringVar(&cfg.BackupDir, "backup-dir", envOr(os.Getenv, "AIM_BACKUP_DIR", defaultBackupDir()), "default scheduled-backup directory (AIM_BACKUP_DIR)")
 	f.DurationVar(&cfg.IdleAfter, "idle-after", envDuration(os.Getenv, "AIM_IDLE_AFTER", presence.DefaultIdleAfter),
 		"report a session idle after this long without a tool call (AIM_IDLE_AFTER)")
+	f.DurationVar(&cfg.AttentionAlert, "attention-alert", envDuration(os.Getenv, "AIM_ATTENTION_ALERT", defaultAttentionAlert),
+		"message the operator when an agent's hooks report it blocked or failed for this long; 0 disables (AIM_ATTENTION_ALERT)")
 	f.StringVar(&level, "log-level", "info", "log level: debug, info, warn, error")
 	return cmd
 }
