@@ -8,7 +8,7 @@ import (
 
 // SignOffOutput is the result of sign_off.
 type SignOffOutput struct {
-	WasSignedOn bool `json:"was_signed_on"`
+	WasSignedOn bool `json:"was_signed_on" jsonschema:"true if this connection was signed on before the call; false if it already was not."`
 }
 
 func (t *toolset) signOff(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, SignOffOutput, error) {

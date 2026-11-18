@@ -11,12 +11,12 @@ import (
 
 // ThreadInput is the input of thread.
 type ThreadInput struct {
-	ThreadID string `json:"thread_id" jsonschema:"thread id of any message in the thread"`
+	ThreadID string `json:"thread_id" jsonschema:"The thread_id field of any message in the conversation (equal to its first message's id), for example msg-01jcz5aa7q."`
 }
 
 // ThreadOutput is the result of thread.
 type ThreadOutput struct {
-	Messages []mail.Message `json:"messages"`
+	Messages []mail.Message `json:"messages" jsonschema:"Every message in the thread, oldest first, with full bodies; no paging."`
 }
 
 func (t *toolset) thread(ctx context.Context, _ *mcp.CallToolRequest, in ThreadInput) (*mcp.CallToolResult, ThreadOutput, error) {

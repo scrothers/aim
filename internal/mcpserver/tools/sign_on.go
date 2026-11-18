@@ -12,13 +12,13 @@ import (
 
 // SignOnInput is the input of sign_on.
 type SignOnInput struct {
-	Address string `json:"address" jsonschema:"registered identity address to sign on as"`
-	Away    string `json:"away,omitempty" jsonschema:"optional away message shown in the roster"`
+	Address string `json:"address" jsonschema:"Registered identity to act as, for example reviewer@github.com/acme/api. Not operator, and not an org, repo or subagent address."`
+	Away    string `json:"away,omitempty" jsonschema:"Short status shown next to your name in rosters, for example reviewing PR 212. Optional; omitting it clears the previous status."`
 }
 
 // SignOnOutput is the result of sign_on.
 type SignOnOutput struct {
-	SignedOnAs string `json:"signed_on_as"`
+	SignedOnAs string `json:"signed_on_as" jsonschema:"Canonical identity address this connection now acts as."`
 }
 
 func (t *toolset) signOn(ctx context.Context, _ *mcp.CallToolRequest, in SignOnInput) (*mcp.CallToolResult, SignOnOutput, error) {

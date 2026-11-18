@@ -11,12 +11,12 @@ import (
 
 // AddressInput is the input of tools that take only an address.
 type AddressInput struct {
-	Address string `json:"address" jsonschema:"mailbox address; covers everything below it"`
+	Address string `json:"address" jsonschema:"Org (github.com/acme, including its repos), repo (github.com/acme/api) or identity (reviewer@github.com/acme/api) to list. An unknown identity fails with suggestions; an empty org or repo returns no identities."`
 }
 
 // RosterOutput is the result of roster.
 type RosterOutput struct {
-	Identities []mail.RosterEntry `json:"identities"`
+	Identities []mail.RosterEntry `json:"identities" jsonschema:"Active registered identities in scope, with role, description, reports_to and online sessions."`
 }
 
 func (t *toolset) roster(ctx context.Context, _ *mcp.CallToolRequest, in AddressInput) (*mcp.CallToolResult, RosterOutput, error) {

@@ -8,14 +8,14 @@ import (
 
 // WhoamiOutput is the result of whoami.
 type WhoamiOutput struct {
-	SessionID  string `json:"session_id" jsonschema:"Claude session id of this connection"`
-	Machine    string `json:"machine" jsonschema:"hostname of the machine the shim runs on"`
-	ProjectDir string `json:"project_dir" jsonschema:"project directory of this session"`
-	GitRemote  string `json:"git_remote,omitempty" jsonschema:"origin remote URL of the project"`
-	Namespace  string `json:"namespace,omitempty" jsonschema:"your git namespace host/org/repo, usable as an address"`
-	SignedOnAs string `json:"signed_on_as,omitempty" jsonschema:"identity this connection is signed on as"`
-	Client     string `json:"client,omitempty" jsonschema:"MCP client name, for example claude-code"`
-	ClientVer  string `json:"client_version,omitempty" jsonschema:"MCP client version"`
+	SessionID  string `json:"session_id" jsonschema:"Agent session id behind this connection; sign-ons are restored per session id after a reconnect."`
+	Machine    string `json:"machine" jsonschema:"Hostname of the machine the session runs on."`
+	ProjectDir string `json:"project_dir" jsonschema:"Project directory of this session."`
+	GitRemote  string `json:"git_remote,omitempty" jsonschema:"origin remote URL of the project; absent without a remote."`
+	Namespace  string `json:"namespace,omitempty" jsonschema:"Your git namespace as an address, for example github.com/acme/api. Pass it to roster, list, search and wait; register identities under it."`
+	SignedOnAs string `json:"signed_on_as,omitempty" jsonschema:"Identity this connection acts as; absent until sign_on. send and mark need it."`
+	Client     string `json:"client,omitempty" jsonschema:"MCP client name, for example claude-code."`
+	ClientVer  string `json:"client_version,omitempty" jsonschema:"MCP client version."`
 }
 
 func (t *toolset) whoami(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, WhoamiOutput, error) {

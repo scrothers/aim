@@ -13,9 +13,9 @@ import (
 
 // WaitInput is the input of wait.
 type WaitInput struct {
-	Address        string `json:"address,omitempty" jsonschema:"mailbox address to watch, covering everything below it; defaults to your signed-on identity"`
-	TimeoutSeconds int    `json:"timeout_seconds,omitempty" jsonschema:"how long to block, default 60, max 300; keep below your client's tool-call timeout"`
-	SinceID        string `json:"since_id,omitempty" jsonschema:"only wake for unread messages with an id newer than this"`
+	Address        string `json:"address,omitempty" jsonschema:"Mailbox to watch, covering everything below it, for example github.com/acme/api. Defaults to your signed-on identity and its subagents; required when not signed on. A misspelled address just times out."`
+	TimeoutSeconds int    `json:"timeout_seconds,omitempty" jsonschema:"How long to block, in seconds; default 60, maximum 300 (larger values are clamped). Keep it below your client's tool-call timeout."`
+	SinceID        string `json:"since_id,omitempty" jsonschema:"Only wake for unread mail with an id newer than this msg-... id, such as the id your last send returned. Without it, any unread mail in scope returns at once."`
 }
 
 func (t *toolset) wait(ctx context.Context, req *mcp.CallToolRequest, in WaitInput) (*mcp.CallToolResult, mail.WaitResult, error) {

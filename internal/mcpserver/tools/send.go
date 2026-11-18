@@ -11,13 +11,13 @@ import (
 
 // SendInput is the input of send.
 type SendInput struct {
-	To        []string `json:"to" jsonschema:"recipient addresses"`
-	Cc        []string `json:"cc,omitempty" jsonschema:"carbon-copy addresses"`
-	Subject   string   `json:"subject" jsonschema:"subject, at most 200 characters"`
-	Body      string   `json:"body" jsonschema:"message body, at most 64 KiB"`
-	InReplyTo string   `json:"in_reply_to,omitempty" jsonschema:"id of the message being replied to"`
-	ReplyAll  bool     `json:"reply_all,omitempty" jsonschema:"also address the original sender, to and cc minus yourself"`
-	Subagent  string   `json:"subagent,omitempty" jsonschema:"send as this subagent of your identity"`
+	To        []string `json:"to" jsonschema:"Recipient addresses, for example [reviewer@github.com/acme/api] or [operator]. Identities must be registered; org, repo and subagent mailboxes are created on first send. Required unless reply_all is set."`
+	Cc        []string `json:"cc,omitempty" jsonschema:"Carbon-copy addresses, same rules as to. An address in both to and cc is delivered once, as to."`
+	Subject   string   `json:"subject" jsonschema:"Subject line, 1 to 200 characters. In replies keep the original, for example Re: Release plan."`
+	Body      string   `json:"body" jsonschema:"Markdown body, up to 64 KiB. Put the ask first, then concrete references such as PR numbers, file paths and error text."`
+	InReplyTo string   `json:"in_reply_to,omitempty" jsonschema:"Id of the message you are answering (msg-...); the reply joins its thread. Omit to start a new thread."`
+	ReplyAll  bool     `json:"reply_all,omitempty" jsonschema:"Requires in_reply_to. Also address the original sender and its to and cc (cc stays cc), minus yourself and retired identities. Default false."`
+	Subagent  string   `json:"subagent,omitempty" jsonschema:"Send as this subagent of your identity, for example tests sends from tests@reviewer@github.com/acme/api. Filled in automatically for Claude Code subagents when AIM hooks are installed."`
 }
 
 func (t *toolset) send(ctx context.Context, _ *mcp.CallToolRequest, in SendInput) (*mcp.CallToolResult, mail.Message, error) {
