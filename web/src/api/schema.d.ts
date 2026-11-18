@@ -434,6 +434,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List tasks, newest-updated first */
+        get: operations["listTasks"];
+        put?: never;
+        /** Create a task as the operator */
+        post: operations["createTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A task with its history and linked messages */
+        get: operations["getTask"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{id}/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply an action to a task as the operator */
+        post: operations["updateTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/thread-tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tasks linked to messages in the given threads */
+        get: operations["listThreadTasks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/threads/mute": {
         parameters: {
             query?: never;
@@ -1279,6 +1348,257 @@ export interface components {
             /** @description Daemon version. */
             version: string;
         };
+        TaskActionRequest: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/TaskActionRequest.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description The change to apply.
+             * @enum {string}
+             */
+            action: "claim" | "start" | "finish" | "release" | "assign" | "unassign" | "reopen" | "comment" | "link" | "edit";
+            /** @description For assign: identity address or operator. */
+            assignee?: string;
+            /** @description For edit: new Markdown body; empty clears it. */
+            body?: string;
+            /** @description For edit: remove the deadline. */
+            clear_due?: boolean;
+            /**
+             * Format: date-time
+             * @description For edit: new deadline.
+             */
+            due_at?: string;
+            /** @description For link: message id. */
+            message_id?: string;
+            /** @description Comment text (required for comment) or a reason for any action. */
+            note?: string;
+            /**
+             * @description For edit: new priority.
+             * @enum {string}
+             */
+            priority?: "low" | "normal" | "high" | "urgent";
+            /** @description For edit: new org or repo address; empty clears it. */
+            scope?: string;
+            /** @description For edit: new title. */
+            title?: string;
+        };
+        TaskCreateRequest: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/TaskCreateRequest.json
+             */
+            readonly $schema?: string;
+            /** @description Identity address (or operator) to reserve the task for; they are mailed. */
+            assignee?: string;
+            /** @description Markdown details. */
+            body?: string;
+            /**
+             * Format: date-time
+             * @description Deadline, RFC 3339.
+             */
+            due_at?: string;
+            /** @description Message id to link at creation. */
+            message_id?: string;
+            /**
+             * @description Priority (default normal).
+             * @enum {string}
+             */
+            priority?: "low" | "normal" | "high" | "urgent";
+            /** @description Org or repo address, for example github.com/acme/api. */
+            scope?: string;
+            /** @description One-line summary. */
+            title: string;
+        };
+        TaskDetailView: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/TaskDetailView.json
+             */
+            readonly $schema?: string;
+            /** @description Identity the task is reserved for; absent when unassigned. */
+            assignee?: string;
+            /** @description Markdown details. */
+            body: string;
+            /** @description Body rendered from Markdown to sanitized HTML; safe to inject. */
+            body_html: string;
+            /** @description Identity holding the task while claimed or started. */
+            claimant?: string;
+            /**
+             * Format: date-time
+             * @description When the current claim began.
+             */
+            claimed_at?: string;
+            /**
+             * Format: date-time
+             * @description When the task was created.
+             */
+            created_at: string;
+            /** @description Identity address that created the task, or operator. */
+            created_by: string;
+            /**
+             * Format: date-time
+             * @description Deadline.
+             */
+            due_at?: string;
+            /** @description History, oldest first. */
+            events: components["schemas"]["TaskEventView"][] | null;
+            /**
+             * Format: date-time
+             * @description When the task was finished.
+             */
+            finished_at?: string;
+            /**
+             * @description Lease health of a claimed or started task.
+             * @enum {string}
+             */
+            health?: "active" | "idle" | "stale" | "abandoned";
+            /** @description Task id, task-... */
+            id: string;
+            /**
+             * Format: date-time
+             * @description Latest activity by the claimant's session.
+             */
+            last_activity_at?: string;
+            /** @description Linked messages, oldest link first. */
+            links: components["schemas"]["TaskLinkView"][] | null;
+            /**
+             * @description Priority.
+             * @enum {string}
+             */
+            priority: "low" | "normal" | "high" | "urgent";
+            /** @description Org or repo address the task belongs to; absent when unscoped. */
+            scope?: string;
+            /**
+             * @description Lifecycle status.
+             * @enum {string}
+             */
+            status: "not_started" | "claimed" | "started" | "finished" | "abandoned";
+            /** @description One-line summary. */
+            title: string;
+            /**
+             * Format: date-time
+             * @description When the task last changed.
+             */
+            updated_at: string;
+        };
+        TaskEventView: {
+            /** @description Identity or operator that acted; the former claimant for decay events. */
+            actor: string;
+            /**
+             * Format: date-time
+             * @description When it happened.
+             */
+            at: string;
+            /**
+             * @description Status before, when it changed.
+             * @enum {string}
+             */
+            from_status?: "not_started" | "claimed" | "started" | "finished" | "abandoned";
+            /**
+             * @description What happened.
+             * @enum {string}
+             */
+            kind: "created" | "stale" | "decayed" | "claim" | "start" | "finish" | "release" | "assign" | "unassign" | "reopen" | "comment" | "link" | "edit";
+            /** @description Comment, reason, assignee or linked message id. */
+            note?: string;
+            /**
+             * @description Status after, when it changed.
+             * @enum {string}
+             */
+            to_status?: "not_started" | "claimed" | "started" | "finished" | "abandoned";
+        };
+        TaskLinkView: {
+            /**
+             * Format: date-time
+             * @description When it was linked.
+             */
+            linked_at: string;
+            /** @description Who linked it. */
+            linked_by: string;
+            /** @description Linked message id. */
+            message_id: string;
+            /** @description Subject of the linked message. */
+            subject: string;
+            /** @description Thread of the linked message. */
+            thread_id: string;
+        };
+        TaskListBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/TaskListBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["TaskView"][] | null;
+            /** @description Pass as cursor for the next page; absent on the last page. */
+            next_cursor?: string;
+        };
+        TaskView: {
+            /** @description Identity the task is reserved for; absent when unassigned. */
+            assignee?: string;
+            /** @description Markdown details. */
+            body: string;
+            /** @description Identity holding the task while claimed or started. */
+            claimant?: string;
+            /**
+             * Format: date-time
+             * @description When the current claim began.
+             */
+            claimed_at?: string;
+            /**
+             * Format: date-time
+             * @description When the task was created.
+             */
+            created_at: string;
+            /** @description Identity address that created the task, or operator. */
+            created_by: string;
+            /**
+             * Format: date-time
+             * @description Deadline.
+             */
+            due_at?: string;
+            /**
+             * Format: date-time
+             * @description When the task was finished.
+             */
+            finished_at?: string;
+            /**
+             * @description Lease health of a claimed or started task.
+             * @enum {string}
+             */
+            health?: "active" | "idle" | "stale" | "abandoned";
+            /** @description Task id, task-... */
+            id: string;
+            /**
+             * Format: date-time
+             * @description Latest activity by the claimant's session.
+             */
+            last_activity_at?: string;
+            /**
+             * @description Priority.
+             * @enum {string}
+             */
+            priority: "low" | "normal" | "high" | "urgent";
+            /** @description Org or repo address the task belongs to; absent when unscoped. */
+            scope?: string;
+            /**
+             * @description Lifecycle status.
+             * @enum {string}
+             */
+            status: "not_started" | "claimed" | "started" | "finished" | "abandoned";
+            /** @description One-line summary. */
+            title: string;
+            /**
+             * Format: date-time
+             * @description When the task last changed.
+             */
+            updated_at: string;
+        };
         ThreadBody: {
             /**
              * Format: uri
@@ -1287,6 +1607,22 @@ export interface components {
              */
             readonly $schema?: string;
             messages: components["schemas"]["MessageView"][] | null;
+        };
+        ThreadTaskView: {
+            /** @enum {string} */
+            status: "not_started" | "claimed" | "started" | "finished" | "abandoned";
+            task_id: string;
+            thread_id: string;
+            title: string;
+        };
+        ThreadTasksBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ThreadTasksBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["ThreadTaskView"][] | null;
         };
         Tree: {
             /**
@@ -2323,6 +2659,185 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StatsBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    listTasks: {
+        parameters: {
+            query?: {
+                /** @description Only tasks in this status. */
+                status?: "not_started" | "claimed" | "started" | "finished" | "abandoned";
+                /** @description Only tasks reserved for this identity (or operator). */
+                assignee?: string;
+                /** @description Only tasks held by this identity. */
+                claimant?: string;
+                /** @description Only tasks this identity created, is assigned or holds. */
+                involves?: string;
+                /** @description Only tasks scoped to this org or repo address or below it. */
+                scope?: string;
+                /** @description Leave out finished tasks. */
+                open_only?: boolean;
+                /** @description Page size (default 50). */
+                limit?: number;
+                /** @description next_cursor from the previous page. */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskListBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    createTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskDetailView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    getTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Task id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskDetailView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    updateTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Task id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskActionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskDetailView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    listThreadTasks: {
+        parameters: {
+            query: {
+                /** @description Thread ids; repeat the parameter for several. */
+                thread_id: string[] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadTasksBody"];
                 };
             };
             /** @description Error */

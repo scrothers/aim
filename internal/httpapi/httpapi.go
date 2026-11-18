@@ -15,6 +15,7 @@ import (
 	"github.com/scrothers/aim/internal/mail"
 	"github.com/scrothers/aim/internal/presence"
 	"github.com/scrothers/aim/internal/render"
+	"github.com/scrothers/aim/internal/tasks"
 )
 
 // Pinger reports whether a backing dependency is healthy.
@@ -34,6 +35,8 @@ type Deps struct {
 	// Approvals holds agent permission prompts; nil makes the approval list
 	// and decisions return 503.
 	Approvals Approver
+	// Tasks is the task board; nil makes the task operations return 503.
+	Tasks *tasks.Service
 	// Static serves the web UI; nil disables static serving.
 	Static  fs.FS
 	Version string
@@ -97,6 +100,7 @@ func newHandlers(d Deps) *handlers {
 		maint:     d.Maint,
 		notify:    d.Notify,
 		approvals: d.Approvals,
+		tasks:     d.Tasks,
 	}
 }
 

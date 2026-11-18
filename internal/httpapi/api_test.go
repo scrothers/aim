@@ -24,6 +24,7 @@ import (
 	"github.com/scrothers/aim/internal/notify"
 	"github.com/scrothers/aim/internal/presence"
 	"github.com/scrothers/aim/internal/store"
+	"github.com/scrothers/aim/internal/tasks"
 	"github.com/scrothers/aim/internal/wire"
 )
 
@@ -40,6 +41,8 @@ type env struct {
 	hookHits atomic.Int32
 	// hooks serves approve requests whose prompts the API lists and decides.
 	hooks *hooks.Server
+	// tasks is the task board behind the task endpoints.
+	tasks *tasks.Service
 }
 
 func newEnv(t *testing.T) *env {
@@ -75,11 +78,13 @@ func newEnv(t *testing.T) *env {
 		return hooks.ApprovalMode{Enabled: a.Enabled, Timeout: time.Duration(a.TimeoutSeconds) * time.Second}, err
 	}))
 	t.Cleanup(e.hooks.Close)
+	e.tasks = tasks.New(st, svc, tasks.WithSessions(reg))
 	e.h = httpapi.New(httpapi.Deps{
 		Pinger: fakePinger{}, Mail: svc, Presence: reg, Version: "test", Logger: logger,
 		Maint:     maintenance.New(st, svc, logger, maintenance.WithDefaultDir(e.backupDir)),
 		Notify:    notify.New(svc, logger, notify.WithHostCheck(check), notify.WithBackoff(time.Millisecond)),
 		Approvals: e.hooks,
+		Tasks:     e.tasks,
 	})
 	return e
 }

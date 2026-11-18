@@ -12,6 +12,7 @@ import (
 	"github.com/scrothers/aim/internal/mail"
 	"github.com/scrothers/aim/internal/presence"
 	"github.com/scrothers/aim/internal/render"
+	"github.com/scrothers/aim/internal/tasks"
 )
 
 type handlers struct {
@@ -23,6 +24,7 @@ type handlers struct {
 	maint     Maintenance
 	notify    Notifier
 	approvals Approver
+	tasks     *tasks.Service
 }
 
 // operatorCaller is the only actor of the HTTP API: the human operator.
@@ -108,6 +110,7 @@ func registerOperations(api huma.API, h *handlers) {
 	huma.Register(api, post("renderMarkdown", "/api/render", "Preview Markdown as sanitized HTML"), h.renderPreview)
 	registerSettings(api, h)
 	registerApprovals(api, h)
+	registerTasks(api, h)
 }
 
 // apiError maps a mail error to an HTTP error.
