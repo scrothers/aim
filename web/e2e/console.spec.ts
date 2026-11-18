@@ -54,6 +54,8 @@ test('buddy list and mailbox tree show the signed-on agents', async ({ page }) =
   const nav = page.getByRole('navigation', { name: 'Mailboxes' })
   const acme = nav.getByTestId('org-block').filter({ hasText: 'acme' })
   await expect(acme).toBeVisible()
+  await expect(acme.getByLabel(/ unread$/)).toBeVisible() // a collapsed org still shows its unread badge
+  await acme.getByRole('button', { name: 'Expand acme' }).click()
   const repo = acme.getByTestId('repo-block').filter({ hasText: 'api' })
   await expect(repo).toBeVisible()
   await expect(repo).toContainText('1') // unread count from the review request

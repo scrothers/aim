@@ -296,3 +296,44 @@ describe('mobile layout', () => {
     expect(await screen.findByRole('dialog', { name: 'Buddy list' })).toBeInTheDocument()
   })
 })
+
+describe('LeftNav', () => {
+  it('puts work views first, mailboxes in their own region and pages in the footer', async () => {
+    localStorage.clear()
+    unread = 4
+    const base = mocks.GET.getMockImplementation()!
+    mocks.GET.mockImplementation(async (path: string, ...rest: unknown[]) =>
+      path === '/api/approvals' ? ok({ items: [{ id: 'a1' }, { id: 'a2' }] }) : base(path, ...rest),
+    )
+    const { LeftNav } = await import('./LeftNav')
+    await renderWithRouter(
+      <Providers client={qc()}>
+        <LeftNav />
+      </Providers>,
+      '/approvals',
+    )
+    const nav = await screen.findByRole('navigation', { name: 'Mailboxes' })
+    const work = within(nav).getByRole('group', { name: 'Work' })
+    expect(within(work).getAllByRole('link').map((a) => a.textContent?.replace(/\d+$/, ''))).toEqual([
+      'Operator inbox',
+      'Unread everywhere',
+      'Today',
+      'Tasks',
+      'Approvals',
+    ])
+    expect(await within(work).findByLabelText('4 unread')).toBeInTheDocument()
+    expect(await within(work).findByLabelText('2 pending')).toBeInTheDocument()
+    const folders = within(nav).getByRole('group', { name: 'Folders' })
+    expect(within(folders).getByRole('link', { name: 'Sent' })).toBeInTheDocument()
+    expect(within(folders).getByRole('link', { name: 'Archived' })).toBeInTheDocument()
+    const manage = within(nav).getByRole('group', { name: 'Manage' })
+    expect(within(manage).getAllByRole('link').map((a) => a.textContent)).toEqual(['Roster', 'Org chart', 'Settings'])
+    // The active route is highlighted wherever its link lives.
+    expect(within(work).getByRole('link', { name: /^Approvals/ })).toHaveAttribute('data-status', 'active')
+    // Mailboxes scroll on their own, below the work views.
+    const region = await within(nav).findByRole('region', { name: 'Mailbox list' })
+    expect(within(region).getByTestId('mailbox-scroll')).toHaveClass('overflow-y-auto', 'min-h-0')
+    expect(work.compareDocumentPosition(region) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(region.compareDocumentPosition(manage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})

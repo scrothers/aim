@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useRouterState } from '@tanstack/react-router'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import type { components } from '@/api/schema'
 import { ago, parseAddress } from '@/lib/identity'
+import { isStringArray, readPref, writePref } from '@/lib/storage'
 import { cn } from '@/lib/utils'
 import { PresenceDot } from '@/components/shared/PresenceDot'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
@@ -90,16 +91,67 @@ function IdentityRow({ node, indent, idle }: { node: MailboxNode; indent: string
   )
 }
 
-export function MailboxTree({ orgs, now, idle }: { orgs: ReadonlyArray<OrgNode>; now?: number; idle?: ReadonlySet<string> }) {
+/** Every mailbox address inside an org: the org, its identities, repos and repo identities. */
+export function orgAddresses(org: OrgNode): string[] {
+  return [
+    org.address,
+    ...(org.identities ?? []).map((i) => i.address),
+    ...(org.repos ?? []).flatMap((r) => [r.address, ...(r.identities ?? []).map((i) => i.address)]),
+  ]
+}
+
+/** Orgs the operator expanded, remembered per browser. */
+export const EXPANDED_ORGS_KEY = 'aim.nav.expandedOrgs'
+
+function useExpandedOrgs() {
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set(readPref(EXPANDED_ORGS_KEY, [], isStringArray)))
+  const set = (address: string, v: boolean) =>
+    setOpen((prev) => {
+      const next = new Set(prev)
+      if (v) next.add(address)
+      else next.delete(address)
+      writePref(EXPANDED_ORGS_KEY, [...next])
+      return next
+    })
+  return [open, set] as const
+}
+
+/** The mailbox the console is showing, if any. */
+function useSelectedMailbox(): string | undefined {
+  return useRouterState({
+    select: (s): string | undefined => {
+      if (s.location.pathname !== '/mail') return undefined
+      const m = (s.location.search as { mailbox?: unknown }).mailbox
+      return typeof m === 'string' ? m : undefined
+    },
+  })
+}
+
+export function MailboxTree({
+  orgs,
+  now,
+  idle,
+  attention,
+}: {
+  orgs: ReadonlyArray<OrgNode>
+  now?: number
+  idle?: ReadonlySet<string>
+  /** Addresses of online agents in an attention state (blocked, waiting, ...). */
+  attention?: ReadonlySet<string>
+}) {
   const [query, setQuery] = useState('')
-  // Repo/org expansion: explicit user choices override the defaults.
+  // Orgs start collapsed; an org opens when the operator expands it (remembered)
+  // or while it holds the selected mailbox (unless collapsed for that selection).
+  const [expanded, setExpanded] = useExpandedOrgs()
+  const selected = useSelectedMailbox()
+  const [dismissed, setDismissed] = useState<{ sel?: string; orgs: ReadonlySet<string> }>({ orgs: new Set() })
+  const dismissedNow = dismissed.sel === selected ? dismissed.orgs : undefined
   const [repoOpen, setRepoOpen] = useState<Record<string, boolean>>({})
-  const [orgOpen, setOrgOpen] = useState<Record<string, boolean>>({})
   const filtering = query.trim() !== ''
   const filtered = useMemo(() => filterTree(orgs, query), [orgs, query])
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <section aria-label="Mailbox list" className="flex min-h-0 flex-1 flex-col gap-1.5">
       <div className="flex items-center px-2.5">
         <h3 className="m-0 text-xs font-semibold tracking-[0.06em] text-faint uppercase">Mailboxes</h3>
         <span className="ml-auto text-xs text-faint">7d activity</span>
@@ -113,12 +165,25 @@ export function MailboxTree({ orgs, now, idle }: { orgs: ReadonlyArray<OrgNode>;
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Filter mailboxes"
-        className="mx-1 box-border h-[30px] rounded-md border bg-panel2 px-2.5 text-[13px] text-text outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="mx-1 box-border h-[30px] shrink-0 rounded-md border bg-panel2 px-2.5 text-[13px] text-text outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:min-h-11"
       />
+      <div data-testid="mailbox-scroll" className="-mx-1 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-1 pb-1">
       {filtered.length === 0 && <p className="m-0 px-2.5 text-[13px] text-faint">No mailboxes match.</p>}
       {filtered.map(({ org, identities, repos }) => {
         const quiet = isQuiet(org, now)
-        const open = filtering || (orgOpen[org.address] ?? !quiet)
+        const addresses = orgAddresses(org)
+        const holdsSelection = !!selected && addresses.includes(selected)
+        const open = filtering || expanded.has(org.address) || (holdsSelection && !dismissedNow?.has(org.address))
+        const needAttention = attention ? addresses.filter((a) => attention.has(a)).length : 0
+        const toggleOrg = () => {
+          setExpanded(org.address, !open)
+          if (holdsSelection) {
+            const next = new Set(dismissedNow)
+            if (open) next.add(org.address)
+            else next.delete(org.address)
+            setDismissed({ sel: selected, orgs: next })
+          }
+        }
         const label = org.org
         return (
           <div
@@ -154,7 +219,17 @@ export function MailboxTree({ orgs, now, idle }: { orgs: ReadonlyArray<OrgNode>;
                     {org.unread}
                   </span>
                 ) : (
-                  quiet && <span className="text-xs text-faint">quiet · {ago(org.last_activity, now) || '–'}</span>
+                  quiet && needAttention === 0 && <span className="text-xs text-faint">quiet · {ago(org.last_activity, now) || '–'}</span>
+                )}
+                {needAttention > 0 && (
+                  <span
+                    aria-label={`${needAttention} ${needAttention === 1 ? 'needs' : 'need'} attention`}
+                    data-testid="org-attention"
+                    className="flex h-[18px] min-w-5 items-center justify-center gap-1 rounded-full bg-attention-soft px-1.5 text-xs font-semibold text-attention-text"
+                  >
+                    <span aria-hidden="true" className="size-1.5 rounded-full bg-attention" />
+                    {needAttention}
+                  </span>
                 )}
               </Link>
               {!filtering && (
@@ -162,8 +237,8 @@ export function MailboxTree({ orgs, now, idle }: { orgs: ReadonlyArray<OrgNode>;
                   type="button"
                   aria-expanded={open}
                   aria-label={`${open ? 'Collapse' : 'Expand'} ${label}`}
-                  onClick={() => setOrgOpen((s) => ({ ...s, [org.address]: !open }))}
-                  className="flex size-7 items-center justify-center rounded-md text-faint hover:bg-hover"
+                  onClick={toggleOrg}
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-faint hover:bg-hover max-md:size-11"
                 >
                   {open ? <ChevronDown aria-hidden="true" className="size-3.5" /> : <ChevronRight aria-hidden="true" className="size-3.5" />}
                 </button>
@@ -175,7 +250,8 @@ export function MailboxTree({ orgs, now, idle }: { orgs: ReadonlyArray<OrgNode>;
                   <IdentityRow key={m.address} node={m} indent="pl-3.5" idle={idle} />
                 ))}
                 {repos.map(({ repo, identities: ids }) => {
-                  const ropen = filtering || (repoOpen[repo.address] ?? repo.unread > 0)
+                  const holds = !!selected && (selected === repo.address || (repo.identities ?? []).some((m) => m.address === selected))
+                  const ropen = filtering || (repoOpen[repo.address] ?? (repo.unread > 0 || holds))
                   return (
                     <div key={repo.address} data-testid="repo-block" className="flex flex-col gap-px">
                       <div className="flex h-[30px] items-center gap-2 rounded-md pr-1.5 pl-2.5 hover:bg-hover max-md:min-h-11">
@@ -207,6 +283,7 @@ export function MailboxTree({ orgs, now, idle }: { orgs: ReadonlyArray<OrgNode>;
           </div>
         )
       })}
-    </div>
+      </div>
+    </section>
   )
 }

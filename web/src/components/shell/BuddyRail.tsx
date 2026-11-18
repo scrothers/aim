@@ -13,7 +13,7 @@ export function BuddyPanel() {
 
 export function BuddyRail() {
   return (
-    <aside aria-label="Buddy list" className="box-border flex flex-[1_1_264px] flex-col gap-4 border-l bg-panel px-3 py-4">
+    <aside aria-label="Buddy list" className="box-border flex w-[264px] shrink-0 flex-col gap-4 overflow-y-auto border-l bg-panel px-3 py-4">
       <BuddyPanel />
     </aside>
   )

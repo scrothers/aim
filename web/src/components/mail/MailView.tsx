@@ -206,7 +206,7 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
       : undefined
 
   return (
-    <>
+    <div className="flex min-h-0 min-w-0 flex-1">
       {!(mobile && search.thread) && (
       <MessageList
         title={VIEW_TITLES[view ?? 'operator']}
@@ -245,6 +245,6 @@ export function MailView({ search, onSearch }: { search: MailSearch; onSearch: (
         onArchived={() => onSearch({ thread: undefined })}
       />
       )}
-    </>
+    </div>
   )
 }

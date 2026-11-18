@@ -1,23 +1,70 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fixtureNow, treeFixture } from '@/test/fixtures'
 import { renderWithRouter } from '@/test/utils'
-import { MailboxTree, filterTree, isQuiet } from './MailboxTree'
+import { EXPANDED_ORGS_KEY, MailboxTree, filterTree, isQuiet } from './MailboxTree'
 
 const ui = () => <MailboxTree orgs={treeFixture} now={fixtureNow} />
 
+beforeEach(() => localStorage.clear())
+afterEach(() => vi.restoreAllMocks())
+
 describe('MailboxTree', () => {
-  it('shows active org expanded, repos with unread expanded, quiet org collapsed', async () => {
-    await renderWithRouter(ui())
-    expect(await screen.findByText('coordinator@')).toBeInTheDocument()
+  it('starts with every org collapsed, showing org badges', async () => {
+    await renderWithRouter(<MailboxTree orgs={treeFixture} now={fixtureNow} attention={new Set(['reviewer@github.com/acme/api'])} />)
+    expect(await screen.findByRole('button', { name: 'Expand acme' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('button', { name: 'Expand labs' })).toBeInTheDocument()
+    expect(screen.queryByText('coordinator@')).toBeNull()
+    expect(screen.queryByText('scout@')).toBeNull()
+    const [acme, labs] = screen.getAllByTestId('org-block')
+    expect(within(acme!).getByLabelText('9 unread')).toBeInTheDocument()
+    expect(within(acme!).getByLabelText('1 needs attention')).toBeInTheDocument()
+    expect(within(labs!).queryByTestId('org-attention')).toBeNull()
+    expect(within(labs!).getByText(/quiet · 3d/)).toBeInTheDocument()
+    expect(acme).toHaveAttribute('data-quiet', 'false')
+    expect(labs).toHaveAttribute('data-quiet', 'true')
+  })
+
+  it('auto-expands only the org and repo holding the selected mailbox', async () => {
+    await renderWithRouter(ui(), '/mail?mailbox=triage%40github.com%2Facme%2Fweb')
+    expect(await screen.findByText('triage@')).toBeInTheDocument() // web holds the selection
+    expect(screen.getByText('coordinator@')).toBeInTheDocument()
     expect(screen.getByText('reviewer@')).toBeInTheDocument() // api has unread -> open
-    expect(screen.queryByText('triage@')).toBeNull() // web has none -> collapsed
-    expect(screen.queryByText('scout@')).toBeNull() // labs quiet -> collapsed
-    expect(screen.getByText(/quiet · 3d/)).toBeInTheDocument()
-    const blocks = screen.getAllByTestId('org-block')
-    expect(blocks[0]).toHaveAttribute('data-quiet', 'false')
-    expect(blocks[1]).toHaveAttribute('data-quiet', 'true')
+    expect(screen.queryByText('scout@')).toBeNull()
+  })
+
+  it('collapses a selected org on request without persisting it as expanded', async () => {
+    const user = userEvent.setup()
+    await renderWithRouter(ui(), '/mail?mailbox=github.com%2Facme')
+    await user.click(await screen.findByRole('button', { name: 'Collapse acme' }))
+    expect(screen.queryByText('coordinator@')).toBeNull()
+    expect(localStorage.getItem(EXPANDED_ORGS_KEY)).toBe('[]')
+  })
+
+  it('remembers expanded orgs in localStorage', async () => {
+    const user = userEvent.setup()
+    const first = await renderWithRouter(ui())
+    await user.click(await screen.findByRole('button', { name: 'Expand labs' }))
+    expect(screen.getByText('scout@')).toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem(EXPANDED_ORGS_KEY)!)).toEqual(['github.com/labs'])
+    first.unmount()
+    await renderWithRouter(ui())
+    expect(await screen.findByText('scout@')).toBeInTheDocument()
+    expect(screen.queryByText('coordinator@')).toBeNull()
+  })
+
+  it('renders and toggles when storage is unavailable', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    await renderWithRouter(ui())
+    await user.click(await screen.findByRole('button', { name: 'Expand acme' }))
+    expect(screen.getByText('coordinator@')).toBeInTheDocument()
   })
 
   it('classifies quiet orgs', () => {
@@ -28,6 +75,7 @@ describe('MailboxTree', () => {
   it('toggles repo collapse', async () => {
     const user = userEvent.setup()
     await renderWithRouter(ui())
+    await user.click(await screen.findByRole('button', { name: 'Expand acme' }))
     await user.click(await screen.findByRole('button', { name: 'Collapse api' }))
     expect(screen.queryByText('reviewer@')).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Expand api' }))
@@ -41,6 +89,8 @@ describe('MailboxTree', () => {
     await renderWithRouter(ui())
     await user.click(await screen.findByRole('button', { name: 'Expand labs' }))
     expect(screen.getByText('scout@')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Expand acme' }))
+    expect(screen.getByText('coordinator@')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Collapse acme' }))
     expect(screen.queryByText('coordinator@')).toBeNull()
   })
@@ -81,7 +131,9 @@ describe('MailboxTree', () => {
   })
 
   it('links mailboxes with search params', async () => {
+    const user = userEvent.setup()
     await renderWithRouter(ui())
+    await user.click(await screen.findByRole('button', { name: 'Expand acme' }))
     const link = await screen.findByTitle('reviewer@github.com/acme/api')
     expect(link).toHaveAttribute('href', expect.stringContaining('mailbox=reviewer%40github.com%2Facme%2Fapi'))
     const avatar = within(link).getByTestId('robot-avatar')

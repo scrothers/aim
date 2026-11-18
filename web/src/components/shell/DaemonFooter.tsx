@@ -8,7 +8,7 @@ export function DaemonFooter() {
   const healthy = health.data?.status === 'ok'
   const s = stats.data
   return (
-    <div className="mt-auto flex flex-col gap-1 border-t px-2.5 pt-3 text-xs text-faint">
+    <div className="flex flex-col gap-1 px-2.5 text-xs text-faint">
       <span className="flex items-center gap-1.5 text-muted-foreground">
         <span aria-hidden="true" className={cn('size-1.5 rounded-full', healthy ? 'bg-online' : 'bg-destructive')} />
         {healthy ? 'Daemon healthy' : health.isPending ? 'Checking daemon…' : 'Daemon unreachable'}

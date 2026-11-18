@@ -20,7 +20,7 @@ export function MobileChrome() {
   return (
     <>
       <Sheet open={navOpen} onOpenChange={navFlag.set}>
-        <SheetContent side="left" className="w-[88%] gap-0 overflow-y-auto" showCloseButton>
+        <SheetContent side="left" className="w-[88%] gap-0" showCloseButton>
           <SheetHeader className="sr-only">
             <SheetTitle>Navigation</SheetTitle>
             <SheetDescription>Views, mailboxes and settings</SheetDescription>
