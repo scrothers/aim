@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useRouterState } from '@tanstack/react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { runtimeFor } from '@/lib/identity'
-import { helpFlag, paletteFlag } from '@/lib/flag'
+import { buddiesFlag, helpFlag, navFlag, paletteFlag } from '@/lib/flag'
 import { reloadNotifyPref, setNotificationsEnabled } from '@/lib/notify'
 import { ThemeProvider } from '@/lib/theme'
 import { composeStore } from '@/lib/compose'
@@ -272,7 +272,7 @@ describe('mobile layout', () => {
   }
 
   it('desktop renders the nav and buddy rail inline', async () => {
-    phone(false)
+    mockViewport(1440)
     await shell()
     expect(await screen.findByRole('navigation', { name: 'Mailboxes' })).toBeInTheDocument()
     expect(screen.getByRole('complementary', { name: 'Buddy list' })).toBeInTheDocument()
@@ -292,6 +292,64 @@ describe('mobile layout', () => {
     expect(within(drawer).getByRole('navigation', { name: 'Mailboxes' })).toBeInTheDocument()
     await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Navigation' })).toBeNull())
+    await user.click(screen.getByRole('button', { name: 'Open buddy list' }))
+    expect(await screen.findByRole('dialog', { name: 'Buddy list' })).toBeInTheDocument()
+  })
+})
+
+describe('buddy rail', () => {
+  beforeEach(async () => {
+    localStorage.clear()
+    const { railPref, railOnWidePages } = await import('./BuddyRail')
+    railPref.set(true)
+    railOnWidePages.set(false)
+    buddiesFlag.set(false)
+    navFlag.set(false)
+  })
+  afterEach(() => {
+    delete (window as { matchMedia?: unknown }).matchMedia
+  })
+  const shell = async (path = '/mail') => {
+    const { AppShell } = await import('./AppShell')
+    return renderWithRouter(
+      <Providers client={qc()}>
+        <AppShell>
+          <p>page</p>
+        </AppShell>
+      </Providers>,
+      path,
+    )
+  }
+  const rail = () => screen.queryByRole('complementary', { name: 'Buddy list' })
+
+  it('collapses from the top bar at xl and remembers the choice', async () => {
+    const user = userEvent.setup()
+    mockViewport(1440)
+    await shell()
+    expect(rail()).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Hide buddy list' }))
+    expect(rail()).toBeNull()
+    expect(localStorage.getItem('aim.buddyRail.open')).toBe('false')
+    expect(screen.getByRole('button', { name: 'Show buddy list' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('starts collapsed on the task board and org chart without touching the saved choice', async () => {
+    const user = userEvent.setup()
+    mockViewport(1440)
+    await shell('/tasks')
+    expect(await screen.findByRole('button', { name: 'Show buddy list' })).toBeInTheDocument()
+    expect(rail()).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Show buddy list' }))
+    expect(rail()).toBeInTheDocument()
+    expect(localStorage.getItem('aim.buddyRail.open')).toBeNull()
+  })
+
+  it('opens as an overlay sheet below xl', async () => {
+    const user = userEvent.setup()
+    mockViewport(1024)
+    await shell()
+    expect(await screen.findByRole('navigation', { name: 'Mailboxes' })).toBeInTheDocument()
+    expect(rail()).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Open buddy list' }))
     expect(await screen.findByRole('dialog', { name: 'Buddy list' })).toBeInTheDocument()
   })

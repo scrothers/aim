@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Bell, BellOff, Keyboard, Menu, Moon, MoreHorizontal, Search, Sun, Users } from 'lucide-react'
+import { Bell, BellOff, Keyboard, Menu, Moon, MoreHorizontal, PanelRightClose, PanelRightOpen, Search, Sun, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { buddiesFlag, helpFlag, navFlag, paletteFlag } from '@/lib/flag'
 import { cn } from '@/lib/utils'
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useTheme } from '@/lib/theme'
 import { ApprovalsMenuItem, ApprovalsSwitch, useRemoteApprovals } from './ApprovalsSwitch'
+import { useBuddyRail } from './BuddyRail'
 import { Logo } from './Logo'
 
 /** Latest dataUpdatedAt across all cached queries (ms), or 0. */
@@ -126,6 +127,7 @@ function MoreMenu({ compact }: { compact: boolean }) {
 export function TopBar() {
   const { dark, toggle } = useTheme()
   const wide = useIsWide()
+  const rail = useBuddyRail()
   const iconBtn = 'flex size-8 shrink-0 items-center justify-center rounded-lg border text-muted-foreground hover:bg-hover'
   return (
     <header className="flex h-14 shrink-0 flex-nowrap items-center gap-2 overflow-hidden border-b bg-panel px-2 md:gap-3 md:px-4">
@@ -155,9 +157,22 @@ export function TopBar() {
             <OperatorChip />
           </>
         )}
-        <button type="button" aria-label="Open buddy list" onClick={() => buddiesFlag.set(true)} className={cn(iconBtn, 'md:hidden')}>
-          <Users aria-hidden="true" className="size-4" />
-        </button>
+        {wide ? (
+          <button
+            type="button"
+            aria-label={rail.open ? 'Hide buddy list' : 'Show buddy list'}
+            aria-pressed={rail.open}
+            title={rail.open ? 'Hide buddy list' : 'Show buddy list'}
+            onClick={rail.toggle}
+            className={iconBtn}
+          >
+            {rail.open ? <PanelRightClose aria-hidden="true" className="size-4" /> : <PanelRightOpen aria-hidden="true" className="size-4" />}
+          </button>
+        ) : (
+          <button type="button" aria-label="Open buddy list" onClick={() => buddiesFlag.set(true)} className={iconBtn}>
+            <Users aria-hidden="true" className="size-4" />
+          </button>
+        )}
         <button
           type="button"
           onClick={toggle}
