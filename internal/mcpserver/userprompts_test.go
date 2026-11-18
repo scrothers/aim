@@ -34,7 +34,7 @@ func promptText(res *mcp.GetPromptResult) (script string, embedded []*mcp.Embedd
 
 func TestPromptsRegisteredMatchFiles(t *testing.T) {
 	t.Parallel()
-	cs := newEnv(t).client(t, "a")
+	cs := newEnv(t).Client(t, "a")
 	res, err := cs.ListPrompts(context.Background(), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -67,7 +67,7 @@ func TestPromptsRegisteredMatchFiles(t *testing.T) {
 
 func TestPromptArguments(t *testing.T) {
 	t.Parallel()
-	cs := newEnv(t).client(t, "a")
+	cs := newEnv(t).Client(t, "a")
 	res, err := cs.ListPrompts(context.Background(), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -97,7 +97,7 @@ func TestPromptArguments(t *testing.T) {
 func TestCheckInboxPrompt(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	anon := e.client(t, "anon")
+	anon := e.Client(t, "anon")
 	script, emb := promptText(getPrompt(t, anon, "check-inbox", nil))
 	mustContain(t, "script", script, "You are not signed on", "github.com/acme/api", "sign_on")
 	if len(emb) != 1 || emb[0].Resource.URI != "aim://inbox" || !strings.Contains(emb[0].Resource.Text, "Not signed on") {
@@ -161,7 +161,7 @@ func TestEscalatePrompt(t *testing.T) {
 
 func TestHandoffPrompt(t *testing.T) {
 	t.Parallel()
-	cs := newEnv(t).client(t, "a")
+	cs := newEnv(t).Client(t, "a")
 	script, emb := promptText(getPrompt(t, cs, "handoff", map[string]string{"to": bob}))
 	mustContain(t, "script", script, "Hand off to "+bob, "roster", "You are not signed on")
 	if len(emb) != 0 || strings.Contains(script, "Topic hint") {
@@ -192,8 +192,8 @@ func TestStandupPrompt(t *testing.T) {
 	}
 
 	e2 := newEnv(t)
-	e2.noNamespace = true
-	if _, err := e2.client(t, "n").GetPrompt(context.Background(), &mcp.GetPromptParams{Name: "standup"}); err == nil {
+	e2.NoNamespace = true
+	if _, err := e2.Client(t, "n").GetPrompt(context.Background(), &mcp.GetPromptParams{Name: "standup"}); err == nil {
 		t.Error("standup without address or namespace should fail")
 	}
 }

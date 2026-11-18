@@ -1,4 +1,4 @@
-package mcpserver
+package tools
 
 import (
 	"fmt"
@@ -9,21 +9,21 @@ import (
 
 // addTool registers a typed tool whose input and output schemas are inferred
 // from In and Out, made portable (see portable), and whose description comes
-// from prompts/tools/<name>.md.
+// from <name>.md in this package.
 func addTool[In, Out any](srv *mcp.Server, name string, h mcp.ToolHandlerFor[In, Out]) {
 	in, err := jsonschema.For[In](nil)
 	if err != nil {
-		panic(fmt.Sprintf("mcpserver: infer %s input schema: %v", name, err))
+		panic(fmt.Sprintf("tools: infer %s input schema: %v", name, err))
 	}
 	out, err := jsonschema.For[Out](nil)
 	if err != nil {
-		panic(fmt.Sprintf("mcpserver: infer %s output schema: %v", name, err))
+		panic(fmt.Sprintf("tools: infer %s output schema: %v", name, err))
 	}
 	portable(in)
 	portable(out)
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:         name,
-		Description:  toolDescription(name),
+		Description:  description(name),
 		InputSchema:  in,
 		OutputSchema: out,
 	}, h)

@@ -7,27 +7,33 @@ import (
 	"unicode/utf8"
 )
 
-// maxPromptChars is Claude Code's cap on server instructions and on each tool
-// description; longer text is truncated silently, so the end would be lost.
+// maxPromptChars is Claude Code's cap on server instructions; longer text is
+// truncated silently, so the end would be lost.
 const maxPromptChars = 2048
 
 // maxWorkflowChars is the sanity cap for workflow prompt scripts (8 KB).
 const maxWorkflowChars = 8 * 1024
 
-func TestPromptsFitClientCap(t *testing.T) {
+func TestInstructionsFitClientCap(t *testing.T) {
+	t.Parallel()
+	got := instructions()
+	if got == "" || got[len(got)-1] == '\n' {
+		t.Fatalf("instructions() = %q, want trimmed non-empty text", got)
+	}
+	if n := utf8.RuneCountInString(got); n > maxPromptChars {
+		t.Errorf("instructions.md is %d characters; keep it at most %d", n, maxPromptChars)
+	}
+}
+
+func TestWorkflowsFitCap(t *testing.T) {
 	t.Parallel()
 	err := fs.WalkDir(promptFS, "prompts", func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".md") {
 			return err
 		}
-		n := utf8.RuneCountInString(prompt(path))
-		limit := maxPromptChars
-		if strings.HasPrefix(path, workflowDir+"/") {
-			// Workflow prompts load only when invoked; they have a sanity cap.
-			limit = maxWorkflowChars
-		}
-		if n > limit {
-			t.Errorf("%s is %d characters; keep it at most %d", path, n, limit)
+		// Workflow prompts load only when invoked; they have a sanity cap.
+		if n := utf8.RuneCountInString(prompt(path)); n > maxWorkflowChars {
+			t.Errorf("%s is %d characters; keep it at most %d", path, n, maxWorkflowChars)
 		}
 		return nil
 	})
@@ -43,15 +49,5 @@ func TestPromptPanicsOnMissingFile(t *testing.T) {
 			t.Fatal("prompt of a missing file did not panic")
 		}
 	}()
-	_ = toolDescription("no_such_tool")
-}
-
-func TestPromptsTrimmedAndNonEmpty(t *testing.T) {
-	t.Parallel()
-	if got := instructions(); got == "" || got[len(got)-1] == '\n' {
-		t.Fatalf("instructions() = %q, want trimmed non-empty text", got)
-	}
-	if got := toolDescription("wait"); got == "" || got[0] == ' ' {
-		t.Fatalf("toolDescription(wait) = %q, want trimmed non-empty text", got)
-	}
+	_ = prompt("prompts/no_such_file.md")
 }

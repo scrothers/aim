@@ -134,20 +134,20 @@ func TestCompleteMessageAndThreadIDs(t *testing.T) {
 	}
 
 	// Without signing on, ids come from the namespace.
-	anon := e.client(t, "anon")
+	anon := e.Client(t, "anon")
 	if got := complete(t, anon, promptRef("reply"), "message_id", ""); len(got.Values) != 2 {
 		t.Errorf("namespace message ids = %v, want 2", got.Values)
 	}
 	e2 := newEnv(t)
-	e2.noNamespace = true
-	if got := complete(t, e2.client(t, "n"), promptRef("reply"), "message_id", ""); len(got.Values) != 0 {
+	e2.NoNamespace = true
+	if got := complete(t, e2.Client(t, "n"), promptRef("reply"), "message_id", ""); len(got.Values) != 0 {
 		t.Errorf("no namespace, not signed on: %v", got.Values)
 	}
 }
 
 func TestCompleteUnknownRefs(t *testing.T) {
 	t.Parallel()
-	cs := newEnv(t).client(t, "a")
+	cs := newEnv(t).Client(t, "a")
 	for name, ref := range map[string]*mcp.CompleteReference{
 		"prompt":        promptRef("nope"),
 		"resource":      resourceRef("aim://nope/{x}"),
@@ -175,7 +175,7 @@ func TestCompleteUnknownRefs(t *testing.T) {
 func TestCompleteCapsAtHundred(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	cs := e.client(t, "a")
+	cs := e.Client(t, "a")
 	for i := range 105 {
 		register(t, cs, fmt.Sprintf("u%03d@github.com/acme/api", i), "dev")
 	}

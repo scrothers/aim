@@ -1,0 +1,132 @@
+package mcptest
+
+import (
+	"context"
+	"encoding/json"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/scrothers/aim/internal/mail"
+	"github.com/scrothers/aim/internal/mcpserver"
+	"github.com/scrothers/aim/internal/presence"
+	"github.com/scrothers/aim/internal/store"
+	"github.com/scrothers/aim/internal/wire"
+)
+
+// Env is a mail service over a fresh database plus a presence registry, from
+// which tests connect in-memory MCP clients.
+type Env struct {
+	Svc *mail.Service
+	Reg *presence.Registry
+	// NoNamespace makes later clients connect from a directory without a
+	// git remote.
+	NoNamespace bool
+	// Protocol pins the MCP protocol version later clients negotiate; empty
+	// means the SDK's latest.
+	Protocol string
+}
+
+// New returns an Env whose database lives in t.TempDir().
+func New(t *testing.T) *Env {
+	t.Helper()
+	st, err := store.Open(context.Background(), t.TempDir()+"/aim.db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	reg := presence.New()
+	return &Env{Svc: mail.New(st, mcpserver.NewPresence(reg)), Reg: reg}
+}
+
+// Client connects a client as session "sess-<id>" on machine "box" in the
+// namespace github.com/acme/api.
+func (e *Env) Client(t *testing.T, id string) *mcp.ClientSession {
+	t.Helper()
+	return e.ClientWith(t, id, nil, nil)
+}
+
+// ClientWith is Client with server options and client options.
+func (e *Env) ClientWith(t *testing.T, id string, opts []mcpserver.Option, copts *mcp.ClientOptions) *mcp.ClientSession {
+	t.Helper()
+	ctx := context.Background()
+	pre := wire.Preamble{
+		V: wire.Version, SessionID: "sess-" + id, ProjectDir: "/p", Machine: "box",
+		GitRemote: "git@github.com:acme/api.git", Namespace: "github.com/acme/api",
+	}
+	if e.NoNamespace {
+		pre.GitRemote, pre.Namespace = "", ""
+	}
+	entry := e.Reg.Add("conn-"+id, pre, time.Now())
+	t.Cleanup(func() { e.Reg.Remove("conn-" + id) })
+	ct, st := mcp.NewInMemoryTransports()
+	ss, err := mcpserver.New(e.Svc, entry, "test", opts...).Connect(ctx, st, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cs, err := mcp.NewClient(&mcp.Implementation{Name: "t", Version: "0"}, copts).Connect(ctx, ct, &mcp.ClientSessionOptions{ProtocolVersion: e.Protocol})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cs.Close(); _ = ss.Wait() })
+	return cs
+}
+
+// Call calls a tool and fails the test on a protocol error.
+func Call(t *testing.T, cs *mcp.ClientSession, name string, args any) *mcp.CallToolResult {
+	t.Helper()
+	res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: name, Arguments: args})
+	if err != nil {
+		t.Fatalf("%s: %v", name, err)
+	}
+	return res
+}
+
+// OK calls a tool that must succeed and returns its structured content.
+func OK(t *testing.T, cs *mcp.ClientSession, name string, args any) map[string]any {
+	t.Helper()
+	res := Call(t, cs, name, args)
+	if res.IsError {
+		t.Fatalf("%s: tool error: %s", name, Text(res))
+	}
+	b, err := json.Marshal(res.StructuredContent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatal(err)
+	}
+	return m
+}
+
+// Fail calls a tool that must return a tool error containing want.
+func Fail(t *testing.T, cs *mcp.ClientSession, name string, args any, want string) {
+	t.Helper()
+	res := Call(t, cs, name, args)
+	if !res.IsError {
+		t.Fatalf("%s: expected tool error", name)
+	}
+	if got := Text(res); !strings.Contains(got, want) {
+		t.Fatalf("%s: error %q does not contain %q", name, got, want)
+	}
+}
+
+// Text joins a tool result's text content.
+func Text(res *mcp.CallToolResult) string {
+	var b strings.Builder
+	for _, c := range res.Content {
+		if tc, ok := c.(*mcp.TextContent); ok {
+			b.WriteString(tc.Text)
+		}
+	}
+	return b.String()
+}
+
+// Register registers addr with role through the register tool.
+func Register(t *testing.T, cs *mcp.ClientSession, addr, role string) {
+	t.Helper()
+	OK(t, cs, "register", map[string]any{"address": addr, "role": role, "description": "d"})
+}

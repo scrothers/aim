@@ -9,6 +9,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/scrothers/aim/internal/mcpserver"
+	"github.com/scrothers/aim/internal/mcpserver/mcptest"
 )
 
 // legacyProtocol is the pre-SEP-2575 protocol, where resources/subscribe is a
@@ -42,9 +43,9 @@ func mustContain(t *testing.T, what, got string, wants ...string) {
 }
 
 // twoAgents registers and signs on alice and bob and has alice mail bob.
-func twoAgents(t *testing.T, e *env) (a, b *mcp.ClientSession, msgID, threadID string) {
+func twoAgents(t *testing.T, e *mcptest.Env) (a, b *mcp.ClientSession, msgID, threadID string) {
 	t.Helper()
-	a, b = e.client(t, "a"), e.client(t, "b")
+	a, b = e.Client(t, "a"), e.Client(t, "b")
 	register(t, a, alice, "lead")
 	register(t, b, bob, "dev")
 	ok(t, a, "sign_on", map[string]any{"address": alice})
@@ -55,7 +56,7 @@ func twoAgents(t *testing.T, e *env) (a, b *mcp.ClientSession, msgID, threadID s
 
 func TestResourceListAndTemplates(t *testing.T) {
 	t.Parallel()
-	cs := newEnv(t).client(t, "a")
+	cs := newEnv(t).Client(t, "a")
 	res, err := cs.ListResources(context.Background(), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -87,7 +88,7 @@ func TestResourceListAndTemplates(t *testing.T) {
 func TestStaticResources(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	cs := e.client(t, "a")
+	cs := e.Client(t, "a")
 	mustContain(t, "me", readRes(t, cs, "aim://me"), "sess-a", "github.com/acme/api", "nobody")
 	mustContain(t, "inbox", readRes(t, cs, "aim://inbox"), "Not signed on", "sign_on")
 	mustContain(t, "roster", readRes(t, cs, "aim://roster"), "No identities")
@@ -110,8 +111,8 @@ func TestStaticResources(t *testing.T) {
 func TestNoNamespaceRoster(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.noNamespace = true
-	cs := e.client(t, "a")
+	e.NoNamespace = true
+	cs := e.Client(t, "a")
 	mustContain(t, "roster", readRes(t, cs, "aim://roster"), "no git namespace")
 }
 
@@ -147,7 +148,7 @@ func TestTemplateResources(t *testing.T) {
 func TestResourceNotFound(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	cs := e.client(t, "a")
+	cs := e.Client(t, "a")
 	for _, uri := range []string{
 		"aim://nothing", "aim://thread/nope", "aim://message/msg-nope", "aim://thread/",
 		"aim://message/a%2Fb", "aim://mailbox/%zz",
@@ -196,12 +197,12 @@ func (u *updates) expectNone(t *testing.T) {
 func TestSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.protocol = legacyProtocol
+	e.Protocol = legacyProtocol
 	up := newUpdates()
 	exit := make(chan struct{})
 	opts := []mcpserver.Option{mcpserver.WithSubscribeDebounce(10 * time.Millisecond), mcpserver.WithWatcherExit(exit)}
-	b := e.clientWith(t, "b", opts, &mcp.ClientOptions{ResourceUpdatedHandler: up.handler})
-	a := e.client(t, "a")
+	b := e.ClientWith(t, "b", opts, &mcp.ClientOptions{ResourceUpdatedHandler: up.handler})
+	a := e.Client(t, "a")
 	register(t, a, alice, "lead")
 	register(t, b, bob, "dev")
 	ok(t, a, "sign_on", map[string]any{"address": alice})
@@ -277,8 +278,8 @@ func TestSubscriptionsModernProtocol(t *testing.T) {
 	e := newEnv(t)
 	up := newUpdates()
 	opts := []mcpserver.Option{mcpserver.WithSubscribeDebounce(10 * time.Millisecond)}
-	b := e.clientWith(t, "b", opts, &mcp.ClientOptions{ResourceUpdatedHandler: up.handler})
-	a := e.client(t, "a")
+	b := e.ClientWith(t, "b", opts, &mcp.ClientOptions{ResourceUpdatedHandler: up.handler})
+	a := e.Client(t, "a")
 	register(t, a, alice, "lead")
 	register(t, b, bob, "dev")
 	ok(t, a, "sign_on", map[string]any{"address": alice})
@@ -307,13 +308,13 @@ func TestSubscriptionsModernProtocol(t *testing.T) {
 func TestThreadSubscription(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.protocol = legacyProtocol
+	e.Protocol = legacyProtocol
 	up := newUpdates()
 	opts := []mcpserver.Option{mcpserver.WithSubscribeDebounce(10 * time.Millisecond)}
 	a, b, id, thread := twoAgents(t, e)
 	_ = a
 	// Reconnect bob's side with an update handler: a second connection as bob.
-	c := e.clientWith(t, "c", opts, &mcp.ClientOptions{ResourceUpdatedHandler: up.handler})
+	c := e.ClientWith(t, "c", opts, &mcp.ClientOptions{ResourceUpdatedHandler: up.handler})
 	ok(t, c, "sign_on", map[string]any{"address": bob})
 	uri := "aim://thread/" + thread
 	if err := c.Subscribe(context.Background(), &mcp.SubscribeParams{URI: uri}); err != nil {

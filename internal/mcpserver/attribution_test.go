@@ -13,7 +13,7 @@ func TestSubagentAttributionFromToolUseID(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	resolver := func(id string) (string, bool) { return "helper", id == "tu-sub" }
-	cs := e.clientWith(t, "attr", []mcpserver.Option{mcpserver.WithSubagentResolver(resolver)}, nil)
+	cs := e.ClientWith(t, "attr", []mcpserver.Option{mcpserver.WithSubagentResolver(resolver)}, nil)
 	register(t, cs, "alice@github.com/acme/api", "lead")
 	ok(t, cs, "sign_on", map[string]any{"address": "alice@github.com/acme/api"})
 

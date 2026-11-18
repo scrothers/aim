@@ -1,4 +1,4 @@
-package mcpserver_test
+package tools_test
 
 import (
 	"context"
@@ -15,8 +15,8 @@ import (
 func TestWaitToolWakesOnSend(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	waiter := e.client(t, "w")
-	sender := e.client(t, "s")
+	waiter := e.Client(t, "w")
+	sender := e.Client(t, "s")
 	register(t, waiter, "bob@github.com/acme/api", "dev")
 	register(t, sender, "amy@github.com/acme/api", "dev")
 	ok(t, waiter, "sign_on", map[string]any{"address": "bob@github.com/acme/api"})
@@ -48,7 +48,7 @@ func TestWaitToolWakesOnSend(t *testing.T) {
 
 func TestWaitToolTimeoutAndValidation(t *testing.T) {
 	t.Parallel()
-	cs := newEnv(t).client(t, "a")
+	cs := newEnv(t).Client(t, "a")
 	// Anonymous callers must name an address.
 	fail(t, cs, "wait", map[string]any{"timeout_seconds": 1}, "address is required")
 	fail(t, cs, "wait", map[string]any{"address": "github.com/acme", "timeout_seconds": -1}, "negative")
@@ -66,10 +66,10 @@ func TestWaitToolTimeoutAndValidation(t *testing.T) {
 func TestWaitToolProgress(t *testing.T) {
 	e := newEnv(t)
 	ctx := context.Background()
-	entry := e.reg.Add("conn-p", wire.Preamble{V: wire.Version, SessionID: "sess-p", Machine: "box"}, time.Now())
-	t.Cleanup(func() { e.reg.Remove("conn-p") })
+	entry := e.Reg.Add("conn-p", wire.Preamble{V: wire.Version, SessionID: "sess-p", Machine: "box"}, time.Now())
+	t.Cleanup(func() { e.Reg.Remove("conn-p") })
 	ct, st := mcp.NewInMemoryTransports()
-	ss, err := mcpserver.New(e.svc, entry, "test", mcpserver.WithProgressInterval(50*time.Millisecond)).Connect(ctx, st, nil)
+	ss, err := mcpserver.New(e.Svc, entry, "test", mcpserver.WithProgressInterval(50*time.Millisecond)).Connect(ctx, st, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
