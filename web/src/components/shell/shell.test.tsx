@@ -122,12 +122,45 @@ describe('CommandPalette', () => {
     await waitFor(() => expect(screen.getByTestId('loc').textContent).toBe('/search{"q":"zebra"}'))
   })
 
-  it('runs the Compose action', async () => {
+  it('runs the New message action', async () => {
     const user = userEvent.setup()
     await setup()
     act(() => paletteFlag.set(true))
-    await user.click(await screen.findByText('Compose'))
+    await user.click(await screen.findByRole('option', { name: /^New message/ }))
     expect(composeStore.isOpen()).toBe(true)
+  })
+
+  it('lists pages and actions and navigates to each page', async () => {
+    const user = userEvent.setup()
+    await setup()
+    act(() => paletteFlag.set(true))
+    const pages = await screen.findByRole('group', { name: 'Pages' })
+    const label = (o: HTMLElement) => [...o.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent).join('')
+    expect(within(pages).getAllByRole('option').map(label)).toEqual(['Tasks', 'Approvals', 'Roster', 'Org chart', 'Settings'])
+    const actions = screen.getByRole('group', { name: 'Actions' })
+    expect(within(actions).getByRole('option', { name: /^New message/ })).toBeInTheDocument()
+    expect(within(actions).getByRole('option', { name: 'New task' })).toBeInTheDocument()
+    for (const [name, path] of [
+      ['Approvals', '/approvals'],
+      ['Roster', '/roster'],
+      ['Org chart', '/org-chart'],
+      ['Settings', '/settings'],
+      ['Tasks', '/tasks'],
+    ] as const) {
+      act(() => paletteFlag.set(true))
+      await user.click(within(await screen.findByRole('group', { name: 'Pages' })).getByRole('option', { name: new RegExp(`^${name}`) }))
+      await waitFor(() => expect(screen.getByTestId('loc').textContent).toBe(`${path}{}`))
+    }
+  })
+
+  it('shows the Mailboxes heading above mailbox hits', async () => {
+    const user = userEvent.setup()
+    await setup()
+    act(() => paletteFlag.set(true))
+    await user.type(await screen.findByPlaceholderText(/Search mail/), 'acme/api')
+    const group = await screen.findByRole('group', { name: 'Mailboxes' })
+    // The group is named by its visible heading.
+    expect(within(group).getByRole('option', { name: 'github.com/acme/api' })).toBeInTheDocument()
   })
 
   it('opens from the top bar search button', async () => {
@@ -140,6 +173,31 @@ describe('CommandPalette', () => {
     )
     await user.click(screen.getByRole('button', { name: 'Search mail, mailboxes and agents' }))
     expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  })
+})
+
+describe('global shortcuts', () => {
+  const App = () => (
+    <Providers client={qc()}>
+      <Keys />
+      <Probe />
+    </Providers>
+  )
+
+  it('t opens the task board and a opens approvals', async () => {
+    const user = userEvent.setup()
+    await renderWithRouter(<App />)
+    await user.keyboard('a')
+    await waitFor(() => expect(screen.getByTestId('loc').textContent).toBe('/approvals{}'))
+    await user.keyboard('t')
+    await waitFor(() => expect(screen.getByTestId('loc').textContent).toBe('/tasks{}'))
+  })
+
+  it('help lists every key once, including the new ones', async () => {
+    const { SHORTCUTS } = await import('./Shortcuts')
+    const keys = SHORTCUTS.flatMap(([k]) => k.split(' / '))
+    expect(new Set(keys).size).toBe(keys.length)
+    for (const k of ['⌘K', 'Ctrl+K', '?', 'c', 't', 'a', 'n', 'j', 'k', 'Enter', 'x', 'r', 'e', 'u', 'Esc']) expect(keys).toContain(k)
   })
 })
 
