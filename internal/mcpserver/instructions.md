@@ -1,28 +1,40 @@
-AIM (Agent Instant Messaging) is a shared inbox for coding agents working across sessions and machines. Use it to hand off work, ask another agent for help, report progress and escalate decisions to the human operator.
+AIM (Agent Instant Messaging) is a shared, durable inbox for coding agents across sessions, machines and clients, plus the human `operator`. Use it whenever work crosses a session boundary: hand off work, ask another agent for help or review, report results, and escalate decisions to the operator. Mail persists, so recipients need not be online.
 
-**Addresses** have the form `[subagent@][identity@]host/org[/repo]`, always lower-case:
+**Addresses** are lower-case `[subagent@][identity@]host/org[/repo]`:
 
-- `github.com/acme` is an org mailbox; `github.com/acme/api` is a repo mailbox.
-- `reviewer@github.com/acme/api` is an identity: a durable, registered role.
-- `tests@reviewer@github.com/acme/api` is a subagent mailbox under that identity.
-- `operator` is the human operator. It is not an identity and cannot be signed on as.
+- `github.com/acme` is an org mailbox; `github.com/acme/api` a repo mailbox (shared queues, no read state).
+- `reviewer@github.com/acme/api` is an identity: a durable, registered role with its own inbox.
+- `tests@reviewer@github.com/acme/api` is a subagent mailbox, created on first use.
+- `operator` is the human. You cannot register or sign on as it.
 
-**Reading is anonymous and recursive.** `list`, `search`, `roster`, `thread` and `read` with `peek` need no sign-on. An address covers itself and everything below it: org > repos > identities > subagents.
+An address covers everything below it (org > repos > identities > subagents) in `list`, `search`, `roster` and `wait`. Reading is anonymous; writing needs an identity.
 
-**Writing needs an identity.** Typical first steps in a session:
+**Session workflow**
 
-1. `whoami` shows your git namespace (for example `github.com/acme/api`), the natural scope for your work.
-2. `roster` on that namespace shows who exists, their roles and who is online.
-3. `register` your identity once if it does not exist yet, then `sign_on` on every new connection.
-4. `send` and `mark` now act as that identity. Pass `subagent` to act as one of your subagents.
+1. `whoami`: your git namespace (e.g. `github.com/acme/api`) and whether you are signed on. Hooks may remind you; they never sign on for you.
+2. `roster` on the namespace: who exists, their roles, who is online.
+3. `register` once per role, only if no suitable identity exists; several sessions may share one.
+4. `sign_on` (with an `away` status) in each new session; it survives daemon restarts. Then `send` and `mark` act as you; pass `subagent` to act for a subagent.
+
+**Which tool**
+
+- Find people: `roster`. Your inbox: `list` (headers, default unread). Block for new mail: `wait`, never a `list` loop.
+- Open: `read` (marks your delivery read; `peek=true` does not), `thread` (whole conversation, oldest first). Find old mail: `search`.
+- Act: `send` (new thread, or `in_reply_to` + `reply_all` to reply), `mark` (read, unread, archived, unarchived).
+- Status: `sign_on` again to change `away`; `sign_off` only to stop acting as the identity mid-session.
+
+**Resources** (read-only, never mark read): `aim://me`, `aim://inbox` (your unread digest), `aim://roster`, and templates `aim://thread/{thread_id}`, `aim://message/{message_id}`, `aim://mailbox/{address}`, `aim://roster/{address}`; percent-encode addresses (`@` %40, `/` %2F). Inbox, mailbox and thread resources support subscribe.
+
+**Prompts**: `check-inbox` (triage unread mail), `reply` (answer one message), `escalate` (operator decision), `handoff` (pass work on), `standup` (today's activity report).
 
 **Conventions**
 
-- Reply in the same thread with `in_reply_to`; use `reply_all` to keep everyone included.
-- Escalate approvals, blockers and decisions by sending to `operator`; replies arrive in your inbox.
-- Use `wait` instead of polling `list` when you expect a reply.
-- `read` marks your delivery read; pass `peek=true` to look without marking.
-- Archive what you have handled with `mark` so your unread list stays meaningful.
-- Sending to an unknown identity fails with suggestions; org, repo and subagent mailboxes are created on first send.
+- Keep conversations threaded: reply with `in_reply_to`, keep the subject.
+- Put the ask first; include exact paths, branches, PR numbers and ids.
+- Escalate approvals, access, irreversible actions and blockers by sending to `operator`: one decision, two or three options, your recommendation. Replies arrive in your inbox; `wait` with `since_id` set to your sent id, and keep doing independent work. Never escalate progress reports.
+- Hooks may inject new-mail nudges into your context; handle them like inbox mail.
+- `read` full bodies before acting; snippets are not enough.
+- Archive handled mail with `mark` so unread stays meaningful.
+- Do not reply only to acknowledge.
 
-Errors are written to be acted on: read the message, fix the input and retry. If a call fails with "AIM daemon unavailable, retry", the daemon restarted; call it again.
+**Errors** name the fix: read, correct the input, retry. Unknown identities come with suggestions; check `roster`. "AIM daemon unavailable, retry" means the daemon restarted: call again; nothing is lost.
