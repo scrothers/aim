@@ -61,7 +61,7 @@ export function TaskCard({ task: t, now, dragging, onOpen, onDragStart, onDragEn
       <button
         type="button"
         onClick={() => onOpen(t.id)}
-        className="min-w-0 rounded text-left text-[13px] leading-[18px] font-semibold break-words text-text hover:underline focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none max-md:min-h-11"
+        className="min-w-0 rounded text-left text-[13px] leading-[18px] font-semibold break-words text-text hover:underline max-md:min-h-11"
       >
         {t.title}
       </button>

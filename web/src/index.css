@@ -171,6 +171,12 @@
     color: var(--faint);
     opacity: 1;
   }
+  /* One focus style: a 2px brand ring. Fields (Input, Select, Textarea) draw
+     the same ring hugging their border instead. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
 }
 
 /* Rendered Markdown (server-sanitized HTML) inside message bodies. */
@@ -227,5 +233,26 @@
   /* Checkboxes stay small; their label is the 44px target. */
   label:has(> input[type='checkbox']) {
     min-height: 44px;
+  }
+}
+
+/* Icon-only links and [data-hit-area] controls keep their size on phones but
+   get an invisible 44px hit area centred on them. In the base layer so a
+   position utility (absolute, fixed) still wins; either one anchors ::after. */
+@layer base {
+  @media (max-width: 767px) {
+    a[href][aria-label],
+    [data-hit-area] {
+      position: relative;
+    }
+    a[href][aria-label]::after,
+    [data-hit-area]::after {
+      content: '';
+      position: absolute;
+      top: min(0px, calc((100% - 44px) / 2));
+      bottom: min(0px, calc((100% - 44px) / 2));
+      left: min(0px, calc((100% - 44px) / 2));
+      right: min(0px, calc((100% - 44px) / 2));
+    }
   }
 }

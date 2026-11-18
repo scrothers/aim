@@ -61,7 +61,7 @@ export function RecipientInput({ label, value, onChange, pendingRef }: Recipient
           label={`${label} recipients`}
           value={current}
           onValueChange={setActive}
-          className="relative flex min-w-0 flex-1 flex-wrap items-center gap-1.5 rounded-md border bg-panel px-1.5 py-1 focus-within:ring-2 focus-within:ring-ring/40"
+          className="relative flex min-w-0 flex-1 flex-wrap items-center gap-1.5 rounded-md border bg-panel px-1.5 py-1 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring"
         >
           {value.map((addr) => (
             <span key={addr} className="inline-flex items-center gap-1 rounded-full bg-accent-soft py-0.5 pr-1 pl-2.5 text-[13px]">

@@ -81,7 +81,7 @@ function SheetContent({
             data-slot="sheet-bar"
             className="sticky top-0 z-10 order-first flex shrink-0 justify-end bg-background px-2 pt-[max(0.25rem,env(safe-area-inset-top))] md:pointer-events-none md:absolute md:top-3 md:right-3 md:bg-transparent md:p-0"
           >
-            <SheetPrimitive.Close className="pointer-events-auto flex size-11 items-center justify-center rounded-md opacity-70 ring-offset-background transition-opacity hover:bg-hover hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none md:size-8">
+            <SheetPrimitive.Close className="pointer-events-auto flex size-11 items-center justify-center rounded-md opacity-70 transition-opacity hover:bg-hover hover:opacity-100 focus-visible:opacity-100 disabled:pointer-events-none md:size-8">
               <XIcon className="size-4" />
               <span className="sr-only">Close</span>
             </SheetPrimitive.Close>

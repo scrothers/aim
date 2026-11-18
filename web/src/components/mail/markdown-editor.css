@@ -75,7 +75,8 @@
 }
 .aim-editor.mdxeditor:focus-within {
   border-color: var(--ring);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 30%, transparent);
+  /* Same 2px brand ring as Input. */
+  box-shadow: 0 0 0 2px var(--ring);
 }
 
 /* Sheet: the editor takes every pixel left under the header fields. */

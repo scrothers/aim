@@ -118,3 +118,34 @@ test('org chart zoom and fit controls resize the tree', async ({ page }) => {
   const scroll = page.getByTestId('org-chart-scroll')
   expect(await scroll.evaluate((el) => el.scrollWidth <= el.clientWidth + 2)).toBe(true)
 })
+
+test('keyboard focus is one 2px brand ring on links, buttons and fields', async ({ page }) => {
+  await page.goto('/tasks')
+  await expect(page.getByRole('button', { name: /^New task/ })).toBeVisible()
+  const seen = new Set<string>()
+  for (let i = 0; i < 60 && seen.size < 3; i++) {
+    await page.keyboard.press('Tab')
+    const f = await page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null
+      if (!el || el === document.body) return null
+      const probe = document.createElement('span')
+      probe.style.color = 'var(--ring)'
+      document.body.append(probe)
+      const ring = getComputedStyle(probe).color
+      probe.remove()
+      const cs = getComputedStyle(el)
+      const field = el.matches('input:not([type=checkbox]), textarea, [data-slot=select-trigger]')
+      const kind = field ? 'field' : el.tagName === 'A' ? 'link' : el.tagName === 'BUTTON' ? 'button' : 'other'
+      // Fields draw the ring as a 2px box-shadow hugging the border; everything else uses the outline.
+      const ok = field
+        ? cs.boxShadow.includes(ring) && /\b2px\b/.test(cs.boxShadow)
+        : cs.outlineStyle === 'solid' && cs.outlineWidth === '2px' && cs.outlineColor === ring
+      const name = el.getAttribute('aria-label') ?? el.textContent?.trim().slice(0, 30)
+      return { kind, ok, desc: `${el.tagName} ${name} outline=${cs.outline} shadow=${cs.boxShadow}` }
+    })
+    if (!f || f.kind === 'other') continue
+    expect(f.ok, f.desc).toBe(true)
+    seen.add(f.kind)
+  }
+  expect([...seen].sort()).toEqual(['button', 'field', 'link'])
+})

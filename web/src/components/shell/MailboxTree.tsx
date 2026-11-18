@@ -163,7 +163,7 @@ export function MailboxTree({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Filter mailboxes"
-        className="mx-1 box-border h-[30px] shrink-0 rounded-md border bg-panel2 px-2.5 text-[13px] text-text outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:min-h-11"
+        className="mx-1 box-border h-[30px] shrink-0 rounded-md border bg-panel2 px-2.5 text-[13px] text-text outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring max-md:min-h-11"
       />
       <div data-testid="mailbox-scroll" className="-mx-1 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-1 pb-1">
       {filtered.length === 0 && (
