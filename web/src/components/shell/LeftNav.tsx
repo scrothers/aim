@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Archive, CalendarDays, Circle, Inbox, Network, PenLine, Send, Settings, Users, type LucideIcon } from 'lucide-react'
+import { Archive, CalendarDays, Circle, Inbox, Network, PenLine, Send, Settings, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
+import { useApprovals } from '@/api/approvals'
 import { usePresence, useTree, useViews } from '@/api/queries'
 import { composeStore } from '@/lib/compose'
 import { cn } from '@/lib/utils'
@@ -46,6 +47,7 @@ export function LeftNav({ drawer = false, onNavigate }: { drawer?: boolean; onNa
   const views = useViews().data
   const tree = useTree()
   const presence = usePresence().data
+  const pending = useApprovals().data?.items?.length ?? 0
   const idle = useMemo(
     () =>
       new Set(
@@ -84,6 +86,15 @@ export function LeftNav({ drawer = false, onNavigate }: { drawer?: boolean; onNa
       )}
       <div className="flex flex-col gap-0.5">
         <h3 className="m-0 px-2.5 pb-1.5 text-xs font-semibold tracking-[0.06em] text-faint uppercase">Manage</h3>
+        <Link to="/approvals" className={cn(rowCls, 'h-[34px]')}>
+          <ShieldCheck aria-hidden="true" className="size-4" />
+          <span className="flex-1">Approvals</span>
+          {pending > 0 && (
+            <span aria-label={`${pending} pending`} className="h-[18px] min-w-5 rounded-[9px] bg-brand text-center text-xs leading-[18px] text-on-accent">
+              {pending}
+            </span>
+          )}
+        </Link>
         <Link to="/roster" className={cn(rowCls, 'h-[34px]')}>
           <Users aria-hidden="true" className="size-4" />
           <span>Roster</span>

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { approvalsQuery } from '@/api/approvals'
 import { api, unwrap } from '@/api/client'
 import { viewsQuery } from '@/api/queries'
 import { notificationsActive, useNotificationsEnabled } from '@/lib/notify'
@@ -21,10 +22,28 @@ export function OperatorAlerts() {
   const background = useNotificationsEnabled() && notificationsActive()
   const unread = useQuery(viewsQuery(background)).data?.operator_unread
   const prev = useRef<number | undefined>(undefined)
+  const approvals = useQuery(approvalsQuery(background)).data?.items
+  const seen = useRef<Set<string> | undefined>(undefined)
+  const pending = approvals?.length ?? 0
 
   useEffect(() => {
-    document.title = unread ? `(${unread}) AIM` : 'AIM'
-  }, [unread])
+    const badge = [unread ? String(unread) : '', pending ? `${pending}!` : ''].filter(Boolean).join(' ')
+    document.title = badge ? `(${badge}) AIM` : 'AIM'
+  }, [unread, pending])
+
+  useEffect(() => {
+    if (!approvals) return
+    const before = seen.current
+    seen.current = new Set(approvals.map((a) => a.id))
+    if (!before || !notificationsActive()) return
+    for (const a of approvals.filter((x) => !before.has(x.id)).slice(0, 3)) {
+      try {
+        new Notification('Approval needed', { body: `${a.identity || a.client || 'agent'}: ${a.summary || a.tool}`, tag: a.id })
+      } catch {
+        /* notifications unavailable */
+      }
+    }
+  }, [approvals])
 
   useEffect(() => {
     if (unread === undefined) return

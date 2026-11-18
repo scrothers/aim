@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Pencil, Plus, Send, Trash2 } from 'lucide-react'
+import { approvalSettingsQuery, useSaveApprovalSettings } from '@/api/approvals'
 import {
   settingsQuery,
   useBackupNow,
@@ -426,7 +427,43 @@ function NotifyCard({ settings }: { settings: Settings }) {
   )
 }
 
+function ApprovalsCard({ enabled, timeoutSeconds }: { enabled: boolean; timeoutSeconds: number }) {
+  const save = useSaveApprovalSettings()
+  const [on, setOn] = useState(enabled)
+  const [minutes, setMinutes] = useState(String(timeoutSeconds / 60))
+  const secs = Math.round(Number(minutes) * 60)
+  const valid = minutes.trim() !== '' && Number.isFinite(secs) && secs >= 10 && secs <= 3600
+  return (
+    <Card
+      title="Remote approvals"
+      hint="Off: agents prompt for permission in their terminal. On: prompts wait here for your decision up to the timeout, then fall back to the terminal."
+    >
+      <form
+        className="flex flex-col gap-3"
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault()
+          if (valid) save.mutate({ enabled: on, timeout_seconds: secs })
+        }}
+      >
+        <label className="flex items-center gap-2 text-[13px] font-semibold">
+          <input type="checkbox" checked={on} onChange={(e) => setOn(e.target.checked)} />
+          Enable remote approvals
+        </label>
+        <Field label="Timeout (minutes)" hint="Between 10 seconds and 60 minutes. Default 5.">
+          <Input type="number" min={1 / 6} max={60} step="any" value={minutes} onChange={(e) => setMinutes(e.target.value)} aria-invalid={!valid} />
+        </Field>
+        <div className="flex justify-end">
+          <Button type="submit" disabled={!valid || save.isPending}>
+            Save
+          </Button>
+        </div>
+      </form>
+    </Card>
+  )
+}
+
 export function SettingsPage() {
+  const approvals = useQuery(approvalSettingsQuery()).data
   const q = useQuery(settingsQuery())
   const s = q.data
   return (
@@ -443,6 +480,9 @@ export function SettingsPage() {
           {/* Remount when the saved values change so the forms reset to them. */}
           <RetentionCard key={`r${s.retention.prune_archived_after_days}`} settings={s} />
           <BackupsCard key={`b${s.backups.every_hours}/${s.backups.keep}/${s.backups.dir}`} settings={s} />
+          {approvals && typeof approvals.enabled === 'boolean' && (
+            <ApprovalsCard key={`a${approvals.enabled}/${approvals.timeout_seconds}`} enabled={approvals.enabled} timeoutSeconds={approvals.timeout_seconds || 300} />
+          )}
           <NotifyCard key={`n${s.notify.public_url ?? ''}`} settings={s} />
         </div>
       )}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Archive, CalendarDays, Circle, FolderTree, Inbox, Keyboard, Mail, Moon, PenLine, Search, Send } from 'lucide-react'
+import { Archive, CalendarDays, Circle, FolderTree, Inbox, Keyboard, Mail, Moon, PenLine, Search, Send, ShieldCheck } from 'lucide-react'
 import { rosterQuery, searchQuery } from '@/api/mail'
 import { useTree } from '@/api/queries'
 import { composeStore } from '@/lib/compose'
@@ -125,6 +125,10 @@ export function CommandPalette() {
           <CommandItem value="action compose new message" onSelect={go(composeStore.open)}>
             <PenLine aria-hidden="true" />
             Compose
+          </CommandItem>
+          <CommandItem value="action approvals remote permission prompts" onSelect={go(() => void navigate({ to: '/approvals' }))}>
+            <ShieldCheck aria-hidden="true" />
+            Approvals
           </CommandItem>
           <CommandItem value="action toggle theme dark light" onSelect={go(toggle)}>
             <Moon aria-hidden="true" />

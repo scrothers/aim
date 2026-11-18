@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { notifySupported, setNotificationsEnabled, useNotificationsEnabled } from '@/lib/notify'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useTheme } from '@/lib/theme'
+import { RemoteApprovalsToggle } from '@/components/approvals/RemoteApprovalsToggle'
 import { Logo } from './Logo'
 
 /** Latest dataUpdatedAt across all cached queries (ms), or 0. */
@@ -94,6 +95,7 @@ export function TopBar() {
         <kbd className="rounded border px-1.5 py-px font-mono text-xs text-muted-foreground max-md:hidden">⌘K</kbd>
       </button>
       <div className="flex items-center gap-2 md:ml-auto md:gap-4">
+        <RemoteApprovalsToggle />
         <span className="max-md:hidden">
           <UpdatedAgo />
         </span>

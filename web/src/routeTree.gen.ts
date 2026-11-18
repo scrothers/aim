@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApprovalsRouteImport } from './routes/approvals'
 import { Route as MailRouteImport } from './routes/mail'
 import { Route as OrgChartRouteImport } from './routes/org-chart'
 import { Route as RosterRouteImport } from './routes/roster'
@@ -19,6 +20,11 @@ import { Route as SettingsRouteImport } from './routes/settings'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApprovalsRoute = ApprovalsRouteImport.update({
+  id: '/approvals',
+  path: '/approvals',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MailRoute = MailRouteImport.update({
@@ -49,6 +55,7 @@ const SettingsRoute = SettingsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/approvals': typeof ApprovalsRoute
   '/mail': typeof MailRoute
   '/org-chart': typeof OrgChartRoute
   '/roster': typeof RosterRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/approvals': typeof ApprovalsRoute
   '/mail': typeof MailRoute
   '/org-chart': typeof OrgChartRoute
   '/roster': typeof RosterRoute
@@ -66,6 +74,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/approvals': typeof ApprovalsRoute
   '/mail': typeof MailRoute
   '/org-chart': typeof OrgChartRoute
   '/roster': typeof RosterRoute
@@ -74,12 +83,27 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/mail' | '/org-chart' | '/roster' | '/search' | '/settings'
+  fullPaths:
+    | '/'
+    | '/approvals'
+    | '/mail'
+    | '/org-chart'
+    | '/roster'
+    | '/search'
+    | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/mail' | '/org-chart' | '/roster' | '/search' | '/settings'
+  to:
+    | '/'
+    | '/approvals'
+    | '/mail'
+    | '/org-chart'
+    | '/roster'
+    | '/search'
+    | '/settings'
   id:
     | '__root__'
     | '/'
+    | '/approvals'
     | '/mail'
     | '/org-chart'
     | '/roster'
@@ -89,6 +113,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApprovalsRoute: typeof ApprovalsRoute
   MailRoute: typeof MailRoute
   OrgChartRoute: typeof OrgChartRoute
   RosterRoute: typeof RosterRoute
@@ -103,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/approvals': {
+      id: '/approvals'
+      path: '/approvals'
+      fullPath: '/approvals'
+      preLoaderRoute: typeof ApprovalsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mail': {
@@ -145,6 +177,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApprovalsRoute: ApprovalsRoute,
   MailRoute: MailRoute,
   OrgChartRoute: OrgChartRoute,
   RosterRoute: RosterRoute,
