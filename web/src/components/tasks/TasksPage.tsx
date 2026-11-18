@@ -143,7 +143,7 @@ function useScrollEdges() {
 }
 
 export function TasksPage() {
-  const board = useScrollEdges()
+  const { ref: boardRef, edges, measure } = useScrollEdges()
   const mobile = useIsMobile()
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [scope, setScope] = useState('')
@@ -318,13 +318,13 @@ export function TasksPage() {
           )}
           {/* relative: absolutely positioned sr-only text in cards must be clipped by this scroller, not widen the page. */}
           <div className="relative flex min-h-0 min-w-0 flex-col">
-            {board.edges.left && (
+            {edges.left && (
               <div aria-hidden="true" data-testid="board-fade-left" className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-background to-transparent" />
             )}
-            {board.edges.right && (
+            {edges.right && (
               <div aria-hidden="true" data-testid="board-fade-right" className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-background to-transparent" />
             )}
-          <div ref={board.ref} onScroll={board.measure} className="relative flex min-h-64 items-stretch gap-3 overflow-x-auto pb-2" data-testid="task-board">
+          <div ref={boardRef} onScroll={measure} className="relative flex min-h-64 items-stretch gap-3 overflow-x-auto pb-2" data-testid="task-board">
             {STATUSES.map((s) => (
               <Column
                 key={s}

@@ -63,8 +63,7 @@ export function OrgChart() {
   const rootCenter = root ? (root.x + root.w / 2) * scale : 0
   useEffect(() => {
     if (!box || !measured) return
-    box.scrollLeft = Math.max(0, Math.round(rootCenter + Math.max(0, Math.floor((box.clientWidth - scaledW) / 2)) - box.clientWidth / 2))
-    box.scrollTop = 0
+    box.scrollTo?.({ left: Math.max(0, Math.round(rootCenter + Math.max(0, Math.floor((box.clientWidth - scaledW) / 2)) - box.clientWidth / 2)), top: 0 })
   }, [box, measured, rootCenter, scaledW])
 
   const clamp = (s: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(s * 100) / 100))
