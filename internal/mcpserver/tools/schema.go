@@ -9,8 +9,13 @@ import (
 
 // addTool registers a typed tool whose input and output schemas are inferred
 // from In and Out, made portable (see portable), and whose description comes
-// from <name>.md in this package.
+// from <name>.md in this package. Its title and annotations come from the
+// toolMeta table.
 func addTool[In, Out any](srv *mcp.Server, name string, h mcp.ToolHandlerFor[In, Out]) {
+	meta, ok := toolMeta[name]
+	if !ok {
+		panic(fmt.Sprintf("tools: no title and annotations for %s in toolMeta", name))
+	}
 	in, err := jsonschema.For[In](&jsonschema.ForOptions{TypeSchemas: enumSchemas})
 	if err != nil {
 		panic(fmt.Sprintf("tools: infer %s input schema: %v", name, err))
@@ -23,6 +28,8 @@ func addTool[In, Out any](srv *mcp.Server, name string, h mcp.ToolHandlerFor[In,
 	portable(out)
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:         name,
+		Title:        meta.title,
+		Annotations:  meta.annotations(),
 		Description:  description(name),
 		InputSchema:  in,
 		OutputSchema: out,

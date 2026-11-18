@@ -49,6 +49,47 @@ func Register(srv *mcp.Server, c *session.Conn, o Options) {
 	addTool(srv, "wait", t.wait)
 }
 
+// meta is one tool's human title and behavior hints. Every AIM tool is
+// closed-world (messages never leave AIM) and none is destructive, so only
+// read-only and idempotent vary.
+type meta struct {
+	title      string
+	readOnly   bool
+	idempotent bool
+}
+
+// annotations builds the MCP annotations for m. The pointer hints default to
+// true in the spec, so they are always set explicitly.
+func (m meta) annotations() *mcp.ToolAnnotations {
+	no := false
+	return &mcp.ToolAnnotations{
+		Title:           m.title,
+		ReadOnlyHint:    m.readOnly,
+		IdempotentHint:  m.idempotent,
+		DestructiveHint: &no,
+		OpenWorldHint:   &no,
+	}
+}
+
+// toolMeta maps each tool name to its title and hints. Registration order is
+// set by Register, not this table.
+var toolMeta = map[string]meta{
+	"whoami":   {title: "Who am I", readOnly: true},
+	"register": {title: "Register identity", idempotent: true},
+	"roster":   {title: "Roster", readOnly: true},
+	"sign_on":  {title: "Sign on", idempotent: true},
+	"sign_off": {title: "Sign off", idempotent: true},
+	"send":     {title: "Send message"},
+	"list":     {title: "List mail", readOnly: true},
+	// read marks mail read unless peek is set, so it is not read-only.
+	"read":   {title: "Read message", idempotent: true},
+	"thread": {title: "Read thread", readOnly: true},
+	// mark's archive is reversible, so it is not destructive.
+	"mark":   {title: "Mark messages", idempotent: true},
+	"search": {title: "Search mail", readOnly: true},
+	"wait":   {title: "Wait for mail", readOnly: true},
+}
+
 // markdownDir holds one <tool name>.md description per tool. Editing these
 // files changes what agents are told without touching Go code.
 const markdownDir = "markdown"
