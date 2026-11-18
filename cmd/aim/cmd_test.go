@@ -25,6 +25,20 @@ func TestEnvOr(t *testing.T) {
 	}
 }
 
+// An empty AIM_SOCKET disables the unix socket, as AIM_LISTEN and AIM_HTTP
+// do; the container image relies on it.
+func TestDaemonEmptyEnvDisablesListeners(t *testing.T) {
+	t.Setenv("AIM_SOCKET", "")
+	t.Setenv("AIM_LISTEN", "")
+	t.Setenv("AIM_HTTP", "")
+	f := newDaemonCmd().Flags()
+	for _, name := range []string{"socket", "listen", "http"} {
+		if got := f.Lookup(name).DefValue; got != "" {
+			t.Errorf("--%s default = %q, want empty", name, got)
+		}
+	}
+}
+
 func TestParseLevel(t *testing.T) {
 	t.Parallel()
 	if l, err := parseLevel("debug"); err != nil || l != slog.LevelDebug {

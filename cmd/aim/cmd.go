@@ -119,7 +119,7 @@ func newDaemonCmd() *cobra.Command {
 	}
 	f := cmd.Flags()
 	f.StringVar(&cfg.DBPath, "db", envOr(os.Getenv, "AIM_DB", defaultDB(os.Getenv, home)), "SQLite database path (AIM_DB)")
-	f.StringVar(&cfg.Socket, "socket", envOr(os.Getenv, "AIM_SOCKET", shim.DefaultAddr(func(k string) string {
+	f.StringVar(&cfg.Socket, "socket", envSet("AIM_SOCKET", shim.DefaultAddr(func(k string) string {
 		if k == "AIM_ADDR" {
 			return ""
 		}
