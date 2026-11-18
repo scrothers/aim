@@ -51,7 +51,9 @@ beforeEach(() => {
     return fail(404, 'nope')
   })
   mocks.PATCH.mockResolvedValue(ok({}))
-  mocks.POST.mockResolvedValue(ok({}))
+  mocks.POST.mockImplementation(async (path: string, o?: { body?: { markdown?: string } }) =>
+    path === "/api/render" ? ok({ html: `<p><strong>${o?.body?.markdown?.split("\n")[0]}</strong></p>` }) : ok({}),
+  )
 })
 
 describe('RosterGrid', () => {
@@ -118,14 +120,37 @@ describe('RosterGrid', () => {
     render(wrap(<Harness />))
     await screen.findAllByTestId('roster-card')
     await user.click(within(screen.getAllByTestId('roster-card')[0]!).getByRole('button', { name: 'Retire' }))
-    expect(mocks.POST).not.toHaveBeenCalled()
+    const retires = () => mocks.POST.mock.calls.filter((c) => c[0] === '/api/identities/retire')
+    expect(retires()).toHaveLength(0)
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }))
-    expect(mocks.POST).not.toHaveBeenCalled()
+    expect(retires()).toHaveLength(0)
     await user.click(within(screen.getAllByTestId('roster-card')[0]!).getByRole('button', { name: 'Retire' }))
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Retire' }))
-    await waitFor(() => expect(mocks.POST).toHaveBeenCalled())
-    expect(mocks.POST.mock.calls[0]![0]).toBe('/api/identities/retire')
-    expect(mocks.POST.mock.calls[0]![1]).toMatchObject({ params: { query: { address: 'coordinator@github.com/acme' } } })
+    await waitFor(() => expect(retires()).toHaveLength(1))
+    expect(retires()[0]![1]).toMatchObject({ params: { query: { address: 'coordinator@github.com/acme' } } })
+  })
+
+  it('renders role descriptions as Markdown through the server render', async () => {
+    mocks.GET.mockImplementation(async () => ok({ items: [entry('a@github.com/acme', { description: '**release train**\n- item' })] }))
+    render(wrap(<Harness />))
+    await screen.findByTestId('role-description')
+    await waitFor(() => expect(screen.getByTestId('role-description').querySelector('strong')).toHaveTextContent('**release train**'))
+    expect(mocks.POST).toHaveBeenCalledWith('/api/render', { body: { markdown: '**release train**\n- item' } })
+  })
+
+  it('shows flattened text until the render arrives, and plain text if it fails', async () => {
+    mocks.POST.mockImplementation(async () => fail(500, 'boom'))
+    mocks.GET.mockImplementation(async () => ok({ items: [entry('a@github.com/acme', { description: '**release train**' })] }))
+    render(wrap(<Harness />))
+    expect((await screen.findByTestId('role-description')).querySelector('strong')).toBeNull()
+    await waitFor(() => expect(screen.getByTestId('role-description')).toHaveTextContent('**release train**'))
+  })
+
+  it('makes Retire the destructive action and Edit secondary', async () => {
+    render(wrap(<Harness />))
+    const card = (await screen.findAllByTestId('roster-card'))[0]!
+    expect(within(card).getByRole('button', { name: 'Retire' }).className).toContain('bg-destructive')
+    expect(within(card).getByRole('button', { name: /Edit/ }).className).toContain('bg-code')
   })
 })
 
@@ -155,5 +180,37 @@ describe('OrgChart', () => {
     expect(within(screen.getByRole('link', { name: `Edit ${lead.address}` })).getByRole('img', { name: 'offline' })).toBeInTheDocument()
     expect(screen.getByText('operator')).toBeInTheDocument()
     expect(document.querySelectorAll('path[data-edge]')).toHaveLength(2)
+  })
+
+  it('zooms with the controls and fits to the width', async () => {
+    mocks.GET.mockResolvedValue(
+      ok({
+        nodes: [
+          { address: 'operator', operator: true, role: '', description: '', online: [] },
+          { address: lead.address, role: 'lead', description: '', reports_to: 'operator', online: [] },
+        ],
+        edges: [],
+      }),
+    )
+    const user = userEvent.setup()
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    await renderWithRouter(
+      <QueryClientProvider client={qc}>
+        <OrgChart />
+      </QueryClientProvider>,
+      '/org-chart',
+    )
+    await screen.findByRole('link', { name: `Edit ${lead.address}` })
+    const level = screen.getByLabelText('Zoom level')
+    expect(level).toHaveTextContent('100%')
+    await user.click(screen.getByRole('button', { name: 'Zoom out' }))
+    expect(level).toHaveTextContent('75%')
+    await user.click(screen.getByRole('button', { name: 'Zoom in' }))
+    await user.click(screen.getByRole('button', { name: 'Zoom in' }))
+    expect(level).toHaveTextContent('125%')
+    await user.click(screen.getByRole('button', { name: 'Reset' }))
+    expect(level).toHaveTextContent('100%')
+    await user.click(screen.getByRole('button', { name: 'Fit width' }))
+    expect(level).toHaveTextContent('100%') // jsdom has no layout: width 0 means "nothing to fit"
   })
 })

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { EditSheet } from './EditSheet'
+import { RoleDescription } from './RoleDescription'
 
 /** Groups entries by their org/repo path, sorted. */
 export function groupByPath(items: RosterEntry[]): Array<[string, RosterEntry[]]> {
@@ -50,7 +51,7 @@ function RosterCard({
           </div>
         </div>
       </div>
-      {entry.description && <p className="m-0 text-[13px] leading-5 whitespace-pre-wrap text-muted-foreground">{entry.description}</p>}
+      {entry.description && <RoleDescription markdown={entry.description} />}
       {entry.reports_to && (
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-faint">
           <span>reports to</span>
@@ -81,11 +82,11 @@ function RosterCard({
         )}
       </ul>
       <div className="mt-auto flex justify-end gap-2">
-        <Button variant="outline" size="sm" onClick={onEdit}>
+        <Button variant="secondary" size="sm" onClick={onEdit}>
           <Pencil aria-hidden="true" />
           Edit
         </Button>
-        <Button variant="ghost" size="sm" onClick={onRetire}>
+        <Button variant={retired ? 'outline' : 'destructive'} size="sm" onClick={onRetire}>
           {retired ? 'Unretire' : 'Retire'}
         </Button>
       </div>
