@@ -60,8 +60,9 @@ func BuildPreamble(
 ) wire.Preamble {
 	p := wire.Preamble{
 		V:          wire.Version,
-		SessionID:  getenv("CLAUDE_CODE_SESSION_ID"),
+		SessionID:  SessionID(getenv),
 		ProjectDir: getenv("CLAUDE_PROJECT_DIR"),
+		AgentPID:   AgentPID(nil),
 	}
 	if p.ProjectDir == "" {
 		if wd, err := os.Getwd(); err == nil {
