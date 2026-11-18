@@ -9,6 +9,7 @@ import { ThreadTaskChips } from '@/components/tasks/ThreadTaskChips'
 import { AddressChip } from '@/components/shared/AddressChip'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { RuntimeBadge } from '@/components/shared/RuntimeBadge'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Composer } from './Composer'
 
@@ -127,10 +128,10 @@ export const ThreadView = forwardRef<HTMLElement, ThreadViewProps>(function Thre
               {messages.length} {messages.length === 1 ? 'message' : 'messages'}
             </span>
             {latest.muted && (
-              <span className="flex items-center gap-1 rounded-full bg-code px-2 text-xs text-muted-foreground">
-                <BellOff aria-hidden="true" className="size-3" />
+              <Badge variant="count">
+                <BellOff aria-hidden="true" />
                 Muted
-              </span>
+              </Badge>
             )}
             <Button variant="outline" size="sm" onClick={() => onReplying(true)}>
               <Reply aria-hidden="true" />

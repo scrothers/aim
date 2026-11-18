@@ -18,8 +18,9 @@ describe('MailboxTree', () => {
     expect(screen.queryByText('coordinator@')).toBeNull()
     expect(screen.queryByText('scout@')).toBeNull()
     const [acme, labs] = screen.getAllByTestId('org-block')
-    expect(within(acme!).getByLabelText('9 unread')).toBeInTheDocument()
-    expect(within(acme!).getByLabelText('1 needs attention')).toBeInTheDocument()
+    // Agent mailbox unread is informational (neutral); blocked agents get the attention pill.
+    expect(within(acme!).getByLabelText('9 unread')).toHaveAttribute('data-variant', 'count')
+    expect(within(acme!).getByLabelText('1 needs attention')).toHaveAttribute('data-variant', 'attention')
     expect(within(labs!).queryByTestId('org-attention')).toBeNull()
     expect(within(labs!).getByText(/quiet · 3d/)).toBeInTheDocument()
     expect(acme).toHaveAttribute('data-quiet', 'false')

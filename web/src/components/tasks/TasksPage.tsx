@@ -7,6 +7,7 @@ import { helpFlag, isTyping, paletteFlag } from '@/lib/flag'
 import { taskStore } from '@/lib/tasks'
 import { useIsMobile } from '@/lib/viewport'
 import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useAssigneeCandidates } from './AssigneeInput'
 import { ConfirmDialog } from './ConfirmDialog'
@@ -97,9 +98,9 @@ function Column({ status, tasks, now, dragging, collapsed, onToggle, onOpen, onD
       <header className="flex items-center gap-2 px-1 pt-0.5">
         <StatusDot status={status} />
         <h2 className="m-0 flex-1 text-[13px] font-semibold">{label}</h2>
-        <span aria-label={`${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'}`} className="text-xs text-faint">
+        <Badge variant="count" aria-label={`${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'}`}>
           {tasks.length}
-        </span>
+        </Badge>
         {onToggle && (
           <button type="button" onClick={onToggle} aria-label={`Collapse ${label.toLowerCase()} column`} aria-expanded className="rounded p-0.5 text-faint hover:bg-hover max-md:min-h-11 max-md:min-w-11">
             <ChevronsLeftRight aria-hidden="true" className="mx-auto size-4" />

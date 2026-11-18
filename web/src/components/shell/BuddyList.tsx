@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { PresenceDot } from '@/components/shared/PresenceDot'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { RuntimeBadge } from '@/components/shared/RuntimeBadge'
+import { Badge } from '@/components/ui/badge'
 
 type PresenceBody = components['schemas']['PresenceBody']
 type Buddy = components['schemas']['Buddy']
@@ -42,21 +43,28 @@ function AttentionBadge({ buddy }: { buddy: Buddy }) {
   const label = ATTENTION_LABEL[a] ?? a
   const since = buddy.attention_since ? ago(buddy.attention_since).replace(/^now$/, '<5s') : ''
   const title = [buddy.attention_detail, since && `for ${since}`].filter(Boolean).join(' · ') || label
-  return (
-    <span
-      role="status"
-      aria-label={`${buddy.name} ${label}${buddy.attention_detail ? `: ${buddy.attention_detail}` : ''}`}
-      title={title}
-      data-testid="attention"
-      data-attention={a}
-      className={cn(
-        'ml-4 flex min-w-0 items-center gap-1.5 self-start text-[11px] leading-[16px]',
-        urgent(a) ? 'rounded-full bg-attention-soft px-2 py-px font-semibold text-attention-text' : 'text-faint',
-      )}
-    >
+  const props = {
+    role: 'status',
+    'aria-label': `${buddy.name} ${label}${buddy.attention_detail ? `: ${buddy.attention_detail}` : ''}`,
+    title,
+    'data-testid': 'attention',
+    'data-attention': a,
+  }
+  const body = (
+    <>
       <span aria-hidden="true" className={cn('size-1.5 shrink-0 rounded-full', urgent(a) ? 'bg-attention' : 'border border-faint')} />
       <span className="shrink-0">{label}</span>
       {since && <span className="shrink-0 font-normal opacity-80">{since}</span>}
+    </>
+  )
+  // Blocked and failed get the attention pill; the rest stay quiet text.
+  return urgent(a) ? (
+    <Badge variant="attention" {...props} className="ml-4 gap-1.5 self-start text-[11px]">
+      {body}
+    </Badge>
+  ) : (
+    <span {...props} className="ml-4 flex min-w-0 items-center gap-1.5 self-start text-[11px] leading-[16px] text-faint">
+      {body}
     </span>
   )
 }
@@ -165,10 +173,10 @@ export function BuddyList({ data }: { data: PresenceBody }) {
     <>
       <div className="flex items-center gap-2 px-1">
         <h2 className="m-0 text-[15px] font-semibold">Buddy list</h2>
-        <span className="ml-auto rounded-full bg-online-soft px-2 py-px text-xs font-semibold text-online-text">
+        <Badge variant="count" tone="online" className="ml-auto font-semibold">
           {onlineTotal(groups)} online
           {idleTotal(groups) > 0 && ` · ${idleTotal(groups)} idle`}
-        </span>
+        </Badge>
       </div>
       {online.map(renderGroup)}
       {offline.map(renderGroup)}

@@ -520,8 +520,12 @@ describe('LeftNav', () => {
       'Tasks',
       'Approvals',
     ])
-    expect(await within(work).findByLabelText('4 unread')).toBeInTheDocument()
-    expect(await within(work).findByLabelText('2 pending')).toBeInTheDocument()
+    // Counts that need the operator take the brand fill; the rest are neutral.
+    expect(await within(work).findByLabelText('4 unread')).toHaveAttribute('data-variant', 'count-attention')
+    expect(await within(work).findByLabelText('2 pending')).toHaveAttribute('data-variant', 'count-attention')
+    for (const b of within(work).queryAllByText(/^\d+$/)) {
+      if (!['4 unread', '2 pending'].includes(b.getAttribute('aria-label') ?? '')) expect(b).toHaveAttribute('data-variant', 'count')
+    }
     const folders = within(nav).getByRole('group', { name: 'Folders' })
     expect(within(folders).getByRole('link', { name: 'Sent' })).toBeInTheDocument()
     expect(within(folders).getByRole('link', { name: 'Archived' })).toBeInTheDocument()

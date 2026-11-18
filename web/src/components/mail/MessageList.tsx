@@ -6,6 +6,7 @@ import { stripMarkdown } from '@/lib/markdown'
 import { rowKey, type Header, type MailState } from '@/api/mail'
 import { AddressChip } from '@/components/shared/AddressChip'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
+import { Badge, CountBadge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
@@ -152,21 +153,12 @@ export function MessageList(p: MessageListProps) {
                         {h.subject}
                       </span>
                       {h.muted && (
-                        <span
-                          aria-label="Muted"
-                          role="img"
-                          title="Muted thread"
-                          className="flex items-center gap-1 rounded-full bg-code px-1.5 text-xs text-muted-foreground"
-                        >
-                          <BellOff aria-hidden="true" className="size-3" />
+                        <Badge variant="count" aria-label="Muted" role="img" title="Muted thread">
+                          <BellOff aria-hidden="true" />
                           muted
-                        </span>
+                        </Badge>
                       )}
-                      {n > 1 && (
-                        <span aria-label={`${n} messages in thread`} className="rounded-full bg-code px-1.5 text-xs text-muted-foreground">
-                          {n}
-                        </span>
-                      )}
+                      {n > 1 && <CountBadge count={n} label="messages in thread" />}
                     </span>
                     {h.snippet && <span className="truncate text-xs text-faint">{stripMarkdown(h.snippet, { trim: true })}</span>}
                     {p.showMailbox && (

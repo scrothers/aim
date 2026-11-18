@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { PresenceDot } from '@/components/shared/PresenceDot'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { Sparkline } from '@/components/shared/Sparkline'
+import { Badge, CountBadge } from '@/components/ui/badge'
 
 type OrgNode = components['schemas']['OrgNode']
 type RepoNode = components['schemas']['RepoNode']
@@ -62,11 +63,7 @@ export function filterTree(orgs: ReadonlyArray<OrgNode>, query: string): Filtere
 }
 
 function Unread({ n }: { n: number }) {
-  return (
-    <span className={cn('min-w-[18px] text-right text-xs', n > 0 ? 'font-semibold text-accent-text' : 'text-faint')}>
-      {n}
-    </span>
-  )
+  return <CountBadge count={n} label="unread" />
 }
 
 function IdentityRow({ node, indent, idle }: { node: MailboxNode; indent: string; idle?: ReadonlySet<string> }) {
@@ -212,24 +209,19 @@ export function MailboxTree({
                   <span className="truncate font-mono text-[11px] text-faint">{org.host}</span>
                 </span>
                 {org.unread > 0 ? (
-                  <span
-                    aria-label={`${org.unread} unread`}
-                    className="h-[18px] min-w-5 rounded-[9px] bg-accent-soft text-center text-xs leading-[18px] font-semibold text-accent-text"
-                  >
-                    {org.unread}
-                  </span>
+                  <Unread n={org.unread} />
                 ) : (
                   quiet && needAttention === 0 && <span className="text-xs text-faint">quiet · {ago(org.last_activity, now) || '–'}</span>
                 )}
                 {needAttention > 0 && (
-                  <span
+                  <Badge
+                    variant="attention"
                     aria-label={`${needAttention} ${needAttention === 1 ? 'needs' : 'need'} attention`}
                     data-testid="org-attention"
-                    className="flex h-[18px] min-w-5 items-center justify-center gap-1 rounded-full bg-attention-soft px-1.5 text-xs font-semibold text-attention-text"
                   >
                     <span aria-hidden="true" className="size-1.5 rounded-full bg-attention" />
                     {needAttention}
-                  </span>
+                  </Badge>
                 )}
               </Link>
               {!filtering && (

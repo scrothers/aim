@@ -2,51 +2,43 @@ import { Activity, Ban, Clock, TriangleAlert, type LucideIcon } from 'lucide-rea
 import type { TaskHealth, TaskPriority, TaskStatus, TaskView } from '@/api/tasks'
 import { ago } from '@/lib/identity'
 import { cn } from '@/lib/utils'
+import { Badge, type BadgeTone } from '@/components/ui/badge'
 import { HEALTH_LABEL, STATUS_LABEL } from './model'
 
-const PRIORITY_CLS: Record<TaskPriority, string> = {
-  low: 'bg-code text-faint',
-  normal: 'bg-code text-muted-foreground',
-  high: 'bg-accent-soft text-accent-text',
-  urgent: 'bg-attention-soft text-attention-text',
+const PRIORITY_TONE: Record<TaskPriority, BadgeTone> = {
+  low: 'faint',
+  normal: 'neutral',
+  high: 'brand',
+  urgent: 'attention',
 }
 
 export function PriorityBadge({ priority, className }: { priority: TaskPriority; className?: string }) {
   return (
-    <span
-      data-priority={priority}
-      className={cn('inline-flex h-[18px] items-center rounded px-1.5 text-[11px] leading-none font-semibold uppercase tracking-wide', PRIORITY_CLS[priority], className)}
-    >
+    <Badge variant="priority" tone={PRIORITY_TONE[priority]} data-priority={priority} className={className}>
       {priority}
-    </span>
+    </Badge>
   )
 }
 
 // Each health state differs in icon and colour, so colour is never the only cue.
-const HEALTH: Record<TaskHealth, { icon: LucideIcon; cls: string }> = {
-  active: { icon: Activity, cls: 'text-online-text bg-online-soft' },
-  idle: { icon: Clock, cls: 'text-idle bg-code' },
-  stale: { icon: TriangleAlert, cls: 'text-attention-text bg-attention-soft' },
-  abandoned: { icon: Ban, cls: 'text-faint bg-code' },
+const HEALTH: Record<TaskHealth, { icon: LucideIcon; tone: BadgeTone }> = {
+  active: { icon: Activity, tone: 'online' },
+  idle: { icon: Clock, tone: 'idle' },
+  stale: { icon: TriangleAlert, tone: 'attention' },
+  abandoned: { icon: Ban, tone: 'faint' },
 }
 
 /** Lease health of a claimed or started task, with last activity in the tooltip. */
 export function HealthIndicator({ task, now, showLabel }: { task: Pick<TaskView, 'health' | 'last_activity_at'>; now?: number; showLabel?: boolean }) {
   if (!task.health) return null
-  const { icon: Icon, cls } = HEALTH[task.health]
+  const { icon: Icon, tone } = HEALTH[task.health]
   const when = task.last_activity_at ? `last activity ${ago(task.last_activity_at, now)} ago` : 'no activity recorded'
   const label = `Health: ${HEALTH_LABEL[task.health].toLowerCase()}, ${when}`
   return (
-    <span
-      role="img"
-      aria-label={label}
-      title={label}
-      data-health={task.health}
-      className={cn('inline-flex h-[18px] items-center gap-1 rounded px-1 text-[11px] font-medium', cls)}
-    >
-      <Icon aria-hidden="true" className="size-3" />
+    <Badge variant="health" tone={tone} role="img" aria-label={label} title={label} data-health={task.health}>
+      <Icon aria-hidden="true" />
       {showLabel && HEALTH_LABEL[task.health]}
-    </span>
+    </Badge>
   )
 }
 
@@ -64,9 +56,9 @@ export function StatusDot({ status, className }: { status: TaskStatus; className
 
 export function StatusLabel({ status }: { status: TaskStatus }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-medium">
+    <Badge variant="status" data-status={status}>
       <StatusDot status={status} />
       {STATUS_LABEL[status]}
-    </span>
+    </Badge>
   )
 }

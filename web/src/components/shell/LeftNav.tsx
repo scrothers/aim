@@ -6,6 +6,7 @@ import { usePresence, useTree, useViews } from '@/api/queries'
 import { useOpenTaskCount } from '@/api/tasks'
 import { composeStore } from '@/lib/compose'
 import { cn } from '@/lib/utils'
+import { CountBadge } from '@/components/ui/badge'
 import { DaemonFooter } from './DaemonFooter'
 import { MailboxTree } from './MailboxTree'
 import { SavedViews } from './SavedViews'
@@ -14,20 +15,6 @@ type ViewKey = 'operator' | 'unread' | 'today' | 'sent' | 'archived'
 
 const rowCls =
   'flex h-8 items-center max-md:min-h-11 gap-2.5 rounded-md px-2.5 text-muted-foreground hover:bg-hover data-[status=active]:bg-accent-soft data-[status=active]:font-semibold data-[status=active]:text-accent-text'
-
-const pillCls = 'h-[18px] min-w-5 rounded-[9px] bg-brand text-center text-xs leading-[18px] text-on-accent'
-
-function Count({ count, pill, label }: { count?: number; pill?: boolean; label: string }) {
-  if (count === undefined) return null
-  if (pill) {
-    return count > 0 ? (
-      <span aria-label={`${count} ${label}`} className={pillCls}>
-        {count}
-      </span>
-    ) : null
-  }
-  return <span className="text-xs text-faint">{count}</span>
-}
 
 function ViewLink({ view, label, icon: Icon, children }: { view: ViewKey; label: string; icon: LucideIcon; children?: ReactNode }) {
   return (
@@ -78,27 +65,23 @@ export function LeftNav({ drawer = false, onNavigate }: { drawer?: boolean; onNa
       <div className="flex shrink-0 flex-col gap-3">
         <div className="flex flex-col gap-px" role="group" aria-label="Work">
           <ViewLink view="operator" label="Operator inbox" icon={Inbox}>
-            <Count count={views?.operator_unread} pill label="unread" />
+            <CountBadge count={views?.operator_unread} attention label="unread" />
           </ViewLink>
           <ViewLink view="unread" label="Unread everywhere" icon={Circle}>
-            <Count count={views?.unread_everywhere} label="unread" />
+            <CountBadge count={views?.unread_everywhere} label="unread" />
           </ViewLink>
           <ViewLink view="today" label="Today" icon={CalendarDays}>
-            <Count count={views?.today} label="today" />
+            <CountBadge count={views?.today} label="today" />
           </ViewLink>
           <Link to="/tasks" className={rowCls}>
             <ListChecks aria-hidden="true" className="size-4" />
             <span className="flex-1">Tasks</span>
-            {openTasks > 0 && (
-              <span aria-label={`${openTasks} open`} className="h-[18px] min-w-5 rounded-[9px] bg-code px-1 text-center text-xs leading-[18px] text-muted-foreground">
-                {openTasks}
-              </span>
-            )}
+            <CountBadge count={openTasks} label="open" />
           </Link>
           <Link to="/approvals" className={rowCls}>
             <ShieldCheck aria-hidden="true" className="size-4" />
             <span className="flex-1">Approvals</span>
-            <Count count={pending} pill label="pending" />
+            <CountBadge count={pending} attention label="pending" />
           </Link>
         </div>
         <div className="flex flex-col gap-px" role="group" aria-label="Folders">
