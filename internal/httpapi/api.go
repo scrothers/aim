@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -237,11 +238,26 @@ func (h *handlers) thread(ctx context.Context, in *idPath) (*out[ThreadBody], er
 
 func (h *handlers) send(ctx context.Context, in *struct{ Body SendRequest }) (*out[MessageView], error) {
 	b := in.Body
+	if b.TaskID != "" {
+		if h.tasks == nil {
+			return nil, unavailable("the task board")
+		}
+		if err := h.tasks.Exists(ctx, b.TaskID); err != nil {
+			return nil, taskError(fmt.Errorf("%w; nothing was sent", err))
+		}
+	}
 	m, err := h.mail.Send(ctx, h.caller, mail.SendInput{
 		To: b.To, Cc: b.Cc, Subject: b.Subject, Body: b.Body, InReplyTo: b.InReplyTo, ReplyAll: b.ReplyAll,
 	})
 	if err != nil {
 		return nil, apiError(err)
+	}
+	if b.TaskID != "" {
+		// Same precedent as the MCP send tool: the message is out, so a
+		// link failure is surfaced as an error naming the sent message.
+		if err := h.tasks.LinkSent(ctx, h.caller, b.TaskID, m.ID); err != nil {
+			return nil, taskError(err)
+		}
 	}
 	v, err := h.view(m)
 	if err != nil {

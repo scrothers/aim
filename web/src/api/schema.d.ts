@@ -1315,6 +1315,8 @@ export interface components {
             reply_all?: boolean;
             /** @description Subject line. */
             subject: string;
+            /** @description Link the sent message to this task (task-...). The task must exist; it is checked before sending. If linking fails after the send, the response is an error that says the message was sent. */
+            task_id?: string;
             /** @description Recipient addresses. May be empty with reply_all. */
             to?: string[] | null;
         };

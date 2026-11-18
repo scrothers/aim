@@ -87,6 +87,7 @@ type SendRequest struct {
 	Body      string   `json:"body" doc:"Markdown body."`
 	InReplyTo string   `json:"in_reply_to,omitempty" doc:"Message id being replied to."`
 	ReplyAll  bool     `json:"reply_all,omitempty" doc:"Address the reply to everyone on in_reply_to."`
+	TaskID    string   `json:"task_id,omitempty" pattern:"^task-[0-9a-z]+$" patternDescription:"a task id, task-..." doc:"Link the sent message to this task (task-...). The task must exist; it is checked before sending. If linking fails after the send, the response is an error that says the message was sent."`
 }
 
 // MarkRequest is the body of POST /api/marks.

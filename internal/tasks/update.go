@@ -390,6 +390,16 @@ func (s *Service) Link(ctx context.Context, c mail.Caller, taskID, messageID str
 	return err
 }
 
+// LinkSent links a message that was just sent to a task. A failure is
+// reported as "sent but not linked" so the caller does not resend: the
+// message is already delivered and the link can be retried on its own.
+func (s *Service) LinkSent(ctx context.Context, c mail.Caller, taskID, messageID string) error {
+	if err := s.Link(ctx, c, taskID, messageID); err != nil {
+		return fmt.Errorf("message %s was sent, but linking it to %s failed (retry with task_update action link): %w", messageID, taskID, err)
+	}
+	return nil
+}
+
 // Exists reports whether a task with the id exists, returning an error
 // wrapping ErrNotFound when it does not.
 func (s *Service) Exists(ctx context.Context, id string) error {

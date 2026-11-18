@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -192,8 +191,5 @@ func (t *toolset) linkSent(ctx context.Context, c mail.Caller, taskID string, m 
 	if err != nil {
 		return err
 	}
-	if err := board.Link(ctx, c, taskID, m.ID); err != nil {
-		return fmt.Errorf("message %s was sent, but linking it to %s failed (retry with task_update action link): %w", m.ID, taskID, err)
-	}
-	return nil
+	return board.LinkSent(ctx, c, taskID, m.ID)
 }

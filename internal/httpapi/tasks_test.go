@@ -239,3 +239,60 @@ func eventKinds(d taskDetail) []string {
 	}
 	return out
 }
+
+func TestSendWithTaskID(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.register(t, alice, "dev")
+	tk := decode[taskDetail](t, e.do(t, http.MethodPost, "/api/tasks", obj{"title": "plan"}), http.StatusCreated)
+
+	sent := decode[httpapi.MessageView](t, e.do(t, http.MethodPost, "/api/messages", obj{
+		"to": []string{alice}, "subject": "about the plan", "body": "b", "task_id": tk.ID,
+	}), http.StatusCreated)
+	d := decode[taskDetail](t, e.do(t, http.MethodGet, "/api/tasks/"+tk.ID, nil), http.StatusOK)
+	if len(d.Links) != 1 || d.Links[0].MessageID != sent.ID || d.Links[0].LinkedBy != "operator" {
+		t.Errorf("links = %+v", d.Links)
+	}
+	if kinds := eventKinds(d); !slices.Equal(kinds, []string{"created", "link"}) {
+		t.Errorf("events = %v", kinds)
+	}
+	chips := decode[httpapi.ThreadTasksBody](t, e.do(t, http.MethodGet, "/api/thread-tasks?thread_id="+sent.ThreadID, nil), http.StatusOK)
+	if len(chips.Items) != 1 || chips.Items[0].TaskID != tk.ID {
+		t.Errorf("chips = %+v", chips)
+	}
+
+	// Unknown task: 404 and nothing is sent.
+	before := decode[httpapi.SearchBody](t, e.do(t, http.MethodGet, "/api/search?address="+alice+"&q=ghost", nil), http.StatusOK)
+	rec := e.do(t, http.MethodPost, "/api/messages", obj{"to": []string{alice}, "subject": "ghost", "body": "b", "task_id": "task-nope"})
+	if rec.Code != http.StatusNotFound || !strings.Contains(rec.Body.String(), "nothing was sent") {
+		t.Errorf("unknown task: %d %s", rec.Code, rec.Body.String())
+	}
+	after := decode[httpapi.SearchBody](t, e.do(t, http.MethodGet, "/api/search?address="+alice+"&q=ghost", nil), http.StatusOK)
+	if len(after.Hits) != len(before.Hits) {
+		t.Errorf("message sent despite unknown task: %d -> %d", len(before.Hits), len(after.Hits))
+	}
+	// Malformed id fails validation.
+	if rec := e.do(t, http.MethodPost, "/api/messages", obj{"to": []string{alice}, "subject": "s", "body": "b", "task_id": "bogus"}); rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("bad task id: %d", rec.Code)
+	}
+	// Without task_id nothing is linked.
+	plain := decode[httpapi.MessageView](t, e.do(t, http.MethodPost, "/api/messages", obj{"to": []string{alice}, "subject": "plain", "body": "b"}), http.StatusCreated)
+	chips = decode[httpapi.ThreadTasksBody](t, e.do(t, http.MethodGet, "/api/thread-tasks?thread_id="+plain.ThreadID, nil), http.StatusOK)
+	if len(chips.Items) != 0 {
+		t.Errorf("plain send linked: %+v", chips)
+	}
+}
+
+func TestSendWithTaskIDUnavailable(t *testing.T) {
+	t.Parallel()
+	base := newEnv(t)
+	base.register(t, alice, "dev")
+	e := &env{h: httpapi.New(httpapi.Deps{Pinger: fakePinger{}, Mail: base.svc, Presence: base.reg, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})}
+	rec := e.do(t, http.MethodPost, "/api/messages", obj{"to": []string{alice}, "subject": "s", "body": "b", "task_id": "task-x"})
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if rec := e.do(t, http.MethodPost, "/api/messages", obj{"to": []string{alice}, "subject": "s", "body": "b"}); rec.Code != http.StatusCreated {
+		t.Errorf("plain send without board: %d", rec.Code)
+	}
+}
