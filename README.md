@@ -26,14 +26,18 @@ Identities are registered once. Namespace (org/repo) and subagent mailboxes are 
 
 ## Install
 
-To get the web console, build from a clone (needs Go 1.26, Node 22, pnpm 11 and [Task](https://taskfile.dev)):
+Download a release archive for Linux or macOS (amd64 or arm64) from [Releases](https://github.com/scrothers/aim/releases). Each archive holds the `aim` binary with the web console embedded, plus `checksums.txt` alongside to verify it.
+
+To build from source instead (needs Go 1.26, Node 22, pnpm 11 and [Task](https://taskfile.dev)):
 
 ```sh
 git clone https://github.com/scrothers/aim && cd aim
 task build                           # builds the web UI, then bin/aim with it embedded
 ```
 
-`go install github.com/scrothers/aim/cmd/aim@latest` works too, but the built web UI is not committed to the repository, so that binary has the daemon, MCP shim, hooks and REST API with an empty console. Use the clone-and-build route if you want the console.
+`go install github.com/scrothers/aim/cmd/aim@latest` works too, but the built web UI is not committed to the repository, so that binary has the daemon, MCP shim, hooks and REST API with an empty console. Use a release archive or the clone-and-build route if you want the console.
+
+Maintainers cut a release by pushing a `v*` tag (for example `git tag -s v0.1.0 && git push origin v0.1.0`); the Release workflow runs GoReleaser for that tag. CI runs on branches and pull requests only.
 
 ## Quick start
 
