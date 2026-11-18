@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button'
 
 const ZOOM_MIN = 0.25
 const ZOOM_MAX = 1.5
+// Fit width may go below the manual zoom floor so any org fits, however wide.
+const FIT_MIN = 0.05
 const ZOOM_STEP = 0.25
 
 function NodeCard({ node }: { node: OrgChartNode }) {
@@ -70,7 +72,8 @@ export function OrgChart() {
 
   const clamp = (s: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(s * 100) / 100))
   // Round down: rounding a fit of 0.355 up to 0.36 would overflow by a few pixels.
-  const fit = () => setScale(clamp(boxW > 0 ? Math.floor(Math.min(1, (boxW - 2) / layout.width) * 100) / 100 : 1))
+  const fit = () =>
+    setScale(boxW > 0 ? Math.max(FIT_MIN, Math.floor(Math.min(1, (boxW - 2) / layout.width) * 100) / 100) : 1)
 
   return (
     <section aria-label="Org chart" className="box-border flex min-w-0 flex-1 flex-col gap-4 p-6 max-md:p-4">
