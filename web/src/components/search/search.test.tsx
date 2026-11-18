@@ -67,6 +67,37 @@ describe('SearchPage', () => {
     expect(snippet).toHaveTextContent('<img src=x onerror=alert(1)>')
   })
 
+  it('strips Markdown syntax from snippets but keeps the match', async () => {
+    mocks.GET.mockImplementation(async (path: string) =>
+      path === '/api/search'
+        ? ok({
+            hits: [
+              hit('1', {
+                segments: [
+                  { text: '## Plan | ', match: false },
+                  { text: 'zebrafish', match: true },
+                  { text: ' uses `aim sync` and **more**', match: false },
+                ],
+              }),
+            ],
+          })
+        : ok({ orgs: [] }),
+    )
+    await mount({ q: 'zebrafish' })
+    const snippet = await screen.findByTestId('hit-snippet')
+    expect(snippet).toHaveTextContent('Plan zebrafish uses aim sync and more')
+    expect(snippet.querySelector('mark')).toHaveTextContent('zebrafish')
+    expect(snippet.textContent).not.toMatch(/[`|*#]/)
+  })
+
+  it('strips Markdown from the plain snippet fallback', async () => {
+    mocks.GET.mockImplementation(async (path: string) =>
+      path === '/api/search' ? ok({ hits: [hit('1', { segments: [], snippet: '| a | b |\n- **x** `y`' })] }) : ok({ orgs: [] }),
+    )
+    await mount({ q: 'x' })
+    expect(await screen.findByTestId('hit-snippet')).toHaveTextContent(/^a b x y$/)
+  })
+
   it('shows sender, mailbox chip and links to the thread', async () => {
     await mount({ q: 'zebrafish' })
     const row = await screen.findByTestId('search-hit')

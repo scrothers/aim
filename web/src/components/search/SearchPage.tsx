@@ -6,6 +6,7 @@ import { ApiError } from '@/api/client'
 import { searchPageQuery, type SearchPageParams, type SearchState } from '@/api/mail'
 import { useMailboxAddresses } from '@/api/queries'
 import { ago } from '@/lib/identity'
+import { stripMarkdown } from '@/lib/markdown'
 import { AddressChip } from '@/components/shared/AddressChip'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { SaveFilterButton } from '@/components/mail/SaveFilter'
@@ -143,7 +144,7 @@ export function SearchPage({ params, onSearch }: { params: SearchPageParams; onS
                     </span>
                     <span className="truncate font-semibold">{h.subject}</span>
                     <span data-testid="hit-snippet" className="text-[13px] break-words text-muted-foreground">
-                      {(h.segments ?? []).length > 0 ? <Highlight segments={h.segments ?? []} /> : h.snippet}
+                      {(h.segments ?? []).length > 0 ? <Highlight segments={h.segments ?? []} /> : stripMarkdown(h.snippet)}
                     </span>
                   </span>
                 </Link>
