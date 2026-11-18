@@ -75,7 +75,7 @@ test('create a task, assign it, comment, and move it across the board', async ({
   await dlg.getByRole('button', { name: 'Unassign' }).click()
   await expect(dlg.getByText('Nobody. Anyone may claim it.')).toBeVisible()
   await dlg.getByRole('combobox', { name: 'Assign to' }).fill(DEV)
-  await dlg.getByRole('button', { name: 'Assign', exact: true }).click()
+  await dlg.getByRole('button', { name: 'Assign', exact: true }).click() // not the "Task assigned: …" thread link
   await expect(dlg.getByRole('button', { name: 'Unassign' })).toBeVisible()
 
   await dlg.getByRole('textbox', { name: 'Comment' }).fill('Kicking this off')
