@@ -62,7 +62,7 @@ function ListResizer({ width, paneWidth, onChange }: { width: number; paneWidth:
         else return
         e.preventDefault()
       }}
-      className="relative z-10 -mx-1 w-2 shrink-0 cursor-col-resize touch-none outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-0.5 after:-translate-x-1/2 hover:after:bg-brand focus-visible:after:bg-brand"
+      className="relative z-10 -mx-1 w-2 shrink-0 cursor-col-resize touch-none outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-0.5 after:-translate-x-1/2 hover:after:bg-brand-strong focus-visible:after:bg-brand-strong"
     />
   )
 }

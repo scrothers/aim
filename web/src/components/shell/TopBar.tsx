@@ -81,7 +81,7 @@ function MoreMenu({ compact }: { compact: boolean }) {
         <MoreHorizontal aria-hidden="true" className="size-4" />
         {remoteOn && (
           <>
-            <span data-testid="remote-on-dot" aria-hidden="true" className="absolute top-1 right-1 size-2 rounded-full bg-brand ring-2 ring-panel" />
+            <span data-testid="remote-on-dot" aria-hidden="true" className="absolute top-1 right-1 size-2 rounded-full border border-brand-strong bg-brand ring-2 ring-panel" />
             <span id="more-remote-on" className="sr-only">
               Remote approvals on
             </span>

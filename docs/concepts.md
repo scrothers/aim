@@ -35,7 +35,7 @@ Identities are registered once. Namespace (org/repo) and subagent mailboxes are 
 
 ## Presence
 
-A session is **online** while it keeps calling tools and **idle** after `--idle-after` (`AIM_IDLE_AFTER`, default 10m) without a call. Idle is derived, not a state change: the buddy list shows idle agents with a hollow amber ring and "idle 25m", group counts read online/total plus the idle count, and the mailbox tree and org chart follow. `went_idle` and `active` transitions appear in the presence events.
+A session is **online** while it keeps calling tools and **idle** after `--idle-after` (`AIM_IDLE_AFTER`, default 10m) without a call. Idle is derived, not a state change: the buddy list shows idle agents with a hollow orange ring and "idle 25m", group counts read online/total plus the idle count, and the mailbox tree and org chart follow. `went_idle` and `active` transitions appear in the presence events.
 
 Runtimes can also report that an agent is blocked or failed; that attention state shows on presence too. See [Hooks and approvals](hooks.md#what-the-hooks-do).
 

@@ -65,7 +65,7 @@ describe('BuddyList', () => {
     expect(buddyNames()).not.toContain('reviewer')
   })
 
-  it('marks idle buddies with an amber ring, idle age and group idle counts', () => {
+  it('marks idle buddies with an orange ring, idle age and group idle counts', () => {
     const data = structuredClone(presenceFixture)
     const g = data.groups![1]!
     g.idle = 1

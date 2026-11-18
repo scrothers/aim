@@ -148,7 +148,7 @@ export function MessageList(p: MessageListProps) {
                   )}
                 >
                   <span className="flex w-2 shrink-0 justify-center pt-3.5">
-                    {unread && <span aria-label="Unread" role="img" className="size-2 rounded-full bg-brand" />}
+                    {unread && <span aria-label="Unread" role="img" className="size-2 rounded-full border border-brand-strong bg-brand" />}
                   </span>
                   <RobotAvatar address={h.from} client={h.from_client} />
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">

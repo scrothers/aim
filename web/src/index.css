@@ -14,14 +14,19 @@
   --text: #18181b;
   --muted: #52525b;
   --faint: #6b6b74;
-  --accent: #4f46e5;
-  --on-accent: #ffffff;
-  --accent-soft: #eef0ff;
-  --accent-text: #3730a3;
+  /* Brand: the logo's sunflower yellow. It is a fill only; yellow text or
+     thin lines vanish on white, so text uses --accent-text and focus rings,
+     edges and small marks use --accent-strong (>= 3:1 on every surface). */
+  --accent: #f5c518;
+  --on-accent: #18181b;
+  --accent-soft: #fdf4d3;
+  --accent-text: #7a5800;
+  --accent-strong: #9a7100;
   --online: #15803d;
   --online-soft: #dcfce7;
   --online-text: #14532d;
-  --idle: #b45309;
+  /* Idle is orange, not amber, so it never reads as the brand yellow. */
+  --idle: #c2410c;
   --attention: #b91c1c;
   --attention-soft: #fee2e2;
   --attention-text: #7f1d1d;
@@ -43,7 +48,7 @@
   --muted-foreground: var(--muted);
   --destructive: #b91c1c;
   --input: var(--border);
-  --ring: var(--accent);
+  --ring: var(--accent-strong);
   --sidebar: var(--panel);
   --sidebar-foreground: var(--text);
 }
@@ -56,14 +61,15 @@
   --text: #f4f4f5;
   --muted: #b4b4bc;
   --faint: #8e8e98;
-  --accent: #818cf8;
-  --on-accent: #0b0b0e;
-  --accent-soft: #23214d;
-  --accent-text: #c7d2fe;
+  --accent: #f5c518;
+  --on-accent: #18181b;
+  --accent-soft: #2f2a10;
+  --accent-text: #fde68a;
+  --accent-strong: #f5c518;
   --online: #22c55e;
   --online-soft: #0f2a1a;
   --online-text: #86efac;
-  --idle: #fbbf24;
+  --idle: #fb923c;
   --attention: #f87171;
   --attention-soft: #3a1518;
   --attention-text: #fecaca;
@@ -82,7 +88,7 @@
   --secondary-foreground: var(--text);
   --muted-foreground: var(--muted);
   --input: var(--border);
-  --ring: var(--accent);
+  --ring: var(--accent-strong);
 }
 
 @theme inline {
@@ -117,6 +123,7 @@
   --color-text: var(--text);
   --color-faint: var(--faint);
   --color-brand: var(--accent);
+  --color-brand-strong: var(--accent-strong);
   --color-on-accent: var(--on-accent);
   --color-accent-soft: var(--accent-soft);
   --color-accent-text: var(--accent-text);

@@ -29,9 +29,10 @@
   --accentBg: var(--accent-soft);
   --accentBgHover: var(--accent-soft);
   --accentBgActive: var(--accent-soft);
-  --accentLine: var(--accent);
-  --accentBorder: var(--accent);
-  --accentBorderHover: var(--accent);
+  /* Lines and borders need 3:1, which the yellow fill lacks on light. */
+  --accentLine: var(--accent-strong);
+  --accentBorder: var(--accent-strong);
+  --accentBorderHover: var(--accent-strong);
   --accentSolid: var(--accent);
   --accentSolidHover: var(--accent);
   --accentText: var(--accent-text);

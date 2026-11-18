@@ -4,7 +4,7 @@ export interface SparklineProps {
   height?: number
 }
 
-/** Seven (or n) bars; the last bar is accent, earlier ones border-coloured. */
+/** Seven (or n) bars; the last bar is strong accent, earlier ones border-coloured. */
 export function Sparkline({ values, width = 40, height = 14 }: SparklineProps) {
   const vals = values ?? []
   if (vals.length === 0) return null
@@ -31,7 +31,7 @@ export function Sparkline({ values, width = 40, height = 14 }: SparklineProps) {
             width={bw}
             height={h}
             rx={1}
-            fill={i === vals.length - 1 ? 'var(--accent)' : 'var(--border)'}
+            fill={i === vals.length - 1 ? 'var(--accent-strong)' : 'var(--border)'}
           />
         )
       })}

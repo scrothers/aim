@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 
-/** Online is a solid green dot, idle a hollow amber ring, offline a grey dot. */
+/** Online is a solid green dot, idle a hollow orange ring, offline a grey dot. */
 export function PresenceDot({ online, idle = false, className }: { online: boolean; idle?: boolean; className?: string }) {
   const isIdle = online && idle
   return (

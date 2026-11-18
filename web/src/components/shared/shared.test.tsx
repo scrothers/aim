@@ -129,7 +129,7 @@ describe('Sparkline', () => {
     render(<Sparkline values={[0, 2, 4, 8, 1, 0, 3]} />)
     const bars = screen.getAllByTestId('spark-bar')
     expect(bars).toHaveLength(7)
-    expect(bars[6]).toHaveAttribute('fill', 'var(--accent)')
+    expect(bars[6]).toHaveAttribute('fill', 'var(--accent-strong)')
     expect(bars[0]).toHaveAttribute('fill', 'var(--border)')
     // tallest bar fills the height, zero bars stay a 2px stub
     expect(bars[3]).toHaveAttribute('height', '14')

@@ -73,7 +73,7 @@ function Column({ status, tasks, now, dragging, collapsed, onToggle, onOpen, onD
       onDropTask(status)
     },
   }
-  const frame = cn('rounded-xl border bg-panel2 transition-colors', over && 'border-brand bg-accent-soft')
+  const frame = cn('rounded-xl border bg-panel2 transition-colors', over && 'border-brand-strong bg-accent-soft')
 
   if (collapsed) {
     return (

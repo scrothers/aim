@@ -36,8 +36,9 @@ export function ApprovalsSwitch() {
     >
       <ShieldCheck aria-hidden="true" className="size-4" />
       Remote approvals
-      <span aria-hidden="true" className={cn('relative h-4 w-7 rounded-full transition-colors', enabled ? 'bg-brand' : 'bg-border')}>
-        <span className={cn('absolute top-0.5 size-3 rounded-full bg-white transition-all', enabled ? 'left-3.5' : 'left-0.5')} />
+      {/* On: the logo's colours, a yellow track with a near-black knob. */}
+      <span aria-hidden="true" className={cn('relative h-4 w-7 rounded-full transition-colors', enabled ? 'bg-brand ring-1 ring-brand-strong ring-inset' : 'bg-border')}>
+        <span className={cn('absolute top-0.5 size-3 rounded-full transition-all', enabled ? 'left-3.5 bg-on-accent' : 'left-0.5 bg-white')} />
       </span>
     </button>
   )
