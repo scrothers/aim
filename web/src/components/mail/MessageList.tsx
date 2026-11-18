@@ -1,10 +1,11 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { BellOff } from 'lucide-react'
+import { BellOff, Inbox } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ago } from '@/lib/identity'
 import { stripMarkdown } from '@/lib/markdown'
 import { rowKey, type Header, type MailState } from '@/api/mail'
 import { AddressChip } from '@/components/shared/AddressChip'
+import { EmptyState } from '@/components/shared/EmptyState'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { Badge, CountBadge } from '@/components/ui/badge'
@@ -113,7 +114,7 @@ export function MessageList(p: MessageListProps) {
       ) : p.loading ? (
         <p className="m-0 p-4 text-faint">Loading…</p>
       ) : p.items.length === 0 ? (
-        <p className="m-0 p-4 text-faint">No messages.</p>
+        <EmptyState icon={Inbox}>No messages.</EmptyState>
       ) : (
         <ul className="m-0 min-h-0 flex-1 list-none overflow-y-auto p-0 max-md:pb-24">
           {p.items.map((h) => {

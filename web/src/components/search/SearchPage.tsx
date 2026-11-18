@@ -1,13 +1,14 @@
 import { useId, useState, type FormEvent } from 'react'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Search } from 'lucide-react'
+import { Search, SearchX } from 'lucide-react'
 import { ApiError } from '@/api/client'
 import { searchPageQuery, type SearchPageParams, type SearchState } from '@/api/mail'
 import { useMailboxAddresses } from '@/api/queries'
 import { ago } from '@/lib/identity'
 import { stripMarkdown } from '@/lib/markdown'
 import { AddressChip } from '@/components/shared/AddressChip'
+import { EmptyState } from '@/components/shared/EmptyState'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { SaveFilterButton } from '@/components/mail/SaveFilter'
@@ -105,7 +106,7 @@ export function SearchPage({ params, onSearch }: { params: SearchPageParams; onS
       />
       <Form key={formKey} value={params} onSubmit={onSearch} />
       {!active ? (
-        <p className="m-0 text-[13px] text-faint">Enter words to search every mailbox, including archived mail.</p>
+        <EmptyState icon={Search}>Enter words to search every mailbox, including archived mail.</EmptyState>
       ) : q.isError ? (
         <p role="alert" className="m-0 text-destructive">
           {q.error instanceof ApiError ? q.error.message : 'Search failed.'}
@@ -113,7 +114,7 @@ export function SearchPage({ params, onSearch }: { params: SearchPageParams; onS
       ) : q.isPending ? (
         <p className="m-0 text-faint">Searching…</p>
       ) : hits.length === 0 ? (
-        <p className="m-0 text-[13px] text-faint">No messages match.</p>
+        <EmptyState icon={SearchX}>No messages match.</EmptyState>
       ) : (
         <>
           <ul aria-label="Search results" className="m-0 flex list-none flex-col overflow-hidden rounded-xl border bg-panel p-0">

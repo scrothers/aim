@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Check, X } from 'lucide-react'
+import { Check, ShieldCheck, ShieldOff, X } from 'lucide-react'
 import { useApprovals, useApprovalSettings, useDecideApproval, useSaveApprovalSettings, type Approval, type Decision } from '@/api/approvals'
 import { describeInput } from '@/lib/approvalInput'
 import { ago } from '@/lib/identity'
+import { EmptyState } from '@/components/shared/EmptyState'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { RuntimeBadge } from '@/components/shared/RuntimeBadge'
 import { CountBadge } from '@/components/ui/badge'
@@ -142,16 +143,18 @@ export function ApprovalsPage() {
           ))}
         </ul>
       ) : settings && !settings.enabled ? (
-        <div className="flex flex-col items-start gap-3">
-          <p className="m-0 text-muted-foreground">
-            Remote approvals are off. Agents ask for permission in their own terminal. Turn them on to approve prompts from here.
-          </p>
-          <Button disabled={save.isPending} onClick={() => save.mutate({ enabled: true, timeout_seconds: settings.timeout_seconds })}>
-            Turn on remote approvals
-          </Button>
-        </div>
+        <EmptyState
+          icon={ShieldOff}
+          action={
+            <Button disabled={save.isPending} onClick={() => save.mutate({ enabled: true, timeout_seconds: settings.timeout_seconds })}>
+              Turn on remote approvals
+            </Button>
+          }
+        >
+          Remote approvals are off. Agents ask for permission in their own terminal. Turn them on to approve prompts from here.
+        </EmptyState>
       ) : (
-        <p className="m-0 text-muted-foreground">Nothing pending. Agent permission prompts appear here while they wait for you.</p>
+        <EmptyState icon={ShieldCheck}>Nothing pending. Agent permission prompts appear here while they wait for you.</EmptyState>
       )}
     </section>
   )

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
-import { ChevronsLeftRight, ListFilter, Plus } from 'lucide-react'
+import { ChevronsLeftRight, Inbox, ListChecks, ListFilter, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTaskAction, useTasks, type TaskPriority, type TaskStatus, type TaskView } from '@/api/tasks'
 import { OPERATOR } from '@/lib/address'
@@ -7,6 +7,7 @@ import { helpFlag, isTyping, paletteFlag } from '@/lib/flag'
 import { taskStore } from '@/lib/tasks'
 import { useIsMobile } from '@/lib/viewport'
 import { cn } from '@/lib/utils'
+import { EmptyState } from '@/components/shared/EmptyState'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -114,7 +115,9 @@ function Column({ status, tasks, now, dragging, collapsed, onToggle, onOpen, onD
         )}
       </header>
       {tasks.length === 0 ? (
-        <p className="m-0 rounded-lg border border-dashed px-3 py-6 text-center text-xs text-faint">{EMPTY_HINT[status]}</p>
+        <EmptyState compact icon={Inbox}>
+          {EMPTY_HINT[status]}
+        </EmptyState>
       ) : (
         <ul className="m-0 flex list-none flex-col gap-2 p-0">
           {tasks.map((t) => (
@@ -175,6 +178,12 @@ export function TasksPage() {
   const items = useMemo(() => (q.data?.items ?? []).filter((t) => !priority || t.priority === priority), [q.data, priority])
   const grouped = useMemo(() => groupByStatus(items), [items])
   const filtered = !!(scope || assignee || priority || mine)
+  const clearFilters = () => {
+    setScope('')
+    setAssignee('')
+    setPriority('')
+    setMine(false)
+  }
 
   const run = async (t: TaskView, plan: MovePlan) => {
     const optimistic = resultStatus(plan.actions)
@@ -300,16 +309,7 @@ export function TasksPage() {
           Show finished
         </label>
         {filtered && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setScope('')
-              setAssignee('')
-              setPriority('')
-              setMine(false)
-            }}
-          >
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
             Clear filters
           </Button>
         )}
@@ -324,11 +324,13 @@ export function TasksPage() {
       ) : (
         <>
           {q.data.truncated && <p className="m-0 text-xs text-faint">Showing the first {q.data.items.length} tasks. Narrow the filters to see the rest.</p>}
-          {items.length === 0 && (
-            <p className="m-0 text-muted-foreground">
-              {filtered ? 'No tasks match these filters.' : 'No open tasks yet. Create one, or ask an agent to.'}
-            </p>
-          )}
+          {items.length === 0 &&
+            // No action buttons here: Clear filters and New task are already one row up.
+            (filtered ? (
+              <EmptyState icon={ListFilter}>No tasks match these filters.</EmptyState>
+            ) : (
+              <EmptyState icon={ListChecks}>No open tasks yet. Create one, or ask an agent to.</EmptyState>
+            ))}
           {/* relative: absolutely positioned sr-only text in cards must be clipped by this scroller, not widen the page. */}
           <div className="relative flex min-h-0 min-w-0 flex-col">
             {edges.left && (

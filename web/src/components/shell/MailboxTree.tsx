@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, SearchX } from 'lucide-react'
 import type { components } from '@/api/schema'
 import { ago, parseAddress } from '@/lib/identity'
 import { isStringArray, readPref, writePref } from '@/lib/storage'
 import { cn } from '@/lib/utils'
+import { EmptyState } from '@/components/shared/EmptyState'
 import { PresenceDot } from '@/components/shared/PresenceDot'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { Sparkline } from '@/components/shared/Sparkline'
@@ -165,7 +166,11 @@ export function MailboxTree({
         className="mx-1 box-border h-[30px] shrink-0 rounded-md border bg-panel2 px-2.5 text-[13px] text-text outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:min-h-11"
       />
       <div data-testid="mailbox-scroll" className="-mx-1 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-1 pb-1">
-      {filtered.length === 0 && <p className="m-0 px-2.5 text-[13px] text-faint">No mailboxes match.</p>}
+      {filtered.length === 0 && (
+        <EmptyState compact icon={SearchX}>
+          No mailboxes match.
+        </EmptyState>
+      )}
       {filtered.map(({ org, identities, repos }) => {
         const quiet = isQuiet(org, now)
         const addresses = orgAddresses(org)

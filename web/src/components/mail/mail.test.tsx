@@ -153,9 +153,12 @@ describe('MessageList', () => {
   it('titles mailbox views with an address chip', async () => {
     routes({ list: () => ({ items: [] }) })
     wrap(<Harness initial={{ mailbox: 'reviewer@github.com/acme/api' }} />)
-    await screen.findByText('No messages.')
+    expect((await screen.findByText('No messages.')).closest('[data-slot="empty-state"]')).not.toBeNull()
+    expect(screen.getByText('Select a message to read it.').closest('[data-slot="empty-state"]')).not.toBeNull()
     const head = screen.getByRole('heading', { level: 2 })
     expect(within(head).getByTestId('address-chip')).toHaveTextContent('reviewer@github.com/acme/api')
+    // The list column uses the shared header on the column scale.
+    expect(head.closest('[data-slot="page-header"]')).toHaveAttribute('data-size', 'column')
   })
 
   it('loads more pages with the cursor', async () => {

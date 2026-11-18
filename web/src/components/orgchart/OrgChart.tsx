@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Maximize2, Minus, Plus } from 'lucide-react'
+import { Maximize2, Minus, Network, Plus } from 'lucide-react'
 import { orgChartQuery, type OrgChartNode } from '@/api/roster'
 import { OPERATOR } from '@/lib/address'
 import { layoutOrgChart, OPERATOR_ID } from '@/lib/orgchart'
 import { parseAddress } from '@/lib/identity'
+import { EmptyState } from '@/components/shared/EmptyState'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { PresenceDot } from '@/components/shared/PresenceDot'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
@@ -103,6 +104,10 @@ export function OrgChart() {
       ) : q.isPending ? (
         <p className="m-0 text-faint">Loading…</p>
       ) : (
+        <>
+        {nodes.length === 0 && (
+          <EmptyState icon={Network}>No identities registered yet. The chart fills in as agents register and name who they report to.</EmptyState>
+        )}
         <div ref={setBox} data-testid="org-chart-scroll" className="min-h-0 flex-1 overflow-auto rounded-xl border bg-panel2">
           <div className="relative" style={{ width: scaledW + offset, height: layout.height * scale }}>
             <div className="absolute top-0 origin-top-left" style={{ left: offset, width: layout.width, height: layout.height, transform: `scale(${scale})` }}>
@@ -144,6 +149,7 @@ export function OrgChart() {
             </div>
           </div>
         </div>
+        </>
       )}
     </section>
   )

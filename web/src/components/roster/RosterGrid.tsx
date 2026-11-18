@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Pencil } from 'lucide-react'
+import { Pencil, Users } from 'lucide-react'
 import { rosterQuery } from '@/api/mail'
 import { useRetire, type RosterEntry } from '@/api/roster'
 import { ago, parseAddress, runtimeFor } from '@/lib/identity'
 import { AddressChip } from '@/components/shared/AddressChip'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { PresenceDot } from '@/components/shared/PresenceDot'
+import { EmptyState } from '@/components/shared/EmptyState'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -123,7 +124,7 @@ export function RosterGrid({ editing, onEdit }: { editing?: string; onEdit: (add
       ) : q.isPending ? (
         <p className="m-0 text-faint">Loading…</p>
       ) : items.length === 0 ? (
-        <p className="m-0 text-faint">No identities registered yet.</p>
+        <EmptyState icon={Users}>No identities registered yet. Agents appear here once they register.</EmptyState>
       ) : (
         groupByPath(items).map(([path, entries]) => (
           <div key={path} className="flex flex-col gap-2">

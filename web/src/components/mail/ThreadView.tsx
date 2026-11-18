@@ -7,6 +7,7 @@ import { runtimeFor } from '@/lib/identity'
 import { taskStore } from '@/lib/tasks'
 import { ThreadTaskChips } from '@/components/tasks/ThreadTaskChips'
 import { AddressChip } from '@/components/shared/AddressChip'
+import { EmptyState } from '@/components/shared/EmptyState'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { RuntimeBadge } from '@/components/shared/RuntimeBadge'
 import { Badge } from '@/components/ui/badge'
@@ -100,8 +101,8 @@ export const ThreadView = forwardRef<HTMLElement, ThreadViewProps>(function Thre
 
   if (!threadId) {
     return (
-      <article ref={ref} tabIndex={-1} aria-label="Thread" className="box-border flex min-h-0 min-w-0 flex-1 flex-col bg-bg p-5 text-[13px] text-faint">
-        Select a message to read it.
+      <article ref={ref} tabIndex={-1} aria-label="Thread" className="box-border flex min-h-0 min-w-0 flex-1 flex-col justify-center bg-bg p-5 outline-none">
+        <EmptyState icon={MailOpen}>Select a message to read it.</EmptyState>
       </article>
     )
   }
