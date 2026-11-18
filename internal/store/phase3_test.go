@@ -57,12 +57,15 @@ func TestMigration0004UpDownUp(t *testing.T) {
 	}
 
 	h := rawHandle(t, path)
-	down, err := os.ReadFile(filepath.Join("migrations", "0004_phase3.down.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := h.ExecContext(ctx, string(down)); err != nil {
-		t.Fatalf("down: %v", err)
+	// Later migrations roll back first, newest first.
+	for _, name := range []string{"0005_tasks.down.sql", "0004_phase3.down.sql"} {
+		down, err := os.ReadFile(filepath.Join("migrations", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := h.ExecContext(ctx, string(down)); err != nil {
+			t.Fatalf("down %s: %v", name, err)
+		}
 	}
 	for _, name := range []string{"session_signons", "settings", "thread_mutes"} {
 		if tableExists(t, h, name) {

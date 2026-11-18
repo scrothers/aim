@@ -65,6 +65,44 @@ type Setting struct {
 	UpdatedAt int64
 }
 
+type Task struct {
+	ID             string
+	Title          string
+	Body           string
+	Status         string
+	Priority       string
+	Scope          string
+	CreatedBy      string
+	Assignee       string
+	Claimant       string
+	ClaimSession   string
+	StaleNotified  int64
+	DueAt          sql.NullInt64
+	ClaimedAt      sql.NullInt64
+	LastActivityAt sql.NullInt64
+	FinishedAt     sql.NullInt64
+	CreatedAt      int64
+	UpdatedAt      int64
+}
+
+type TaskEvent struct {
+	ID         int64
+	TaskID     string
+	At         int64
+	Actor      string
+	Kind       string
+	FromStatus string
+	ToStatus   string
+	Note       string
+}
+
+type TaskLink struct {
+	TaskID    string
+	MessageID string
+	LinkedBy  string
+	LinkedAt  int64
+}
+
 type ThreadMute struct {
 	ThreadID string
 	MutedAt  int64
