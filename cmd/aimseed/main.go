@@ -35,6 +35,7 @@ func run(ctx context.Context, args []string) error {
 	live := fs.Bool("live", false, "connect simulated agents to a running daemon instead of seeding history")
 	chatter := fs.Duration("chatter", 20*time.Second, "live mode: interval between simulated actions, 0 to disable")
 	force := fs.Bool("force", false, "add history even if the database already has messages")
+	approvals := fs.Bool("approvals", false, "history mode: turn on remote approvals in the database settings, so a live run produces approvals")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -47,7 +48,7 @@ func run(ctx context.Context, args []string) error {
 		return nil
 	}
 	sum, err := devseed.SeedHistory(ctx, devseed.HistoryConfig{
-		DB: *db, Seed: *seed, Days: *days, Messages: *messages, Force: *force,
+		DB: *db, Seed: *seed, Days: *days, Messages: *messages, Force: *force, Approvals: *approvals,
 	})
 	if err != nil {
 		return err

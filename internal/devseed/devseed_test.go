@@ -4,16 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/scrothers/aim/internal/daemon"
 	"github.com/scrothers/aim/internal/devseed"
+	"github.com/scrothers/aim/internal/mail"
+	"github.com/scrothers/aim/internal/store"
+	"github.com/scrothers/aim/internal/tasks"
 )
 
 var fixedNow = time.Date(2026, 11, 17, 15, 0, 0, 0, time.UTC)
@@ -203,5 +208,178 @@ func TestLive(t *testing.T) {
 		}
 	case <-time.After(15 * time.Second):
 		t.Fatal("RunLive did not stop")
+	}
+}
+
+func boardCfg(t *testing.T, seed uint64) devseed.HistoryConfig {
+	t.Helper()
+	cfg := histCfg(t, seed)
+	cfg.Days, cfg.Messages = 7, 250
+	return cfg
+}
+
+// readBoard loads every task with its events and links from a seeded database.
+func readBoard(t *testing.T, dbPath string, now time.Time) []tasks.Detail {
+	t.Helper()
+	ctx := context.Background()
+	st, err := store.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = st.Close() }()
+	svc := tasks.New(st, mail.New(st, nil), tasks.WithClock(func() time.Time { return now }))
+	res, err := svc.List(ctx, tasks.ListInput{Limit: tasks.MaxListLimit})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []tasks.Detail
+	for _, tk := range res.Items {
+		d, err := svc.Get(ctx, tk.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, d)
+	}
+	slices.SortFunc(out, func(a, b tasks.Detail) int { return strings.Compare(a.ID, b.ID) })
+	return out
+}
+
+func TestHistoryTaskBoard(t *testing.T) {
+	t.Parallel()
+	cfg := boardCfg(t, 1)
+	sum, err := devseed.SeedHistory(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := sum.Board
+	if b.Tasks < 25 || b.Overdue < 2 || b.Links == 0 {
+		t.Errorf("board = %+v, want 25+ tasks, 2+ overdue and some links", b)
+	}
+	for _, st := range tasks.Statuses {
+		if b.Status[st] == 0 {
+			t.Errorf("no task is %s", st)
+		}
+	}
+	for _, h := range tasks.Healths {
+		if b.Health[h] == 0 {
+			t.Errorf("no held task is %s", h)
+		}
+	}
+
+	details := readBoard(t, cfg.DB, fixedNow)
+	if len(details) != b.Tasks {
+		t.Fatalf("read %d tasks, summary says %d", len(details), b.Tasks)
+	}
+	var assigned, due int
+	for _, d := range details {
+		if !strings.HasPrefix(d.ID, "task-") || d.Title == "" || d.Body == "" {
+			t.Errorf("malformed task %+v", d.Task)
+		}
+		if d.Status == tasks.StatusNotStarted && d.Assignee != "" {
+			assigned++
+		}
+		if d.DueAt != nil {
+			due++
+		}
+		if len(d.Events) == 0 || d.Events[0].Kind != tasks.EventCreated {
+			t.Errorf("%s: events do not start with created: %+v", d.ID, d.Events)
+		}
+		for i := 1; i < len(d.Events); i++ {
+			if d.Events[i].At.Before(d.Events[i-1].At) {
+				t.Errorf("%s: event %d (%s %s) precedes event %d (%s %s)", d.ID, i, d.Events[i].Kind, d.Events[i].At, i-1, d.Events[i-1].Kind, d.Events[i-1].At)
+			}
+		}
+		if d.Status == tasks.StatusAbandoned && !slices.ContainsFunc(d.Events, func(e tasks.Event) bool { return e.Kind == tasks.EventDecayed }) {
+			t.Errorf("%s: abandoned without a decayed event", d.ID)
+		}
+		if d.Status == tasks.StatusFinished && (d.FinishedAt == nil || d.Events[len(d.Events)-1].Kind != string(tasks.ActionFinish)) {
+			t.Errorf("%s: finished task does not end with finish", d.ID)
+		}
+		if (d.Status == tasks.StatusClaimed || d.Status == tasks.StatusStarted) && (d.Claimant == "" || d.LastActivityAt == nil || d.Health == "") {
+			t.Errorf("%s: held task lacks claimant, activity or health", d.ID)
+		}
+		for _, l := range d.Links {
+			if l.MessageID == "" || l.ThreadID == "" || l.Subject == "" || l.LinkedAt.Before(d.CreatedAt) {
+				t.Errorf("%s: bad link %+v", d.ID, l)
+			}
+		}
+		if d.CreatedAt.After(fixedNow) || d.UpdatedAt.After(fixedNow) {
+			t.Errorf("%s is dated in the future", d.ID)
+		}
+	}
+	if assigned < 3 || due < 5 {
+		t.Errorf("assigned-not-claimed = %d, with due dates = %d", assigned, due)
+	}
+}
+
+func TestHistoryTaskBoardDeterministic(t *testing.T) {
+	t.Parallel()
+	a, b := boardCfg(t, 5), boardCfg(t, 5)
+	for _, cfg := range []devseed.HistoryConfig{a, b} {
+		if _, err := devseed.SeedHistory(context.Background(), cfg); err != nil {
+			t.Fatal(err)
+		}
+	}
+	shape := func(cfg devseed.HistoryConfig) []string {
+		var out []string
+		for _, d := range readBoard(t, cfg.DB, fixedNow) {
+			out = append(out, fmt.Sprintf("%s|%s|%s|%s|%d|%d", d.ID, d.Title, d.Status, d.Priority, len(d.Events), len(d.Links)))
+		}
+		return out
+	}
+	if sa, sb := shape(a), shape(b); !slices.Equal(sa, sb) {
+		t.Errorf("same seed produced different boards:\n%v\n%v", sa, sb)
+	}
+}
+
+func TestHistoryTaskBoardNotDuplicated(t *testing.T) {
+	t.Parallel()
+	cfg := boardCfg(t, 1)
+	first, err := devseed.SeedHistory(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Force = true
+	again, err := devseed.SeedHistory(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.Board.Tasks != 0 || again.Board.Existing != first.Board.Tasks {
+		t.Errorf("forced rerun board = %+v, want %d existing and none added", again.Board, first.Board.Tasks)
+	}
+	if n := len(readBoard(t, cfg.DB, fixedNow)); n != first.Board.Tasks {
+		t.Errorf("board has %d tasks after a forced rerun, want %d", n, first.Board.Tasks)
+	}
+}
+
+func TestHistoryApprovalsFlag(t *testing.T) {
+	t.Parallel()
+	enabled := func(cfg devseed.HistoryConfig) bool {
+		st, err := store.Open(context.Background(), cfg.DB)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = st.Close() }()
+		a, err := mail.New(st, nil).ApprovalSettings(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return a.Enabled
+	}
+	off := histCfg(t, 1)
+	if _, err := devseed.SeedHistory(context.Background(), off); err != nil {
+		t.Fatal(err)
+	}
+	if enabled(off) {
+		t.Error("approvals enabled without --approvals")
+	}
+	on := histCfg(t, 1)
+	on.Approvals = true
+	sum, err := devseed.SeedHistory(context.Background(), on)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !enabled(on) || !sum.ApprovalsEnabled {
+		t.Error("approvals not enabled by --approvals")
 	}
 }

@@ -27,6 +27,9 @@ type HistoryConfig struct {
 	Days     int
 	Messages int
 	Force    bool
+	// Approvals turns on remote approvals in the database settings, so a
+	// later live run produces visible approvals. Off leaves settings alone.
+	Approvals bool
 	// Now is the end of the generated window; zero means time.Now.
 	Now func() time.Time
 	Out io.Writer
@@ -43,13 +46,20 @@ type Summary struct {
 	OperatorUnread int
 	Oldest, Newest time.Time
 	Subjects       []string
+	Board          BoardSummary
+	// ApprovalsEnabled reports that SeedHistory turned remote approvals on.
+	ApprovalsEnabled bool
 }
 
 // Print writes the summary as a few lines.
 func (s Summary) Print(w io.Writer) {
 	say(w, "identities: %d registered, %d already present (%d retired, %d subagent mailboxes)\n", s.Identities, s.Existing, s.Retired, s.Subagents)
 	say(w, "messages:   %d in %d threads, %s to %s\n", s.Messages, s.Threads, s.Oldest.Format("Mon Jan 2 15:04"), s.Newest.Format("Mon Jan 2 15:04"))
+	s.Board.Print(w)
 	say(w, "operator:   %d unread\n", s.OperatorUnread)
+	if s.ApprovalsEnabled {
+		say(w, "approvals:  remote approvals enabled; run the live seeder to produce some\n")
+	}
 }
 
 // clock is the controllable time source behind mail.WithClock.
@@ -149,6 +159,16 @@ func SeedHistory(ctx context.Context, cfg HistoryConfig) (Summary, error) {
 		sum.Retired++
 	}
 	clk.set(now)
+
+	if sum.Board, err = seedBoard(ctx, st, svc, clk, g, sent, cfg.Seed, now); err != nil {
+		return Summary{}, err
+	}
+	if cfg.Approvals {
+		if _, err := svc.SetApprovalSettings(ctx, mail.ApprovalSettings{Enabled: true}); err != nil {
+			return Summary{}, fmt.Errorf("devseed: enable approvals: %w", err)
+		}
+		sum.ApprovalsEnabled = true
+	}
 
 	v, err := svc.Views(ctx, time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()))
 	if err != nil {
