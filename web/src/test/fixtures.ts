@@ -63,6 +63,7 @@ export const presenceFixture: PresenceBody = {
       offline: false,
       online: 1,
       idle: 0,
+      attention: 0,
       total: 1,
       buddies: [
         {
@@ -83,6 +84,7 @@ export const presenceFixture: PresenceBody = {
       offline: false,
       online: 1,
       idle: 0,
+      attention: 0,
       total: 2,
       buddies: [
         {
@@ -103,6 +105,7 @@ export const presenceFixture: PresenceBody = {
       offline: true,
       online: 0,
       idle: 0,
+      attention: 0,
       total: 1,
       buddies: [
         { address: 'triage@github.com/acme/web', name: 'triage', role: 'triage', online: false, subagents: [] },

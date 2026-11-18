@@ -25,6 +25,42 @@ export function idleTotal(groups: ReadonlyArray<Group>): number {
   return groups.filter((g) => !g.offline).reduce((n, g) => n + (g.idle ?? 0), 0)
 }
 
+/** Event-feed and badge wording for each attention state. */
+const ATTENTION_LABEL: Record<string, string> = {
+  blocked: 'blocked',
+  waiting: 'needs input',
+  failed: 'failed',
+  interrupted: 'interrupted',
+}
+
+/** Blocked and failed demand the operator; waiting and interrupted are informational. */
+const urgent = (a: string | undefined) => a === 'blocked' || a === 'failed'
+
+function AttentionBadge({ buddy }: { buddy: Buddy }) {
+  const a = buddy.attention
+  if (!buddy.online || !a) return null
+  const label = ATTENTION_LABEL[a] ?? a
+  const since = buddy.attention_since ? ago(buddy.attention_since).replace(/^now$/, '<5s') : ''
+  const title = [buddy.attention_detail, since && `for ${since}`].filter(Boolean).join(' · ') || label
+  return (
+    <span
+      role="status"
+      aria-label={`${buddy.name} ${label}${buddy.attention_detail ? `: ${buddy.attention_detail}` : ''}`}
+      title={title}
+      data-testid="attention"
+      data-attention={a}
+      className={cn(
+        'ml-4 flex min-w-0 items-center gap-1.5 self-start text-[11px] leading-[16px]',
+        urgent(a) ? 'rounded-full bg-attention-soft px-2 py-px font-semibold text-attention-text' : 'text-faint',
+      )}
+    >
+      <span aria-hidden="true" className={cn('size-1.5 shrink-0 rounded-full', urgent(a) ? 'bg-attention' : 'border border-faint')} />
+      <span className="shrink-0">{label}</span>
+      {since && <span className="shrink-0 font-normal opacity-80">{since}</span>}
+    </span>
+  )
+}
+
 function BuddyRow({ buddy }: { buddy: Buddy }) {
   const rt = runtimeFor(buddy.client)
   const idle = buddy.online && buddy.state === 'idle'
@@ -34,6 +70,7 @@ function BuddyRow({ buddy }: { buddy: Buddy }) {
       data-testid="buddy"
       data-online={buddy.online}
       data-state={idle ? 'idle' : buddy.online ? 'online' : 'offline'}
+      data-attention={buddy.online ? buddy.attention || undefined : undefined}
     >
       <span className="flex min-w-0 items-center gap-2">
         <PresenceDot online={buddy.online} idle={idle} />
@@ -51,6 +88,7 @@ function BuddyRow({ buddy }: { buddy: Buddy }) {
           <span className="shrink-0">· {rt.label}</span>
         </span>
       )}
+      <AttentionBadge buddy={buddy} />
       {buddy.online && buddy.away && (
         <span className="ml-4 self-start rounded-[12px_12px_12px_4px] bg-accent-soft px-2.5 py-1 text-[13px] leading-[18px] text-accent-text">
           {buddy.away}
@@ -83,7 +121,9 @@ export function BuddyList({ data }: { data: PresenceBody }) {
   const groups = data.groups ?? []
   const online = groups.filter((g) => !g.offline)
   const offline = groups.filter((g) => g.offline)
-  const feed = (data.events ?? []).filter((e) => e.kind === 'signed_on' || e.kind === 'signed_off').slice(0, 5)
+  const feed = (data.events ?? [])
+    .filter((e) => e.kind === 'signed_on' || e.kind === 'signed_off' || (e.kind === 'attention' && e.attention))
+    .slice(0, 5)
 
   const renderGroup = (g: Group) => {
     const open = g.offline ? flipped.has(g.name) : !flipped.has(g.name)
@@ -106,7 +146,8 @@ export function BuddyList({ data }: { data: PresenceBody }) {
           <span className={g.offline ? undefined : 'font-mono text-xs'}>{g.offline ? g.name : groupLabel(g.name)}</span>
           <span className="font-normal text-faint">
             ({g.offline ? g.total || (g.buddies ?? []).length : `${g.online}/${g.total}`}
-            {!g.offline && (g.idle ?? 0) > 0 && <span className="text-idle"> · {g.idle} idle</span>})
+            {!g.offline && (g.idle ?? 0) > 0 && <span className="text-idle"> · {g.idle} idle</span>}
+            {!g.offline && (g.attention ?? 0) > 0 && <span className="text-attention"> · {g.attention} need attention</span>})
           </span>
         </button>
         {open && (
@@ -134,13 +175,16 @@ export function BuddyList({ data }: { data: PresenceBody }) {
       <div className="mt-auto flex flex-col gap-1 border-t pt-2.5 pr-1 pl-1 text-xs text-muted-foreground">
         {feed.map((e, i) => {
           const on = e.kind === 'signed_on'
+          const attn = e.kind === 'attention'
+          const hot = urgent(e.attention)
           return (
             <span key={`${e.at}-${i}`} className="flex gap-1.5" data-testid="feed-event">
-              <span aria-hidden="true" className={cn('font-bold', on ? 'text-online' : 'text-faint')}>
-                {on ? '→' : '←'}
+              <span aria-hidden="true" className={cn('font-bold', attn ? (hot ? 'text-attention' : 'text-idle') : on ? 'text-online' : 'text-faint')}>
+                {attn ? '!' : on ? '→' : '←'}
               </span>
               <span>
-                <b>{parseAddress(e.identity ?? '').identity ?? e.identity}</b> {on ? 'signed on' : 'signed off'} · {clock(e.at)}
+                <b>{parseAddress(e.identity ?? '').identity ?? e.identity}</b>{' '}
+                {attn ? (ATTENTION_LABEL[e.attention ?? ''] ?? e.attention) : on ? 'signed on' : 'signed off'} · {clock(e.at)}
               </span>
             </span>
           )

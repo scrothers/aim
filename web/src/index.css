@@ -22,6 +22,9 @@
   --online-soft: #dcfce7;
   --online-text: #14532d;
   --idle: #b45309;
+  --attention: #b91c1c;
+  --attention-soft: #fee2e2;
+  --attention-text: #7f1d1d;
   --code: #f4f4f5;
   --hover: #f4f4f6;
 
@@ -61,6 +64,9 @@
   --online-soft: #0f2a1a;
   --online-text: #86efac;
   --idle: #fbbf24;
+  --attention: #f87171;
+  --attention-soft: #3a1518;
+  --attention-text: #fecaca;
   --code: #1c1c22;
   --hover: #1b1b21;
   --destructive: #f87171;
@@ -118,6 +124,9 @@
   --color-online-soft: var(--online-soft);
   --color-online-text: var(--online-text);
   --color-idle: var(--idle);
+  --color-attention: var(--attention);
+  --color-attention-soft: var(--attention-soft);
+  --color-attention-text: var(--attention-text);
   --color-code: var(--code);
   --color-hover: var(--hover);
 

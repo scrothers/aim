@@ -89,4 +89,47 @@ describe('BuddyList', () => {
     expect(feed[1]).toHaveTextContent('triage signed off')
     expect(screen.getByText('Refreshes every 5 seconds')).toBeInTheDocument()
   })
+
+  it('flags blocked buddies with a labelled badge, tooltip detail and group count', () => {
+    const data = structuredClone(presenceFixture)
+    const g = data.groups![1]!
+    g.attention = 1
+    Object.assign(g.buddies![0]!, {
+      attention: 'blocked',
+      attention_detail: 'Claude needs your permission to use Bash',
+      attention_since: new Date(Date.now() - 2 * 60_000).toISOString(),
+    })
+    render(<BuddyList data={data} />)
+    const row = screen.getAllByTestId('buddy').find((r) => r.textContent?.includes('Reviewing PR'))!
+    expect(row).toHaveAttribute('data-attention', 'blocked')
+    const badge = within(row).getByRole('status', { name: /blocked: Claude needs your permission to use Bash/ })
+    expect(badge).toHaveAttribute('title', 'Claude needs your permission to use Bash · for 2m')
+    expect(badge.className).toContain('bg-attention-soft')
+    expect(screen.getByText(/1 need attention/)).toBeInTheDocument()
+    expect(screen.getByText('coordinator').closest('li')).not.toHaveAttribute('data-attention')
+  })
+
+  it('shows waiting as a subtle "needs input" label without the alert style', () => {
+    const data = structuredClone(presenceFixture)
+    data.groups![0]!.buddies![0]!.attention = 'waiting'
+    render(<BuddyList data={data} />)
+    const badge = screen.getByTestId('attention')
+    expect(badge).toHaveTextContent('needs input')
+    expect(badge.className).not.toContain('bg-attention-soft')
+    expect(screen.queryByText(/need attention/)).not.toBeInTheDocument()
+  })
+
+  it('lists attention events in the feed with readable labels', () => {
+    const data = structuredClone(presenceFixture)
+    data.events = [
+      { kind: 'attention', attention: 'waiting', identity: 'reviewer@github.com/acme/api', at: new Date().toISOString() },
+      { kind: 'attention', attention: 'failed', identity: 'coordinator@github.com/acme', at: new Date().toISOString() },
+      ...(data.events ?? []),
+    ]
+    render(<BuddyList data={data} />)
+    const feed = screen.getAllByTestId('feed-event')
+    expect(feed[0]).toHaveTextContent('reviewer needs input')
+    expect(feed[1]).toHaveTextContent('coordinator failed')
+    expect(feed).toHaveLength(4)
+  })
 })
