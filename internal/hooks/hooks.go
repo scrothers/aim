@@ -52,11 +52,16 @@ type Server struct {
 	debounce   time.Duration
 	poll       time.Duration
 	alertAfter time.Duration
+	// approvalMode reports the remote approval setting; nil disables it.
+	approvalMode ApprovalModeFunc
+	// done is closed by Close to end pending approvals.
+	done chan struct{}
 
-	mu     sync.Mutex
-	agents map[string]*agentState
-	tools  map[string]toolUse
-	closed bool
+	mu        sync.Mutex
+	agents    map[string]*agentState
+	tools     map[string]toolUse
+	approvals map[string]*pendingApproval
+	closed    bool
 }
 
 // agentState is what the server remembers about one agent between hooks.
@@ -104,6 +109,7 @@ func New(m Mail, reg *presence.Registry, opts ...Option) *Server {
 	s := &Server{
 		mail: m, reg: reg, log: slog.Default(), now: time.Now, debounce: defaultDebounce, poll: defaultPoll,
 		agents: make(map[string]*agentState), tools: make(map[string]toolUse),
+		approvals: make(map[string]*pendingApproval), done: make(chan struct{}),
 	}
 	for _, o := range opts {
 		o(s)
@@ -121,13 +127,18 @@ func (s *Server) Serve(ctx context.Context, c net.Conn, br *bufio.Reader, p wire
 	_ = c.SetReadDeadline(time.Time{})
 	var reply wire.HookReply
 	var err error
-	if req.Op == wire.HookOpWatch {
+	switch req.Op {
+	case wire.HookOpWatch, wire.HookOpApprove:
 		wctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 		// The hook sends nothing more; a read returning means it went away.
 		go func() { _, _ = br.ReadByte(); cancel() }()
-		reply, err = s.Watch(wctx, p, req)
-	} else {
+		if req.Op == wire.HookOpWatch {
+			reply, err = s.Watch(wctx, p, req)
+		} else {
+			reply, err = s.Approve(wctx, p, req)
+		}
+	default:
 		reply, err = s.Handle(ctx, p, req)
 	}
 	if err != nil {
@@ -449,10 +460,15 @@ func (s *Server) end(key string) {
 	}
 }
 
-// Close stops pending operator alerts. Hooks served afterward schedule none.
+// Close stops pending operator alerts and releases pending approvals with
+// no decision. Hooks served afterward schedule no alerts and wait for no
+// approval.
 func (s *Server) Close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if !s.closed {
+		close(s.done)
+	}
 	s.closed = true
 	for _, a := range s.agents {
 		a.stopAlert()

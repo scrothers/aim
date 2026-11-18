@@ -12,6 +12,11 @@
 // replies, which lets runtimes that support it wake an idle session. Each
 // agent has at most one watch; a newer one supersedes the older.
 //
+// An approve request carries a permission prompt. With remote approvals
+// enabled it waits, listed by Approvals, until the operator calls Decide,
+// the timeout passes or the hook goes away; only a decision answers the
+// prompt, otherwise the agent prompts in its terminal as usual.
+//
 // The server also records which subagent issued an upcoming MCP tool call
 // (from a pre-tool hook's tool-use id) so the MCP server can attribute the
 // call without the agent passing `subagent` itself.
