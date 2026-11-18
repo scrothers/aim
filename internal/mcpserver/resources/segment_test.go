@@ -3,6 +3,8 @@ package resources
 import (
 	"strings"
 	"testing"
+
+	"github.com/scrothers/aim/internal/mcpserver/limits"
 )
 
 func TestEncodeDecodeSegmentRoundTrip(t *testing.T) {
@@ -26,8 +28,12 @@ func TestEncodeDecodeSegmentRoundTrip(t *testing.T) {
 func TestDescriptionsPresent(t *testing.T) {
 	t.Parallel()
 	for _, r := range all {
-		if got := description(r.name); got == "" || got[len(got)-1] == '\n' {
+		got := description(r.name)
+		if got == "" || got[len(got)-1] == '\n' {
 			t.Errorf("description(%s) = %q, want trimmed non-empty text", r.name, got)
+		}
+		if n := len(got); n > limits.MaxCatalogDescriptionBytes {
+			t.Errorf("markdown/%s.md is %d bytes; keep it at most %d", r.name, n, limits.MaxCatalogDescriptionBytes)
 		}
 	}
 	defer func() {

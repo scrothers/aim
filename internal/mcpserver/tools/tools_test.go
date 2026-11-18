@@ -4,14 +4,11 @@ import (
 	"io/fs"
 	"strings"
 	"testing"
-	"unicode/utf8"
+
+	"github.com/scrothers/aim/internal/mcpserver/limits"
 )
 
-// maxDescriptionChars is Claude Code's cap on each tool description; longer
-// text is truncated silently, so the end would be lost.
-const maxDescriptionChars = 2048
-
-func TestDescriptionsTrimmedAndFitClientCap(t *testing.T) {
+func TestDescriptionsTrimmedAndFitBudget(t *testing.T) {
 	t.Parallel()
 	entries, err := fs.ReadDir(descriptionFS, markdownDir)
 	if err != nil {
@@ -26,8 +23,8 @@ func TestDescriptionsTrimmedAndFitClientCap(t *testing.T) {
 		if got == "" || got[0] == ' ' || got[len(got)-1] == '\n' {
 			t.Errorf("description(%s) = %q, want trimmed non-empty text", name, got)
 		}
-		if n := utf8.RuneCountInString(got); n > maxDescriptionChars {
-			t.Errorf("%s is %d characters; keep it at most %d", e.Name(), n, maxDescriptionChars)
+		if n := len(got); n > limits.MaxDescriptionBytes {
+			t.Errorf("%s is %d bytes; keep it at most %d", e.Name(), n, limits.MaxDescriptionBytes)
 		}
 	}
 }

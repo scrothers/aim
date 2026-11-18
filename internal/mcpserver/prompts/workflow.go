@@ -10,7 +10,7 @@ import (
 
 // markdownDir holds one <prompt name>.md workflow script per user-invocable
 // MCP prompt. Unlike tool descriptions these load only when invoked, so they
-// are not subject to the 2 KB client cap.
+// are not subject to the client description floor (see package limits).
 const markdownDir = "markdown"
 
 //go:embed markdown/*.md

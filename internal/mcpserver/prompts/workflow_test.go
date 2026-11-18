@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"unicode/utf8"
+
+	"github.com/scrothers/aim/internal/mcpserver/limits"
 )
 
 func TestParseWorkflow(t *testing.T) {
@@ -54,8 +56,22 @@ func TestParseWorkflow(t *testing.T) {
 }
 
 // maxWorkflowChars is the sanity cap for workflow scripts (8 KB). They load
-// only when invoked, so Claude Code's 2 KB description cap does not apply.
+// only when invoked, so the client description floor does not apply.
 const maxWorkflowChars = 8 * 1024
+
+func TestPromptDescriptionsFitBudget(t *testing.T) {
+	t.Parallel()
+	for _, w := range workflows() {
+		if n := len(w.description); n > limits.MaxCatalogDescriptionBytes {
+			t.Errorf("%s description is %d bytes; keep it at most %d", w.name, n, limits.MaxCatalogDescriptionBytes)
+		}
+		for _, a := range w.args {
+			if n := len(a.description); n > limits.MaxCatalogDescriptionBytes {
+				t.Errorf("%s argument %s description is %d bytes; keep it at most %d", w.name, a.name, n, limits.MaxCatalogDescriptionBytes)
+			}
+		}
+	}
+}
 
 func TestWorkflowsFitCap(t *testing.T) {
 	t.Parallel()
