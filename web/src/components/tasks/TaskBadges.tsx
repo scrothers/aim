@@ -3,7 +3,8 @@ import type { TaskHealth, TaskPriority, TaskStatus, TaskView } from '@/api/tasks
 import { ago } from '@/lib/identity'
 import { cn } from '@/lib/utils'
 import { Badge, type BadgeTone } from '@/components/ui/badge'
-import { HEALTH_LABEL, STATUS_LABEL } from './model'
+import type { SelectOption } from '@/components/ui/select'
+import { HEALTH_LABEL, PRIORITIES, STATUS_LABEL } from './model'
 
 const PRIORITY_TONE: Record<TaskPriority, BadgeTone> = {
   low: 'faint',
@@ -19,6 +20,9 @@ export function PriorityBadge({ priority, className }: { priority: TaskPriority;
     </Badge>
   )
 }
+
+/** Priority choices for selects, shown as the same chips the cards use. */
+export const PRIORITY_OPTIONS: SelectOption[] = PRIORITIES.map((p) => ({ value: p, label: <PriorityBadge priority={p} /> }))
 
 // Each health state differs in icon and colour, so colour is never the only cue.
 const HEALTH: Record<TaskHealth, { icon: LucideIcon; tone: BadgeTone }> = {

@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SearchPageParams } from '@/api/mail'
 import { treeFixture } from '@/test/fixtures'
-import { renderWithRouter } from '@/test/utils'
+import { pickOption, renderWithRouter } from '@/test/utils'
 
 const mocks = vi.hoisted(() => ({ GET: vi.fn(), POST: vi.fn() }))
 vi.mock('@/api/client', async (orig) => ({ ...(await orig<typeof import('@/api/client')>()), api: mocks }))
@@ -125,7 +125,7 @@ describe('SearchPage', () => {
     expect(searchCalls()).toHaveLength(0)
     await user.type(screen.getByRole('textbox', { name: 'Search' }), 'deploy')
     await user.type(screen.getByLabelText('Mailbox'), 'operator')
-    await user.selectOptions(screen.getByLabelText('State'), 'unread')
+    await pickOption(user, screen.getByRole('combobox', { name: 'State' }), 'Unread')
     await user.click(screen.getByRole('button', { name: 'Search' }))
     expect(onSearch).toHaveBeenCalledWith({ q: 'deploy', scope: 'operator', state: 'unread' })
   })

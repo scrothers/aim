@@ -12,10 +12,15 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useAssigneeCandidates } from './AssigneeInput'
 import { ConfirmDialog } from './ConfirmDialog'
-import { groupByStatus, PRIORITIES, planMove, resultStatus, selectCls, STATUS_LABEL, STATUSES, type MovePlan } from './model'
+import { SelectField, type SelectOption } from '@/components/ui/select'
+import { groupByStatus, planMove, resultStatus, STATUS_LABEL, STATUSES, type MovePlan } from './model'
 import { TaskCard } from './TaskCard'
-import { StatusDot } from './TaskBadges'
+import { PRIORITY_OPTIONS, StatusDot } from './TaskBadges'
 import { useScopes } from './useScopes'
+
+const filterCls = 'flex items-center gap-1.5 text-muted-foreground max-md:flex-col max-md:items-stretch'
+
+const PRIORITY_FILTER: SelectOption[] = [{ value: '', label: 'Any' }, ...PRIORITY_OPTIONS]
 
 const EMPTY_HINT: Record<TaskStatus, string> = {
   not_started: 'Nothing waiting',
@@ -243,39 +248,41 @@ export function TasksPage() {
         hidden={mobile && !filtersOpen}
         className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] max-md:flex-col max-md:items-stretch"
       >
-        <label className="flex items-center gap-1.5 text-muted-foreground">
+        <label className={filterCls}>
           Scope
-          <select aria-label="Scope" value={scope} onChange={(e) => setScope(e.target.value)} className={cn(selectCls, 'max-w-56')}>
-            <option value="">All scopes</option>
-            {scope && !scopes.includes(scope) && <option value={scope}>{scope}</option>}
-            {scopes.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+          <SelectField
+            aria-label="Scope"
+            size="sm"
+            value={scope}
+            onValueChange={setScope}
+            className="w-auto max-w-56 font-mono max-md:w-full max-md:max-w-none"
+            options={[
+              { value: '', label: 'All scopes' },
+              ...(scope && !scopes.includes(scope) ? [scope] : []).concat(scopes).map((s) => ({ value: s, label: s })),
+            ]}
+          />
         </label>
-        <label className="flex items-center gap-1.5 text-muted-foreground">
+        <label className={filterCls}>
           Assignee
-          <select aria-label="Assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)} className={cn(selectCls, 'max-w-56')}>
-            <option value="">Anyone</option>
-            {people.map((p) => (
-              <option key={p.address} value={p.address}>
-                {p.address}
-              </option>
-            ))}
-          </select>
+          <SelectField
+            aria-label="Assignee"
+            size="sm"
+            value={assignee}
+            onValueChange={setAssignee}
+            className="w-auto max-w-56 font-mono max-md:w-full max-md:max-w-none"
+            options={[{ value: '', label: 'Anyone' }, ...people.map((p) => ({ value: p.address, label: p.address }))]}
+          />
         </label>
-        <label className="flex items-center gap-1.5 text-muted-foreground">
+        <label className={filterCls}>
           Priority
-          <select aria-label="Priority" value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority | '')} className={selectCls}>
-            <option value="">Any</option>
-            {PRIORITIES.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
+          <SelectField
+            aria-label="Priority"
+            size="sm"
+            value={priority}
+            onValueChange={(v) => setPriority(v as TaskPriority | '')}
+            className="w-auto max-md:w-full"
+            options={PRIORITY_FILTER}
+          />
         </label>
         <label className="flex items-center gap-1.5 text-muted-foreground max-md:min-h-11">
           <input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} />

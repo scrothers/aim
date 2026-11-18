@@ -12,7 +12,9 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { SaveFilterButton } from '@/components/mail/SaveFilter'
 import { Button } from '@/components/ui/button'
+import { DateInput } from '@/components/ui/date-input'
 import { Input } from '@/components/ui/input'
+import { SelectField } from '@/components/ui/select'
 import { Highlight } from './Highlight'
 
 const STATES: Array<{ value: SearchState | ''; label: string }> = [
@@ -74,25 +76,15 @@ function Form({ value, onSubmit }: { value: SearchPageParams; onSubmit: (p: Sear
         </label>
         <label className={fieldCls}>
           Since
-          <Input type="date" value={d.since} onChange={set('since')} className="max-md:h-11" />
+          <DateInput value={d.since} onChange={set('since')} className="font-normal max-md:h-11" />
         </label>
         <label className={fieldCls}>
           Until
-          <Input type="date" value={d.until} onChange={set('until')} className="max-md:h-11" />
+          <DateInput value={d.until} onChange={set('until')} className="font-normal max-md:h-11" />
         </label>
         <label className={fieldCls}>
           State
-          <select
-            value={d.state}
-            onChange={set('state')}
-            className="h-9 rounded-md border border-input bg-transparent px-2 text-sm max-md:h-11"
-          >
-            {STATES.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+          <SelectField aria-label="State" value={d.state} onValueChange={(v) => setD((s) => ({ ...s, state: v }))} options={STATES} className="font-normal max-md:h-11" />
         </label>
       </div>
     </form>

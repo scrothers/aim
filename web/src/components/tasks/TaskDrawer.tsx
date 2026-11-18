@@ -8,12 +8,14 @@ import { ago } from '@/lib/identity'
 import { taskStore, useTaskStore } from '@/lib/tasks'
 import { AddressChip } from '@/components/shared/AddressChip'
 import { Button } from '@/components/ui/button'
+import { DateInput } from '@/components/ui/date-input'
 import { Input } from '@/components/ui/input'
+import { SelectField } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { AssigneeInput } from './AssigneeInput'
-import { actionsFor, eventText, fromDateInput, isOverdue, PRIORITIES, selectCls, toDateInput, type ActionName } from './model'
-import { HealthIndicator, StatusLabel } from './TaskBadges'
+import { actionsFor, eventText, fromDateInput, isOverdue, toDateInput, type ActionName } from './model'
+import { HealthIndicator, PRIORITY_OPTIONS, StatusLabel } from './TaskBadges'
 import { useScopes } from './useScopes'
 
 // The editor (Lexical + CodeMirror) is a separate chunk, fetched on first edit.
@@ -208,30 +210,19 @@ function Details({ task }: { task: TaskDetail }) {
     <Section title="Details">
       <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
         <Field label="Priority">
-          <select
-            aria-label="Priority"
-            value={task.priority}
-            onChange={(e) => edit({ priority: e.target.value as TaskPriority })}
-            className={`${selectCls} h-9 text-sm font-normal text-text uppercase`}
-          >
-            {PRIORITIES.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
+          <SelectField aria-label="Priority" value={task.priority} onValueChange={(v) => edit({ priority: v as TaskPriority })} options={PRIORITY_OPTIONS} />
         </Field>
         <Field label="Due">
-          <span className="flex items-center gap-1.5">
-            <Input
-              type="date"
+          <span className="flex items-center gap-1.5 font-normal">
+            <DateInput
               aria-label="Due date"
               value={toDateInput(task.due_at)}
               onChange={(e) => {
                 const due = fromDateInput(e.target.value)
                 if (due) edit({ due_at: due })
               }}
-              className={isOverdue(task) ? 'border-attention text-attention-text' : ''}
+              aria-invalid={isOverdue(task) || undefined}
+              title={isOverdue(task) ? 'Overdue' : undefined}
             />
             {task.due_at && (
               <Button type="button" variant="ghost" size="sm" aria-label="Clear due date" onClick={() => edit({ clear_due: true })}>

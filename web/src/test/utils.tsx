@@ -1,5 +1,12 @@
 import type { ReactNode } from 'react'
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
+import type { UserEvent } from '@testing-library/user-event'
+
+/** Opens a Radix select (role combobox) and picks the option named `name`. */
+export async function pickOption(user: UserEvent, trigger: HTMLElement, name: string) {
+  await user.click(trigger)
+  await user.click(await screen.findByRole('option', { name }))
+}
 import { RouterProvider, createMemoryHistory, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 
 /**

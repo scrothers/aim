@@ -4,11 +4,14 @@ import { useCreateTask, type TaskPriority } from '@/api/tasks'
 import { isValidAddress } from '@/lib/address'
 import { taskStore, useTaskStore, type CreateDraft } from '@/lib/tasks'
 import { Button } from '@/components/ui/button'
+import { DateInput } from '@/components/ui/date-input'
 import { Input } from '@/components/ui/input'
+import { SelectField } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { AssigneeInput } from './AssigneeInput'
-import { fromDateInput, PRIORITIES, selectCls } from './model'
+import { fromDateInput } from './model'
+import { PRIORITY_OPTIONS } from './TaskBadges'
 import { useScopes } from './useScopes'
 
 const MarkdownEditor = lazy(() => import('@/components/mail/MarkdownEditor'))
@@ -80,7 +83,7 @@ function CreateForm({ draft }: { draft: CreateDraft }) {
     >
       <label className="flex flex-col gap-1 text-xs font-semibold text-faint">
         Title
-        <Input aria-label="Title" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="One-line summary" className="text-sm font-normal text-text" />
+        <Input aria-label="Title" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="One-line summary" className="text-sm font-normal" />
       </label>
       <div className="flex flex-col gap-1 text-xs font-semibold text-faint">
         Description
@@ -91,17 +94,11 @@ function CreateForm({ draft }: { draft: CreateDraft }) {
       <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
         <label className="flex flex-col gap-1 text-xs font-semibold text-faint">
           Priority
-          <select aria-label="Priority" value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)} className={`${selectCls} h-9 text-sm font-normal`}>
-            {PRIORITIES.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
+          <SelectField aria-label="Priority" value={priority} onValueChange={(v) => setPriority(v as TaskPriority)} options={PRIORITY_OPTIONS} className="font-normal" />
         </label>
         <label className="flex flex-col gap-1 text-xs font-semibold text-faint">
           Due
-          <Input type="date" aria-label="Due date" value={due} onChange={(e) => setDue(e.target.value)} />
+          <DateInput aria-label="Due date" value={due} onChange={(e) => setDue(e.target.value)} className="font-normal" />
         </label>
         <label className="flex flex-col gap-1 text-xs font-semibold text-faint">
           Scope

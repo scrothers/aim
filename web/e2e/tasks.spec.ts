@@ -54,12 +54,26 @@ test('create a task, assign it, comment, and move it across the board', async ({
   await page.goto('/tasks')
   for (const name of ['Not started', 'Claimed', 'Started', 'Abandoned', 'Finished']) await expect(col(page, name)).toBeVisible()
   await expect(col(page, 'Finished')).toHaveAttribute('data-collapsed', 'true')
+  // Filters use the themed select, not the OS one.
+  await expect(page.getByRole('combobox', { name: 'Scope' })).toBeVisible()
+  await expect(page.locator('select')).toHaveCount(0)
 
   // Create with the identity type-ahead, then the drawer opens on the new task.
   await page.getByRole('button', { name: /^New task/ }).click()
   const sheet = page.getByRole('dialog', { name: 'New task' })
-  await sheet.getByRole('textbox', { name: 'Title' }).fill('Cut the release')
-  await sheet.getByRole('combobox', { name: 'Priority' }).selectOption('high')
+  const title = sheet.getByRole('textbox', { name: 'Title' })
+  // Placeholder is the faint token; the typed value is the body text colour, not the muted label's.
+  const colors = await title.evaluate((el) => ({
+    placeholder: getComputedStyle(el, '::placeholder').color,
+    value: getComputedStyle(el).color,
+    text: getComputedStyle(document.body).color,
+  }))
+  expect(colors.placeholder).not.toBe(colors.value)
+  expect(colors.value).toBe(colors.text)
+  await title.fill('Cut the release')
+  await sheet.getByRole('combobox', { name: 'Priority' }).click()
+  await page.getByRole('option', { name: 'high' }).click()
+  await expect(sheet.getByRole('combobox', { name: 'Priority' })).toHaveText('high')
   await sheet.getByRole('combobox', { name: 'Assignee' }).fill('dev@')
   // hasText, not name: the address chip's flex children get spaces in the accessible name.
   await sheet.getByRole('option').filter({ hasText: DEV }).click()
@@ -139,7 +153,8 @@ test('edit title, priority, description and due date in the drawer', async ({ pa
   await page.keyboard.press('Enter')
   await expect(drawer(page, 'Edited title')).toBeVisible()
 
-  await dlg.getByRole('combobox', { name: 'Priority' }).selectOption('urgent')
+  await dlg.getByRole('combobox', { name: 'Priority' }).click()
+  await page.getByRole('option', { name: 'urgent' }).click()
   await dlg.getByLabel('Due date').fill('2020-01-02')
   await expect(card(page, 'Edited title').getByText('urgent')).toBeVisible()
   await expect(card(page, 'Edited title').locator('[data-overdue]')).toBeVisible()

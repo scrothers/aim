@@ -7,7 +7,7 @@ import type { MessageView } from '@/api/mail'
 import type { TaskDetail, TaskView } from '@/api/tasks'
 import { taskStore } from '@/lib/tasks'
 import { treeFixture } from '@/test/fixtures'
-import { renderWithRouter } from '@/test/utils'
+import { pickOption, renderWithRouter } from '@/test/utils'
 
 const mocks = vi.hoisted(() => ({ GET: vi.fn(), POST: vi.fn(), toastError: vi.fn(), toastSuccess: vi.fn() }))
 vi.mock('@/api/client', async (orig) => ({ ...(await orig<typeof import('@/api/client')>()), api: mocks }))
@@ -225,15 +225,22 @@ describe('TasksPage board', () => {
     expect(col('Finished')).toHaveAttribute('data-collapsed', 'true')
   })
 
+  it('uses themed selects, never native ones', async () => {
+    await renderBoard()
+    await screen.findByText('Write release notes')
+    for (const name of ['Scope', 'Assignee', 'Priority']) expect(screen.getByRole('combobox', { name }).tagName).toBe('BUTTON')
+    expect(document.querySelectorAll('select')).toHaveLength(0)
+  })
+
   it('filters by scope, assignee and operator involvement on the server and by priority locally', async () => {
     const user = userEvent.setup()
     await renderBoard()
     await screen.findByText('Write release notes')
     const lastQuery = () => mocks.GET.mock.calls.filter((c) => c[0] === '/api/tasks').at(-1)![1].params.query
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Scope' }), 'github.com/acme/api')
+    await pickOption(user, screen.getByRole('combobox', { name: 'Scope' }), 'github.com/acme/api')
     await waitFor(() => expect(lastQuery()).toMatchObject({ scope: 'github.com/acme/api' }))
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Assignee' }), REVIEWER)
+    await pickOption(user, screen.getByRole('combobox', { name: 'Assignee' }), REVIEWER)
     await waitFor(() => expect(lastQuery()).toMatchObject({ assignee: REVIEWER }))
     await user.click(screen.getByRole('checkbox', { name: 'Involves operator' }))
     await waitFor(() => expect(lastQuery()).toMatchObject({ involves: 'operator' }))
@@ -241,7 +248,7 @@ describe('TasksPage board', () => {
     await user.click(screen.getByRole('button', { name: 'Clear filters' }))
     await waitFor(() => expect(lastQuery().scope).toBeUndefined())
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Priority' }), 'urgent')
+    await pickOption(user, screen.getByRole('combobox', { name: 'Priority' }), 'urgent')
     expect(screen.getByText('Migrate schema')).toBeInTheDocument()
     expect(screen.queryByText('Write release notes')).toBeNull()
   })
@@ -384,7 +391,7 @@ describe('TaskDrawer', () => {
 
   it('edits priority, scope and clears the due date', async () => {
     const { user, dlg } = await open('Migrate schema')
-    await user.selectOptions(within(dlg).getByRole('combobox', { name: 'Priority' }), 'low')
+    await pickOption(user, within(dlg).getByRole('combobox', { name: 'Priority' }), 'low')
     await waitFor(() => expect(actionCalls()).toContainEqual({ action: 'edit', priority: 'low' }))
     const scope = within(dlg).getByRole('combobox', { name: 'Scope' })
     await user.type(scope, 'github.com/acme/web{Enter}')
@@ -468,7 +475,7 @@ describe('CreateTaskSheet', () => {
     await user.type(within(sheet).getByRole('textbox', { name: 'Title' }), 'Audit logs')
     await waitFor(() => expect(within(sheet).getByRole('textbox', { name: 'Description' })).toBeEnabled())
     await user.type(within(sheet).getByRole('textbox', { name: 'Description' }), 'Look for errors')
-    await user.selectOptions(within(sheet).getByRole('combobox', { name: 'Priority' }), 'high')
+    await pickOption(user, within(sheet).getByRole('combobox', { name: 'Priority' }), 'high')
     await user.type(within(sheet).getByRole('combobox', { name: 'Scope' }), 'github.com/acme/api')
     fireEvent.change(within(sheet).getByLabelText('Due date'), { target: { value: '2026-12-05' } })
     await user.type(within(sheet).getByRole('combobox', { name: 'Assignee' }), `${REVIEWER}{Enter}`)

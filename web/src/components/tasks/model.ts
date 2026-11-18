@@ -1,9 +1,5 @@
 import type { TaskEvent, TaskHealth, TaskPriority, TaskStatus, TaskView } from '@/api/tasks'
 
-/** Native `<select>` styling shared by the board filters and the drawer fields. */
-export const selectCls =
-  'h-8 min-w-0 rounded-md border bg-panel px-2 text-[13px] text-text outline-none focus-visible:ring-2 focus-visible:ring-ring/40 max-md:h-11'
-
 /** Board order. */
 export const STATUSES: TaskStatus[] = ['not_started', 'claimed', 'started', 'abandoned', 'finished']
 

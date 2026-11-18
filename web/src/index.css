@@ -161,6 +161,16 @@
   button:not(:disabled) {
     cursor: pointer;
   }
+  /* One placeholder style everywhere; typed values are always the text colour,
+     never inherited from a muted label around the field. */
+  input,
+  textarea {
+    color: var(--text);
+  }
+  ::placeholder {
+    color: var(--faint);
+    opacity: 1;
+  }
 }
 
 /* Rendered Markdown (server-sanitized HTML) inside message bodies. */
