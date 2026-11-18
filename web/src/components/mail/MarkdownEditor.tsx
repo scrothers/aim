@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   BlockTypeSelect,
   BoldItalicUnderlineToggles,
@@ -34,6 +34,8 @@ export interface MarkdownEditorProps {
   label?: string
   placeholder?: string
   autoFocus?: boolean
+  /** Stretch to fill a flex-column parent (the compose sheet) instead of auto-growing. */
+  fill?: boolean
 }
 
 const LANGUAGES = {
@@ -86,7 +88,7 @@ const plugins = [
 ]
 
 /** Markdown WYSIWYG editor. The value in and out is always a Markdown string. */
-export default function MarkdownEditor({ value, onChange, label = 'Message body', placeholder, autoFocus }: MarkdownEditorProps) {
+export default function MarkdownEditor({ value, onChange, label = 'Message body', placeholder, autoFocus, fill }: MarkdownEditorProps) {
   const root = useRef<HTMLDivElement>(null)
 
   // MDXEditor has no aria-label prop: label its editable surfaces (rich text
@@ -109,10 +111,18 @@ export default function MarkdownEditor({ value, onChange, label = 'Message body'
     return () => mo.disconnect()
   }, [label])
 
+  // Popups (dropdowns, link dialog) must live inside a modal host such as the
+  // compose sheet, or its focus trap and stacking context would swallow them.
+  const [overlay, setOverlay] = useState<HTMLElement | null>(null)
+  useEffect(() => {
+    setOverlay(root.current?.closest<HTMLElement>('[role="dialog"]') ?? null)
+  }, [])
+
   return (
-    <div ref={root}>
+    <div ref={root} className={fill ? 'aim-editor-fill flex min-h-0 flex-1 flex-col' : undefined}>
       <MDXEditor
-        className="aim-editor"
+        className="aim-editor mdxeditor-full-height"
+        overlayContainer={overlay}
         contentEditableClassName="prose-aim aim-editor-content"
         markdown={value}
         onChange={(md) => onChange(md)}
