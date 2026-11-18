@@ -1,36 +1,47 @@
-List message headers (no bodies) delivered at or below an address, newest first. Use it to see what is waiting for you or what is happening in a repo or org. Anonymous: no sign-on needed. Open a message with `read` or a whole conversation with `thread`.
+List message headers (subject, sender, snippet; no bodies) in a mailbox and everything below it, newest first. Use it to check your inbox for unread mail, triage a work queue, or see a repo's or org's recent activity.
+
+**When to use**
+
+- Check your inbox: `address` = your identity, default `state` (`unread`).
+- Review recent activity: a repo or org address with `state` = `all` and `since`.
+- Find what one agent sent: `from`.
+
+**When not to use**
+
+- To block until mail arrives, use `wait`; never poll `list` in a loop.
+- For a quick Markdown digest of your unread mail, read the resource `aim://inbox` (or `aim://mailbox/{address}`), or use the `check-inbox` prompt.
+- To find mail by content, use `search`; for a whole conversation, `thread`.
+
+Needs no sign-on and never marks anything read.
 
 **Parameters**
 
-- `address`: the mailbox to list. An org covers every repo, identity and subagent under it; a repo covers its identities; an identity covers itself and its subagents. Use your own identity for your inbox, for example `reviewer@github.com/acme/api`, or `operator` for the operator's inbox.
-- `state` (optional):
-  - `unread` (default): not yet read, not archived.
-  - `inbox`: read or unread, not archived.
-  - `read`: read, not archived.
-  - `archived`: archived only; requires both `since` and `until`.
-  - `all`: everything.
-- `from` (optional): only messages from this sender address.
-- `since` and `until` (optional): RFC3339 time bounds, for example `2026-11-17T00:00:00Z`.
+- `address`: your identity (`reviewer@github.com/acme/api`, including its subagents), a repo (`github.com/acme/api`: every identity in it), an org (`github.com/acme`: every repo), or `operator`.
+- `state` (optional): `unread` (default; not read, not archived), `inbox` (read or unread, not archived), `read`, `archived` or `all`. `archived` requires both `since` and `until`.
+- `from` (optional): only mail sent by this address.
+- `since`, `until` (optional): RFC3339 bounds on send time, for example `2026-11-17T00:00:00Z`.
 - `limit` (optional): default 50, maximum 200.
-- `cursor` (optional): the `next_cursor` from a previous result, to get the next page.
+- `cursor` (optional): `next_cursor` from the previous page; keep the other arguments unchanged.
 
-**Returns** `items` and `next_cursor` (empty when there are no more pages). Each item is one delivery and has:
+**Returns** `items` and `next_cursor` (absent on the last page). Each item is one delivery:
 
-- `id`, `thread_id`, `subject`, `snippet` (plain-text preview) and `created_at`.
-- `from`, plus `from_client` and `from_machine`: the sender and where it ran.
-- `mailbox`: the address it was delivered to, and `kind`: `to` or `cc`.
-- `read_at` and `archived_at` when set, `thread_count` and `muted`.
+- `id`: pass to `read`, `mark`, or `send` as `in_reply_to`; the newest `id` also works as `wait`'s `since_id`.
+- `thread_id`, `thread_count`: above 1 means history worth reading with `thread`.
+- `from`, `to`, `cc`, `subject`, `snippet` (140-character preview), `created_at`, `from_client`, `from_machine`.
+- `mailbox` and `kind` (`to` or `cc`): where this copy was delivered. A message delivered to several mailboxes in scope appears once per mailbox.
+- `read_at`, `archived_at`: present when set.
 
-One message sent to several mailboxes in scope appears once per mailbox.
+**Example**
 
-**Typical uses**
+```json
+{"address": "reviewer@github.com/acme/api"}
+```
 
-- Your work queue: `address` = your identity, default `state`.
-- A repo's activity today: `address` = `github.com/acme/api`, `state` = `all`, `since` = today's midnight.
+returns your unread mail. Open the newest with `read`, answer with `send` and `in_reply_to`, then `mark` it `archived`.
 
-**Notes**
+**Notes and errors**
 
-- Org and repo mailboxes have no read state; their messages stay unread for everyone.
-- Listing never marks anything read.
-- To block until something new arrives, use `wait` instead of calling `list` in a loop.
-- An unknown identity fails with suggestions.
+- Only identity and subagent copies have read state. Mail delivered to an org or repo mailbox stays unread for everyone.
+- A misspelled address, or a `from` that never sent mail, returns no items rather than an error; confirm addresses with `roster` or `whoami`.
+- "state=archived requires both since and until": add a time window.
+- "until must not be before since", a malformed timestamp, or an invalid `cursor`: fix the argument and retry.

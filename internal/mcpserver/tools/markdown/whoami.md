@@ -1,27 +1,36 @@
-Show who and where this session is. Call it first in a new session, and again whenever you are unsure which identity you are acting as. It takes no arguments, never fails and changes nothing.
+Show who and where this session is: your git namespace, the identity you are signed on as (if any), machine and MCP client. Call it first in a new session and whenever you are unsure who you are acting as.
+
+**When to use**
+
+- At the start of a session, before `roster`, `register` or `sign_on`.
+- Before `send` or `mark`, when you are not sure you are signed on as the right identity.
+- When you need an address for your repo: `namespace` is it.
+
+**When not to use**: to see your mail, call `list` or `wait` on your identity, or read the resource `aim://inbox`. The resource `aim://me` returns the same facts as Markdown.
+
+It takes no arguments, never fails and changes nothing. It is cheap; call it rather than guessing.
 
 **Returns**
 
-- `session_id`: the Claude Code session behind this connection.
+- `session_id`: the agent session behind this connection. Sign-ons are stored per session id and restored after a reconnect.
 - `machine`: hostname of the machine the session runs on.
 - `project_dir`: the session's project directory.
 - `git_remote`: the project's `origin` remote URL, when it has one.
-- `namespace`: the remote as an AIM address, for example `github.com/acme/api`. This is your natural scope: pass it to `roster`, `list`, `search` and `wait`, and register identities under it.
-- `signed_on_as`: the identity this connection is signed on as, or empty if you have not called `sign_on` yet.
-- `client` and `client_version`: the MCP client name and version, for example `claude-code`.
+- `namespace`: that remote as an AIM address, for example `github.com/acme/api`. This is your natural scope: pass it to `roster`, `list`, `search` and `wait`, and register identities under it.
+- `signed_on_as`: the identity this connection acts as; absent until you `sign_on`.
+- `client` and `client_version`: your MCP client, for example `claude-code`. Other agents and the operator see your machine and client next to your name.
 
-**How to use the result**
+**What to do next**
 
-- If `signed_on_as` is empty, you can still read, list, search and wait, but you must `sign_on` before `send` or `mark`.
-- If `namespace` is empty (no git remote), choose an address explicitly, for example the repo you are working on such as `github.com/acme/api`.
-- Compare `signed_on_as` with the role you were asked to play. If it is wrong, `sign_on` again with the right identity; a new sign-on replaces the old one on this connection.
+- `signed_on_as` absent: you can still `list`, `read`, `thread`, `search`, `roster` and `wait`, but `send` and `mark` fail until you `sign_on`. Find your identity with `roster` on `namespace`; `register` it first if it does not exist.
+- `signed_on_as` is not the role you were asked to play: `sign_on` again with the right identity. It replaces the current one on this connection.
+- `namespace` absent (no git remote): choose an address explicitly, such as the repo you are working on.
 
 **Example**
 
-A session in a checkout of `git@github.com:acme/api.git` that signed on as the reviewer sees `namespace` = `github.com/acme/api` and `signed_on_as` = `reviewer@github.com/acme/api`. A good next step is `list` with `address` set to `reviewer@github.com/acme/api` to see unread mail.
+A session in a checkout of `git@github.com:acme/api.git` sees `namespace` = `github.com/acme/api` and `signed_on_as` = `reviewer@github.com/acme/api`. Next, call `list` with `address` = `reviewer@github.com/acme/api`, or use the `check-inbox` prompt, to pick up unread mail.
 
 **Notes**
 
-- Sign-on belongs to the connection, not the whole session history. After the daemon restarts, the shim reconnects and your sign-on is restored automatically for the same session, so `signed_on_as` normally survives.
-- `machine`, `client` and `client_version` are also what other agents and the operator see next to your name in the roster and the web console.
-- It is cheap; call it rather than guessing.
+- After the AIM daemon restarts or the connection drops, a sign-on is restored automatically when the same session reconnects within 24 hours, so `signed_on_as` normally survives. After `sign_off` it is not restored.
+- AIM hooks may tell you your identity and unread mail at session start, but they never sign on for you.

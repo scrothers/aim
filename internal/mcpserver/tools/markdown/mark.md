@@ -1,36 +1,43 @@
-Change the state of messages delivered to you: mark them read or unread, or archive and unarchive them. Use it to keep your inbox meaningful: archive what you have handled, mark unread what you want to come back to. Requires `sign_on`.
+Mark messages delivered to you read or unread, or archive and unarchive them. Use it to keep your inbox meaningful: archive what you have handled, mark unread what you will come back to. Requires `sign_on`.
+
+**When to use**
+
+- After you handle a request (usually after replying with `send`): archive it.
+- To clear several unread messages at once without opening each with `read`.
+- To defer: mark a message `unread` so your next `list` or `wait` shows it again.
+
+**When not to use**
+
+- To open one message, `read` it; that already marks it read.
+- To look without changing state, use `read` with `peek`, or `thread`.
 
 **Parameters**
 
-- `message_ids`: one or more ids, for example [`msg-01jcz6x2k3`, `msg-01jcz6y8pp`], from `list`, `wait`, `search` or `thread`.
-- `state`: one of
-  - `read`: you have seen it.
-  - `unread`: show it as new again.
-  - `archived`: handled; it leaves the default `unread` and `inbox` lists but is never deleted.
-  - `unarchived`: bring an archived message back.
-- `subagent` (optional): act on the deliveries of this subagent of your identity, for example `tests` for `tests@reviewer@github.com/acme/api`.
+- `message_ids`: 1 to 200 ids, for example `["msg-01jcz6x2k3", "msg-01jcz6y8pp"]`, from `list`, `wait`, `search` or `thread`. Duplicates are ignored.
+- `state`: `read`, `unread`, `archived` (handled: leaves the `unread` and `inbox` lists, never deleted) or `unarchived` (back in the inbox, keeping its read state).
+- `subagent` (optional): act on deliveries to this subagent of your identity, for example `tests` for `tests@reviewer@github.com/acme/api`. With AIM hooks installed, Claude Code subagents get this filled in automatically.
 
-**Returns** `changed`: how many deliveries actually changed state. Ids you do not own, and deliveries already in the requested state, are skipped without error, so `changed` can be lower than the number of ids you passed.
+**Returns** `changed`: how many deliveries changed. Ids not delivered to you, and deliveries already in that state, are skipped silently, so `changed` can be lower than the number of ids you passed.
 
-**Ownership rules**
+**Ownership**
 
-- You can only change deliveries addressed to your signed-on identity, or to the named subagent.
-- Other identities' mail is unaffected; their read state is theirs.
-- Org and repo mailboxes have no read state, so marking their messages changes nothing.
-- The operator's inbox belongs to the human operator; agents cannot mark it.
-
-**Good habits**
-
-- After you finish a request, reply with `send`, then archive the request.
-- Mark a message `unread` when you defer it, so it shows up again in your next `list`.
-- Archived mail stays searchable with `search` and listable with `list` using `state` = `archived` plus `since` and `until`.
+- You change only your own copy: the one delivered to your signed-on identity, or to `subagent`. Other recipients' state is theirs.
+- Mail delivered to org and repo mailboxes has no read state and cannot be marked.
+- The `operator` inbox belongs to the human; agents cannot mark it.
 
 **Example**
 
-You handled three review requests. Call `mark` with all three ids and `state` = `archived`; `changed` = 3. Your next `list` on `reviewer@github.com/acme/api` shows only new work.
+You handled three review requests:
+
+```json
+{"message_ids": ["msg-01jcz6x2k3", "msg-01jcz6y8pp", "msg-01jcz70b4n"], "state": "archived"}
+```
+
+returns `changed` = 3, and your next `list` on `reviewer@github.com/acme/api` shows only new work. Archived mail stays findable with `search`, or with `list` using `state` = `archived` plus `since` and `until`.
 
 **Errors**
 
-- Not signed on: call `sign_on` first.
-- `state` is not one of `read`, `unread`, `archived` or `unarchived`.
-- `changed` = 0 usually means the messages were not addressed to you, or are already in that state.
+- "not signed on": call `sign_on` first.
+- `state` not one of the four values, or more than 200 ids: fix and retry.
+- "mailbox ... does not exist" for a `subagent`: it has no mailbox yet (one is created when it first sends or receives mail); check the name.
+- `changed` = 0: the messages were not delivered to you, or were already in that state.

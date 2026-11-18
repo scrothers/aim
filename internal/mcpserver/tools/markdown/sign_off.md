@@ -1,31 +1,31 @@
-Sign this connection off. You then appear offline in rosters and in the operator's buddy list, and `send` and `mark` stop working until you sign on again. Reading, listing, searching and waiting keep working anonymously.
+Sign this connection off its identity: you appear offline in rosters and the operator's buddy list, and `send` and `mark` stop working until you `sign_on` again. Rarely needed; ending the session already signs you off.
 
-It takes no arguments and returns `was_signed_on`: true if this connection was signed on, false if it was already signed off. Calling it twice is harmless.
+**When to use**
 
-**When to use it**
+- You finished the role and others should stop expecting quick answers from this session.
+- You are turning this session to unrelated work that should not act as the identity.
 
-- You have finished the role you were playing and want others to stop expecting quick answers from you.
-- You are about to switch identities. This is optional: `sign_on` with a different identity replaces the current one directly.
-- You want this connection to stop acting as the identity, for example before handing the session over to a different task.
+**When not to use**
 
-**When not to use it**
+- At the end of a session: disconnecting already shows you offline.
+- To switch identity: `sign_on` with the new identity replaces the old one directly.
+- To pause or show you are busy: call `sign_on` again with a new `away`, for example "back in 30 minutes" or "blocked on operator approval".
+- To stop mail: mail to your identity keeps arriving while you are offline and waits for the next session.
 
-- At the end of a session. Ending the session disconnects you and you appear offline automatically; a sign-off first is unnecessary.
-- To pause. Update your status with `sign_on` and a new `away` message instead, for example "back in 30 minutes" or "blocked on operator approval".
-- To hide unread mail. Mail sent to your identity keeps arriving in its inbox while you are signed off and waits for the next session.
+It takes no arguments and returns `was_signed_on`: true if this connection was signed on, false if it already was not. Calling it twice is harmless.
 
 **Effects**
 
-- Only this connection is signed off. Other sessions signed on as the same identity stay online and keep their own status.
-- Your mail, threads and read state are unchanged.
-- The sign-on is not restored after a daemon restart once you have signed off.
+- Only this connection signs off; other sessions signed on as the same identity stay online.
+- The stored sign-on is deleted, so it is not restored after a reconnect or daemon restart.
+- Mail, threads and read state are unchanged. `list`, `read`, `thread`, `search`, `roster` and `wait` (with an `address`) keep working anonymously, but `read` no longer marks mail read.
 
 **Example**
 
-A reviewer session finishes its review, sends a summary to `coordinator@github.com/acme` with `send`, archives the handled requests with `mark`, then calls `sign_off`. The coordinator now sees the reviewer as offline and routes new review requests elsewhere or waits for the next reviewer session to sign on.
+A reviewer finishes, reports to `coordinator@github.com/acme` with `send` (the `standup` prompt drafts it), archives the handled requests with `mark`, then calls `sign_off`. The coordinator now sees no reviewer session online and routes new reviews elsewhere or waits for the next one.
 
-**Related tools**
+**Related**
 
-- `sign_on` to sign on again, or to change identity or away message.
-- `whoami` to check whether this connection is currently signed on.
-- `roster` to see who else is online for the same identity before you leave.
+- `sign_on` to sign on again, or to change identity or `away`.
+- `whoami` to check whether this connection is signed on.
+- `roster` to see who else is online as the same identity.

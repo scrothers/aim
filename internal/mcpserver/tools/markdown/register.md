@@ -1,31 +1,41 @@
-Register a new identity: a durable, named role that agents sign on as to send and receive mail. Register once; afterwards every session that plays the role calls `sign_on`. Registration persists across restarts and does not sign you on.
+Register a new identity: a durable, named role (such as reviewer or coordinator) with its own inbox that agents sign on as to send and receive mail. Do it once per role; later sessions just call `sign_on`.
+
+**When to use**
+
+- `roster` on your namespace shows no identity that fits the role you were given.
+- You are setting up a team: each role must exist before anyone can sign on as it or mail it.
+
+**When not to use**
+
+- The identity already exists: `sign_on` as it. Several sessions may share one identity and inbox; do not create near-duplicates such as `reviewer2`.
+- For a subagent: subagent mailboxes (`tests@reviewer@github.com/acme/api`) are never registered; they appear the first time mail is sent from or to them.
+- To reach the human: `operator` is reserved; send to it instead.
+
+Registering needs no sign-on and does not sign you on.
 
 **Parameters**
 
-- `address`: `name@host/org` (org-scoped) or `name@host/org/repo` (repo-scoped). Names are lower-case letters, digits, `.`, `_` and `-`, starting with a letter or digit. Example: `reviewer@github.com/acme/api`.
-- `role`: a short title shown in rosters, for example `reviewer`.
-- `description`: what this identity does and what to send it. Write it for other agents: responsibilities, what it accepts, what it will not do. Markdown is fine.
-- `reports_to` (optional): the identity this one escalates to, for example `coordinator@github.com/acme`, or `operator` when it answers directly to the human operator. Chains of `reports_to` form the org chart and must not loop.
+- `address`: `name@host/org` (org-scoped, works across repos) or `name@host/org/repo` (repo-scoped). Names use a-z, 0-9, `.`, `_` and `-` and start with a letter or digit; input is lower-cased. `reviewer@github.com/acme` and `reviewer@github.com/acme/api` are different identities.
+- `role`: short title shown in rosters, 1 to 100 characters, for example `reviewer`.
+- `description`: what this identity does and what to send it, written for other agents: responsibilities, what it accepts, what it will not do. Markdown, at most 1,000 characters.
+- `reports_to` (optional): the identity it escalates to, for example `coordinator@github.com/acme`, or `operator` when it answers to the human directly. These chains form the org chart and must not loop.
 
-**Choosing scope**
-
-- Repo-scoped identities (`name@host/org/repo`) work on one repository.
-- Org-scoped identities (`name@host/org`) work across repositories, for example a coordinator that triages issues for the whole org.
-- `reviewer@github.com/acme` and `reviewer@github.com/acme/api` are different identities with separate inboxes.
-
-**Before registering**
-
-Call `roster` on your namespace first. If a suitable identity already exists, `sign_on` as it instead of creating a near-duplicate; several sessions may share one identity.
+**Returns** the stored identity: `address` (canonical, lower-case), `role`, `description`, `reports_to` and `created_at`. Pass `address` to `sign_on`.
 
 **Example**
 
-`address` = `docs@github.com/acme/web`, `role` = `docs writer`, `description` = "Keeps README and guides current. Send it merged PRs that change behavior.", `reports_to` = `coordinator@github.com/acme`. Then call `sign_on` with the same address.
+```json
+{"address": "docs@github.com/acme/web", "role": "docs writer", "description": "Keeps README and guides current. Send it merged PRs that change behavior.", "reports_to": "coordinator@github.com/acme"}
+```
+
+Then call `sign_on` with `address` = `docs@github.com/acme/web`.
 
 **Errors**
 
-- Already exists: sign on as it instead.
-- `operator` is reserved for the human operator and cannot be registered.
-- Not an identity address (no `name@`, or a subagent address).
-- `reports_to` would create a reporting loop.
+- "already registered": the identity exists; `sign_on` as it.
+- "operator is reserved": choose another name; send to `operator` to reach the human.
+- "is a repo address" (or org or subagent): pass `name@host/org[/repo]`, with no subagent part.
+- Invalid characters, empty `role`, or `role` or `description` too long: fix the input and retry.
+- "reports_to cycle": the chain would loop back to this identity; choose a `reports_to` higher up.
 
-Subagent mailboxes are never registered; they appear on first use.
+Identities cannot be renamed or removed through tools; the operator retires them.
