@@ -1,9 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { Maximize2, Minus, Plus } from 'lucide-react'
 import { orgChartQuery, type OrgChartNode } from '@/api/roster'
 import { OPERATOR } from '@/lib/address'
-import { layoutOrgChart } from '@/lib/orgchart'
+import { layoutOrgChart, OPERATOR_ID } from '@/lib/orgchart'
+import { Button } from '@/components/ui/button'
+
+const ZOOM_MIN = 0.25
+const ZOOM_MAX = 1.5
+const ZOOM_STEP = 0.25
 import { parseAddress } from '@/lib/identity'
 import { PresenceDot } from '@/components/shared/PresenceDot'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
@@ -34,24 +40,59 @@ export function OrgChart() {
   const byAddress = useMemo(() => new Map(nodes.map((n) => [n.address, n])), [nodes])
   const layout = useMemo(() => layoutOrgChart(nodes), [nodes])
 
-  const box = useRef<HTMLDivElement>(null)
+  // The scroller only exists once the chart has loaded, so track it as state rather than a ref.
+  const [box, setBox] = useState<HTMLDivElement | null>(null)
   const [boxW, setBoxW] = useState(0)
+  const [scale, setScale] = useState(1)
   useEffect(() => {
-    const el = box.current
-    if (!el) return
-    const measure = () => setBoxW(el.clientWidth)
+    if (!box) return
+    const measure = () => setBoxW(box.clientWidth)
     measure()
     if (typeof ResizeObserver === 'undefined') return
     const ro = new ResizeObserver(measure)
-    ro.observe(el)
+    ro.observe(box)
     return () => ro.disconnect()
-  }, [])
+  }, [box])
+  const scaledW = layout.width * scale
   // Center a narrow tree; a wide one scrolls.
-  const offset = Math.max(0, Math.floor((boxW - layout.width) / 2))
+  const offset = Math.max(0, Math.floor((boxW - scaledW) / 2))
+
+  // Open on the root, not an arbitrary slice of a wide tree. Re-centre when the zoom or the tree changes.
+  const measured = boxW > 0
+  const root = layout.nodes.find((n) => n.id === OPERATOR_ID)
+  const rootCenter = root ? (root.x + root.w / 2) * scale : 0
+  useEffect(() => {
+    if (!box || !measured) return
+    box.scrollLeft = Math.max(0, Math.round(rootCenter + Math.max(0, Math.floor((box.clientWidth - scaledW) / 2)) - box.clientWidth / 2))
+    box.scrollTop = 0
+  }, [box, measured, rootCenter, scaledW])
+
+  const clamp = (s: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(s * 100) / 100))
+  const fit = () => setScale(clamp(boxW > 0 ? Math.min(1, (boxW - 2) / layout.width) : 1))
 
   return (
     <section aria-label="Org chart" className="box-border flex min-w-0 flex-1 flex-col gap-2 p-6 max-md:p-4">
-      <h1 className="m-0 text-[22px] leading-[30px] font-semibold">Org chart</h1>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h1 className="m-0 mr-auto text-[22px] leading-[30px] font-semibold">Org chart</h1>
+        <div role="group" aria-label="Zoom" className="flex items-center gap-1">
+          <Button variant="outline" size="icon-sm" aria-label="Zoom out" disabled={scale <= ZOOM_MIN} onClick={() => setScale((s) => clamp(s - ZOOM_STEP))}>
+            <Minus aria-hidden="true" />
+          </Button>
+          <output aria-label="Zoom level" className="min-w-11 text-center font-mono text-xs text-muted-foreground">
+            {Math.round(scale * 100)}%
+          </output>
+          <Button variant="outline" size="icon-sm" aria-label="Zoom in" disabled={scale >= ZOOM_MAX} onClick={() => setScale((s) => clamp(s + ZOOM_STEP))}>
+            <Plus aria-hidden="true" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={fit}>
+            <Maximize2 aria-hidden="true" />
+            Fit width
+          </Button>
+          <Button variant="ghost" size="sm" disabled={scale === 1} onClick={() => setScale(1)}>
+            Reset
+          </Button>
+        </div>
+      </div>
       <p className="m-0 text-[13px] text-muted-foreground">Lines follow reports_to. Escalations climb toward operator.</p>
       {q.isError ? (
         <p role="alert" className="m-0 text-destructive">
@@ -60,15 +101,16 @@ export function OrgChart() {
       ) : q.isPending ? (
         <p className="m-0 text-faint">Loading…</p>
       ) : (
-        <div ref={box} data-testid="org-chart-scroll" className="min-h-0 flex-1 overflow-auto rounded-xl border bg-panel2">
-          <div className="relative" style={{ width: layout.width + offset, height: layout.height }}>
-            <svg aria-hidden="true" width={layout.width} height={layout.height} className="absolute top-0 fill-none stroke-faint" style={{ left: offset, strokeWidth: 2, strokeLinejoin: 'round' }}>
+        <div ref={setBox} data-testid="org-chart-scroll" className="min-h-0 flex-1 overflow-auto rounded-xl border bg-panel2">
+          <div className="relative" style={{ width: scaledW + offset, height: layout.height * scale }}>
+            <div className="absolute top-0 origin-top-left" style={{ left: offset, width: layout.width, height: layout.height, transform: `scale(${scale})` }}>
+            <svg aria-hidden="true" width={layout.width} height={layout.height} className="absolute top-0 fill-none stroke-faint" style={{ left: 0, strokeWidth: 2, strokeLinejoin: 'round' }}>
               {layout.edges.map((e) => (
                 <path key={`${e.from}>${e.to}`} d={e.d} data-edge={`${e.from}>${e.to}`} />
               ))}
             </svg>
             {layout.nodes.map((p) => {
-              const style = { left: p.x + offset, top: p.y, width: p.w, height: p.h }
+              const style = { left: p.x, top: p.y, width: p.w, height: p.h }
               const node = byAddress.get(p.id)
               if (!node) {
                 return (
@@ -97,6 +139,7 @@ export function OrgChart() {
                 </Link>
               )
             })}
+            </div>
           </div>
         </div>
       )}
