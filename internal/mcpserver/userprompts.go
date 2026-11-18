@@ -13,6 +13,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/scrothers/aim/internal/mail"
+	"github.com/scrothers/aim/internal/mcpserver/session"
 	"github.com/scrothers/aim/internal/mdview"
 )
 
@@ -220,7 +221,7 @@ func (h *handlers) workflowHandler(w workflow) mcp.PromptHandler {
 		}
 		extra, err := h.attachments(ctx, w.name, args, now)
 		if err != nil {
-			return nil, toolErr(err)
+			return nil, session.ToolErr(err)
 		}
 		first := &mcp.PromptMessage{Role: "user", Content: &mcp.TextContent{Text: script.String()}}
 		return &mcp.GetPromptResult{Description: w.description, Messages: append([]*mcp.PromptMessage{first}, extra...)}, nil

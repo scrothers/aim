@@ -3,23 +3,21 @@ package mcpserver
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/scrothers/aim/internal/address"
 	"github.com/scrothers/aim/internal/mail"
+	"github.com/scrothers/aim/internal/mcpserver/session"
 	"github.com/scrothers/aim/internal/presence"
 )
 
 // New returns an MCP server for one connection. Handlers act on behalf of
 // conn, whose preamble and sign-on state identify the caller.
 func New(svc *mail.Service, conn *presence.Entry, version string, opts ...Option) *mcp.Server {
-	h := &handlers{svc: svc, conn: conn, progressInterval: defaultProgressInterval}
+	h := &handlers{svc: svc, conn: conn, c: &session.Conn{Svc: svc, Entry: conn}, progressInterval: defaultProgressInterval}
 	h.subs.debounce = defaultSubscribeDebounce
 	for _, o := range opts {
 		o(h)
@@ -87,6 +85,7 @@ const toolUseMetaKey = "claudecode/toolUseId"
 type handlers struct {
 	svc              *mail.Service
 	conn             *presence.Entry
+	c                *session.Conn
 	srv              *mcp.Server
 	progressInterval time.Duration
 	clientSeen       atomic.Bool
@@ -146,49 +145,7 @@ func (h *handlers) attributeSubagent(req mcp.Request) {
 	}
 }
 
-func (h *handlers) caller() mail.Caller {
-	id, ok := h.conn.Identity()
-	st := h.conn.Status()
-	return mail.Caller{
-		SessionID: st.SessionID, Identity: id, SignedOn: ok,
-		Client: st.Client, Machine: st.Machine,
-	}
-}
-
-// requireAddress rejects an empty address: unlike the operator console, agent
-// tools never read "everything".
-func requireAddress(op, addr string) error {
-	if strings.TrimSpace(addr) == "" {
-		return fmt.Errorf("mcpserver: %s: %w: address is required%s", op, mail.ErrInvalidInput, addressHint)
-	}
-	return nil
-}
-
-const addressHint = " (address grammar: [subagent@][identity@]host/org[/repo])"
-
-// toolErr decorates service errors with guidance for agents.
-func toolErr(err error) error {
-	if err == nil {
-		return nil
-	}
-	if errors.Is(err, address.ErrInvalid) {
-		return fmt.Errorf("%w%s", err, addressHint)
-	}
-	return err
-}
-
-// parseTime parses an optional RFC3339 timestamp; empty yields a nil pointer.
-func parseTime(name, s string) (*time.Time, error) {
-	var out *time.Time
-	if s == "" {
-		return out, nil
-	}
-	t, err := time.Parse(time.RFC3339, s)
-	if err != nil {
-		return out, fmt.Errorf("%s must be an RFC3339 timestamp like 2026-01-02T15:04:05Z: %w", name, err)
-	}
-	return &t, nil
-}
+func (h *handlers) caller() mail.Caller { return h.c.Caller() }
 
 // WhoamiOutput is the result of whoami.
 type WhoamiOutput struct {
@@ -228,7 +185,7 @@ func (h *handlers) register(ctx context.Context, _ *mcp.CallToolRequest, in Regi
 	id, err := h.svc.Register(ctx, h.caller(), mail.RegisterInput{
 		Address: in.Address, Role: in.Role, Description: in.Description, ReportsTo: in.ReportsTo,
 	})
-	return nil, id, toolErr(err)
+	return nil, id, session.ToolErr(err)
 }
 
 // AddressInput is the input of tools that take only an address.
@@ -242,14 +199,14 @@ type RosterOutput struct {
 }
 
 func (h *handlers) roster(ctx context.Context, _ *mcp.CallToolRequest, in AddressInput) (*mcp.CallToolResult, RosterOutput, error) {
-	if err := requireAddress("roster", in.Address); err != nil {
+	if err := session.RequireAddress("roster", in.Address); err != nil {
 		return nil, RosterOutput{Identities: []mail.RosterEntry{}}, err
 	}
 	es, err := h.svc.Roster(ctx, in.Address)
 	if es == nil {
 		es = []mail.RosterEntry{}
 	}
-	return nil, RosterOutput{Identities: es}, toolErr(err)
+	return nil, RosterOutput{Identities: es}, session.ToolErr(err)
 }
 
 // SignOnInput is the input of sign_on.
@@ -266,7 +223,7 @@ type SignOnOutput struct {
 func (h *handlers) signOn(ctx context.Context, _ *mcp.CallToolRequest, in SignOnInput) (*mcp.CallToolResult, SignOnOutput, error) {
 	a, err := h.svc.ResolveIdentity(ctx, in.Address)
 	if err != nil {
-		return nil, SignOnOutput{}, toolErr(err)
+		return nil, SignOnOutput{}, session.ToolErr(err)
 	}
 	if err := h.conn.SignOn(a, in.Away, time.Now()); err != nil {
 		return nil, SignOnOutput{}, err
@@ -310,7 +267,7 @@ func (h *handlers) send(ctx context.Context, _ *mcp.CallToolRequest, in SendInpu
 		To: in.To, Cc: in.Cc, Subject: in.Subject, Body: in.Body,
 		InReplyTo: in.InReplyTo, Subagent: in.Subagent, ReplyAll: in.ReplyAll,
 	})
-	return nil, m, toolErr(err)
+	return nil, m, session.ToolErr(err)
 }
 
 // ListInput is the input of list.
@@ -325,14 +282,14 @@ type ListInput struct {
 }
 
 func (h *handlers) list(ctx context.Context, _ *mcp.CallToolRequest, in ListInput) (*mcp.CallToolResult, mail.ListResult, error) {
-	if err := requireAddress("list", in.Address); err != nil {
+	if err := session.RequireAddress("list", in.Address); err != nil {
 		return nil, mail.ListResult{Items: []mail.Header{}}, err
 	}
-	since, err := parseTime("since", in.Since)
+	since, err := session.ParseTime("since", in.Since)
 	if err != nil {
 		return nil, mail.ListResult{}, err
 	}
-	until, err := parseTime("until", in.Until)
+	until, err := session.ParseTime("until", in.Until)
 	if err != nil {
 		return nil, mail.ListResult{}, err
 	}
@@ -343,7 +300,7 @@ func (h *handlers) list(ctx context.Context, _ *mcp.CallToolRequest, in ListInpu
 	if res.Items == nil {
 		res.Items = []mail.Header{}
 	}
-	return nil, res, toolErr(err)
+	return nil, res, session.ToolErr(err)
 }
 
 // ReadInput is the input of read.
@@ -362,7 +319,7 @@ type ReadOutput struct {
 
 func (h *handlers) read(ctx context.Context, _ *mcp.CallToolRequest, in ReadInput) (*mcp.CallToolResult, ReadOutput, error) {
 	m, err := h.svc.Read(ctx, h.caller(), mail.ReadInput{MessageID: in.MessageID, Peek: in.Peek, Subagent: in.Subagent})
-	return nil, ReadOutput{Message: m, Marked: m.Marked}, toolErr(err)
+	return nil, ReadOutput{Message: m, Marked: m.Marked}, session.ToolErr(err)
 }
 
 // ThreadInput is the input of thread.
@@ -380,7 +337,7 @@ func (h *handlers) thread(ctx context.Context, _ *mcp.CallToolRequest, in Thread
 	if ms == nil {
 		ms = []mail.Message{}
 	}
-	return nil, ThreadOutput{Messages: ms}, toolErr(err)
+	return nil, ThreadOutput{Messages: ms}, session.ToolErr(err)
 }
 
 // MarkInput is the input of mark.
@@ -397,7 +354,7 @@ type MarkOutput struct {
 
 func (h *handlers) mark(ctx context.Context, _ *mcp.CallToolRequest, in MarkInput) (*mcp.CallToolResult, MarkOutput, error) {
 	n, err := h.svc.Mark(ctx, h.caller(), mail.MarkInput{MessageIDs: in.MessageIDs, State: in.State, Subagent: in.Subagent})
-	return nil, MarkOutput{Changed: n}, toolErr(err)
+	return nil, MarkOutput{Changed: n}, session.ToolErr(err)
 }
 
 // SearchInput is the input of search.
@@ -409,14 +366,14 @@ type SearchInput struct {
 }
 
 func (h *handlers) search(ctx context.Context, _ *mcp.CallToolRequest, in SearchInput) (*mcp.CallToolResult, mail.SearchResult, error) {
-	if err := requireAddress("search", in.Address); err != nil {
+	if err := session.RequireAddress("search", in.Address); err != nil {
 		return nil, mail.SearchResult{Hits: []mail.Hit{}}, err
 	}
 	res, err := h.svc.Search(ctx, mail.SearchInput{Address: in.Address, Query: in.Query, Limit: in.Limit, Cursor: in.Cursor})
 	if res.Hits == nil {
 		res.Hits = []mail.Hit{}
 	}
-	return nil, res, toolErr(err)
+	return nil, res, session.ToolErr(err)
 }
 
 // WaitInput is the input of wait.
@@ -442,7 +399,7 @@ func (h *handlers) wait(ctx context.Context, req *mcp.CallToolRequest, in WaitIn
 	if res.Items == nil {
 		res.Items = []mail.Header{}
 	}
-	return nil, res, toolErr(err)
+	return nil, res, session.ToolErr(err)
 }
 
 // reportProgress sends a progress notification every progressInterval until

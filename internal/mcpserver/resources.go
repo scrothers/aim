@@ -10,6 +10,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/scrothers/aim/internal/mail"
+	"github.com/scrothers/aim/internal/mcpserver/session"
 	"github.com/scrothers/aim/internal/mdview"
 )
 
@@ -106,7 +107,7 @@ func (h *handlers) resourceErr(uri string, err error) error {
 	if errors.Is(err, mail.ErrMessageNotFound) || errors.Is(err, mail.ErrMailboxNotFound) {
 		return mcp.ResourceNotFoundError(uri)
 	}
-	return toolErr(err)
+	return session.ToolErr(err)
 }
 
 // errNoResource marks a URI that names no resource.
