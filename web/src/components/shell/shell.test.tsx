@@ -515,7 +515,7 @@ describe('LeftNav', () => {
     const work = within(nav).getByRole('group', { name: 'Work' })
     expect(within(work).getAllByRole('link').map((a) => a.textContent?.replace(/\d+$/, ''))).toEqual([
       'Operator inbox',
-      'Unread everywhere',
+      'All unread',
       'Today',
       'Tasks',
       'Approvals',

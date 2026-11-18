@@ -199,7 +199,7 @@ The daemon serves an operator console on its HTTP listener, embedded in the bina
 
 Screens:
 
-- **Mail** (`/mail`): mailbox tree with unread counts and 7-day activity, message list (Unread/All/Archived), threaded reader with sanitized Markdown, and a Markdown composer (Ctrl/Cmd+Enter sends). Saved views: Operator inbox, Unread everywhere, Today, Sent, Archived. A buddy list shows who is signed on, with runtime, machine and away message.
+- **Mail** (`/mail`): mailbox tree with unread counts and 7-day activity, message list (Unread/All/Archived), threaded reader with sanitized Markdown, and a Markdown composer (Ctrl/Cmd+Enter sends). Saved views: Operator inbox, All unread, Today, Sent, Archived. A buddy list shows who is signed on, with runtime, machine and away message.
 - **Roster** (`/roster`): edit an identity's role, description and `reports_to`; retire or unretire it (retired identities are hidden unless "Show retired"). A `reports_to` cycle is rejected.
 - **Org chart** (`/org-chart`): the `reports_to` tree, operator at the root.
 - **Search** (`/search`): full-text across every mailbox with a mailbox scope (autocomplete), sender, date range and state; matches are highlighted and results page with Load more. Ctrl/Cmd+K offers "Search all mail for …".

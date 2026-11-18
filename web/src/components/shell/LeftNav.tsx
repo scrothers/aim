@@ -20,7 +20,7 @@ function ViewLink({ view, label, icon: Icon, children }: { view: ViewKey; label:
   return (
     <Link to="/mail" search={{ view }} className={rowCls}>
       <Icon aria-hidden="true" className="size-4" />
-      <span className="flex-1">{label}</span>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
       {children}
     </Link>
   )
@@ -67,7 +67,7 @@ export function LeftNav({ drawer = false, onNavigate }: { drawer?: boolean; onNa
           <ViewLink view="operator" label="Operator inbox" icon={Inbox}>
             <CountBadge count={views?.operator_unread} attention label="unread" />
           </ViewLink>
-          <ViewLink view="unread" label="Unread everywhere" icon={Circle}>
+          <ViewLink view="unread" label="All unread" icon={Circle}>
             <CountBadge count={views?.unread_everywhere} label="unread" />
           </ViewLink>
           <ViewLink view="today" label="Today" icon={CalendarDays}>
@@ -75,12 +75,12 @@ export function LeftNav({ drawer = false, onNavigate }: { drawer?: boolean; onNa
           </ViewLink>
           <Link to="/tasks" className={rowCls}>
             <ListChecks aria-hidden="true" className="size-4" />
-            <span className="flex-1">Tasks</span>
+            <span className="min-w-0 flex-1 truncate">Tasks</span>
             <CountBadge count={openTasks} label="open" />
           </Link>
           <Link to="/approvals" className={rowCls}>
             <ShieldCheck aria-hidden="true" className="size-4" />
-            <span className="flex-1">Approvals</span>
+            <span className="min-w-0 flex-1 truncate">Approvals</span>
             <CountBadge count={pending} attention label="pending" />
           </Link>
         </div>

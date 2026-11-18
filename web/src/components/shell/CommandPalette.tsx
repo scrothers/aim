@@ -31,7 +31,7 @@ import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, C
 
 const VIEWS = [
   { view: 'operator', label: 'Operator inbox', icon: Inbox },
-  { view: 'unread', label: 'Unread everywhere', icon: Circle },
+  { view: 'unread', label: 'All unread', icon: Circle },
   { view: 'today', label: 'Today', icon: CalendarDays },
   { view: 'sent', label: 'Sent', icon: Send },
   { view: 'archived', label: 'Archived', icon: Archive },

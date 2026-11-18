@@ -20,7 +20,7 @@ export interface MessageListProps {
   showMailbox?: boolean
   items: Header[]
   state: MailState
-  /** View forces its own state filter (e.g. "Unread everywhere"). */
+  /** View forces its own state filter (e.g. "All unread"). */
   lockedState?: boolean
   showUnread: boolean
   selectedThread?: string

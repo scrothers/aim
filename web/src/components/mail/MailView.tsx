@@ -26,7 +26,7 @@ import { ThreadView } from './ThreadView'
 
 const VIEW_TITLES: Record<NonNullable<MailSearch['view']>, string> = {
   operator: 'Operator inbox',
-  unread: 'Unread everywhere',
+  unread: 'All unread',
   today: 'Today',
   sent: 'Sent',
   archived: 'Archived',

@@ -110,6 +110,38 @@ test('at 1440x900 Tasks and Approvals stay on screen with every org expanded', a
   expect(await noHScroll(page)).toBe(true)
 })
 
+test('sidebar rows stay on one line with their count badges', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  // Three-digit counts are the widest badges a real inbox shows; force them so
+  // a long label next to one would wrap if rows allowed it.
+  await page.route((url) => url.pathname === '/api/views', async (route) => {
+    const res = await route.fetch()
+    const body = await res.json()
+    await route.fulfill({ response: res, json: { ...body, operator_unread: 188, unread_everywhere: 943, today: 517 } })
+  })
+  await page.goto('/mail')
+  const nav = page.getByRole('navigation', { name: 'Mailboxes' })
+  await expect(nav.getByRole('group', { name: 'Work' })).toBeVisible()
+  const wrapped = await nav.evaluate((el) => {
+    const out: string[] = []
+    for (const group of el.querySelectorAll('[role=group][aria-label=Work], [role=group][aria-label=Folders]')) {
+      for (const link of group.querySelectorAll('a')) {
+        const label = link.querySelector('span')
+        if (!label) continue
+        // Wrapping depends on the viewer's font and zoom, so check the rule that
+        // prevents it (one line, ellipsis) as well as the lines rendered now.
+        const s = getComputedStyle(label)
+        const range = document.createRange()
+        range.selectNodeContents(label)
+        const lines = new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size
+        if (s.whiteSpace !== 'nowrap' || s.textOverflow !== 'ellipsis' || lines > 1) out.push(label.textContent ?? '')
+      }
+    }
+    return out
+  })
+  expect(wrapped).toEqual([])
+})
+
 test.describe('phone 390x844', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
 
