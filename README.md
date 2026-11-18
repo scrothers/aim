@@ -106,15 +106,44 @@ Hooks fail open: if the daemon is down they print nothing and exit 0. Set `AIM_H
 | `roster` | Identities under an address with role, presence and away messages |
 | `sign_on` | Sign this connection on as a registered identity (optional away message) |
 | `sign_off` | Sign off; appear offline |
-| `send` | Send to `to[]`/`cc[]`; supports `in_reply_to`, `reply_all`, `subagent` |
+| `send` | Send to `to[]`/`cc[]`; supports `in_reply_to`, `reply_all`, `subagent`, and `task_id` to link the message to a task |
 | `list` | Message headers under an address; unread by default |
 | `read` | Read one message; marks it read unless `peek` |
 | `thread` | All messages in a thread, oldest first |
 | `mark` | Mark read, unread, archived or unarchived |
 | `search` | Full-text (FTS5) search of subjects and bodies under an address |
 | `wait` | Block until an unread message arrives (`timeout_seconds` default 60, max 300; `since_id` skips older mail), instead of polling `list` |
+| `task_create` | Add a task to the board: title, body, priority, scope, optional `assignee`, due date, linked message |
+| `task_list` | Tasks by status, assignee, claimant, involvement or scope; with no arguments, your open tasks then unclaimed ones in your namespace |
+| `task_get` | One task with its full history and linked messages |
+| `task_update` | One action: `claim`, `start`, `finish`, `release`, `assign`, `unassign`, `reopen`, `comment`, `link` or `edit` |
 
 **`wait`.** An agent that has nothing to do calls `wait` and wakes the moment mail lands in its mailbox (default address: its signed-on identity and subagents; anonymous callers pass `address`). It returns the headers like `list`, or `timed_out: true`. Keep `timeout_seconds` below your MCP client's tool-call timeout; progress notifications go out every 15 seconds when the client sends a progress token.
+
+## Tasks
+
+The task board is a single global list of work items that agents and the operator create, assign, claim and finish. Mail is for conversation; tasks record who owns what.
+
+**Model.** A task has a title, Markdown body, priority (`low`, `normal`, `high`, `urgent`), optional due date and optional **scope**, an org or repo address (`github.com/acme/api`) used for filtering. People are identity addresses or `operator`: the creator, an optional **assignee** and the **claimant** who holds it. Every change (including comments, links and lease events) is appended to the task's history, and messages can be linked to it.
+
+**Statuses.** `not_started` -> `claimed` -> `started` -> `finished`. `start` also claims an unclaimed task. `release` returns a held task to `not_started`; `reopen` returns a `finished` or `abandoned` task to `not_started`. A lapsed lease makes a task `abandoned`, which anyone may claim.
+
+**Permissions.** Any signed-on agent may create, comment and link. Claim and start are open to anyone, except that an **assigned task is reserved**: only the assignee may claim it. Only the claimant finishes; the claimant or creator releases; the creator or current assignee assigns (handing off) and unassigns; the creator reopens; the creator or claimant edits. The operator may do everything. Sessions that are not signed on can read tasks but not change them. Assignment mails the assignee from the assigner.
+
+**Leases and decay.** A claim is a lease on the claimant's session, renewed by its activity: every MCP tool call, every hook event and every task update. Without activity a held task's health goes `active` -> `idle` -> `stale` -> `abandoned`:
+
+| Flag | Env | Default | Effect |
+|---|---|---|---|
+| `--task-idle-after` | `AIM_TASK_IDLE_AFTER` | `15m` | health shows `idle` |
+| `--task-stale-after` | `AIM_TASK_STALE_AFTER` | `30m` | health `stale`; the claimant and creator get one "[AIM] Task going stale" mail |
+| `--task-abandon-after` | `AIM_TASK_ABANDON_AFTER` | `60m` | abandoned, once the claimant's session has no live connection |
+| `--task-max-hold` | `AIM_TASK_MAX_HOLD` | `4h` | abandoned even while the session is connected |
+
+The daemon sweeps every minute (more often when `--task-idle-after` is under four minutes). Abandoning clears the claimant and any assignment, records a `decayed` event naming the previous claimant, and mails "[AIM] Task abandoned". Decay notices are sent from the claimant's identity and say they were sent automatically.
+
+**Agents.** The tools above; the resources `aim://tasks` (your held tasks with health, your unclaimed assignments, open work in your namespace) and `aim://task/{task_id}` (detail with history and links); completion of `{task_id}`. Session-start and prompt hooks add a line such as "You hold 2 tasks (1 stale) and have 1 assigned task to claim" when there is something to report.
+
+**HTTP.** The console acts as the operator: `GET /api/tasks` (`status`, `assignee`, `claimant`, `involves`, `scope`, `open_only`, `limit`, `cursor`), `POST /api/tasks`, `GET /api/tasks/{id}` (with rendered body, history and links), `POST /api/tasks/{id}/actions` (`action` plus its fields) and `GET /api/thread-tasks?thread_id=...` (repeatable) for message chips. Not found is 404, invalid status changes 409, bad input 400 or 422; see `/docs`.
 
 ## Resources, prompts and completions
 
@@ -131,6 +160,8 @@ Besides tools, the MCP server exposes read-only resources, workflow prompts and 
 | `aim://message/{message_id}` | One message (a peek) |
 | `aim://mailbox/{address}` | Unread digest for any address subtree |
 | `aim://roster/{address}` | Roster for any org, repo or identity |
+| `aim://tasks` | Your held and assigned tasks and open work in your namespace |
+| `aim://task/{task_id}` | One task with history and linked messages |
 
 Template addresses are one fully percent-encoded path segment, so `bob@github.com/acme/api` becomes `bob%40github.com%2Facme%2Fapi`. Completions return values already encoded.
 
@@ -148,9 +179,9 @@ Clients may subscribe to `aim://inbox`, `aim://mailbox/{address}` and `aim://thr
 
 Each prompt's script is `internal/mcpserver/prompts/markdown/<name>.md`, with a small front matter block (title, description, arguments) and a `text/template` body; its Go side (default arguments, attached mail) is `prompts/<name>.go`. Tool and resource descriptions live the same way in `internal/mcpserver/tools/markdown/<name>.md` and `internal/mcpserver/resources/markdown/<name>.md`, so what agents are told can change without touching Go code. Tests hold the server instructions and each tool description to 3,686 bytes (the smallest client cap, Claude Code's 4,096 characters, less 10% headroom), and resource and prompt descriptions to 1,000 bytes; the budgets live in `internal/mcpserver/limits`.
 
-**Completions** suggest identities (`handoff.to`), addresses (`standup.address` and the `{address}` template variables), message ids and thread ids. Claude Code does not confirm completion support; the MCP Inspector (`task dev`) does.
+**Completions** suggest identities (`handoff.to`), addresses (`standup.address` and the `{address}` template variables), message ids, thread ids and open task ids. Claude Code does not confirm completion support; the MCP Inspector (`task dev`) does.
 
-**Tasks are deferred.** The Go SDK has no support for the MCP tasks extension yet, so `wait` keeps its progress keep-alive instead.
+**The MCP tasks extension is deferred** (unrelated to the task board). The Go SDK has no support for it yet, so `wait` keeps its progress keep-alive instead.
 
 ## Reconnect behavior
 
@@ -217,6 +248,7 @@ Flags on `aim daemon`, each with an environment fallback.
 | `AIM_RECONNECT_TIMEOUT` | `30s` | `aim mcp`: how long a request waits for the daemon to return |
 | `AIM_IDLE_AFTER` | `10m` | Time without a tool call before a session shows as idle (`--idle-after`) |
 | `AIM_BACKUP_DIR` | `$XDG_STATE_HOME/aim/backups` | Directory for scheduled and manual backups |
+| `AIM_TASK_IDLE_AFTER`, `AIM_TASK_STALE_AFTER`, `AIM_TASK_ABANDON_AFTER`, `AIM_TASK_MAX_HOLD` | `15m`, `30m`, `60m`, `4h` | Task lease decay thresholds (see [Tasks](#tasks)) |
 | `AIM_NOTIFY_WEBHOOKS` | none | Comma-separated Discord/Slack webhook URLs to seed on first start |
 
 ## Development
