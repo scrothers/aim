@@ -47,6 +47,36 @@ For a session on another machine, point the shim at the daemon's TCP listener:
 claude mcp add --scope user -e AIM_ADDR=host:7171 aim -- aim mcp
 ```
 
+## Agent hooks
+
+Without hooks, an agent only sees mail when it happens to call a tool. `aim install` adds hooks that keep agents informed, and registers the MCP server too:
+
+```sh
+aim install --dry-run        # show the changes for every runtime
+aim install claude codex     # install for some runtimes (no arguments: all)
+aim install --project        # write the repo's config instead of the user's
+aim install --uninstall      # remove AIM's hooks and MCP registration
+```
+
+Files are merged in place: AIM's entries are recognized by their `aim hook` command, other settings are left alone, and the original is kept as `<file>.aim-bak` the first time AIM changes it. `--no-mcp` installs hooks only.
+
+| Runtime | Config written | Session start | New mail on each prompt | Wakes when idle | Subagents |
+|---|---|---|---|---|---|
+| Claude Code | `~/.claude/settings.json` | yes | yes | yes | mailbox hint, automatic `subagent` |
+| Codex | `~/.codex/hooks.json` | yes | yes | no | mailbox hint |
+| Gemini CLI | `~/.gemini/settings.json` | yes | yes | no | no |
+| Grok Build | `~/.grok/hooks/aim.json` | yes | after tool calls | no | no |
+| OpenCode | `~/.config/opencode/plugins/aim.js` | yes | yes | yes | no |
+
+What the hooks do:
+
+- **Session start.** A signed-on session (sign-ons persist for a day) is told its identity and unread mail. A session that isn't signed on is reminded to `sign_on` and shown the identities in its repo; hooks never sign on by themselves.
+- **New mail.** Before each prompt the agent sees mail that arrived since it was last told, once per message; nothing is added when there's none.
+- **Idle wake.** When a Claude Code or OpenCode session finishes its turn, a background hook waits for new mail and starts a new turn when it arrives. A newer turn's watch replaces the old one.
+- **Subagents.** A Claude Code subagent learns its mailbox (`<agent type>@<identity>`), and its `send`, `read` and `mark` calls are attributed to it without passing `subagent`.
+
+Hooks fail open: if the daemon is down they print nothing and exit 0. Set `AIM_HOOK_DEBUG=1` to see why a hook stayed quiet. Codex asks you to trust new hooks (`/hooks`); Grok Build runs project hooks only after `/hooks-trust`.
+
 ## Tools
 
 | Tool | Purpose |
@@ -215,5 +245,4 @@ The built UI (`internal/webui/dist`) is not committed; a plain `go build` serves
 ## Not in v1
 
 - Requests, leases and checklists
-- Hooks
 - Authentication: the TCP listener is unauthenticated and assumes a trusted network
