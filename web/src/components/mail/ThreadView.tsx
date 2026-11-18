@@ -1,9 +1,11 @@
 import { forwardRef, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Archive, ArchiveRestore, ArrowLeft, Bell, BellOff, ChevronDown, ChevronRight, MailOpen, Reply } from 'lucide-react'
+import { Archive, ArchiveRestore, ArrowLeft, Bell, BellOff, ChevronDown, ChevronRight, ListPlus, MailOpen, Reply } from 'lucide-react'
 import { threadQuery, useMark, useMute, useReadMessage, type MessageView } from '@/api/mail'
 import { OPERATOR } from '@/lib/address'
 import { runtimeFor } from '@/lib/identity'
+import { taskStore } from '@/lib/tasks'
+import { ThreadTaskChips } from '@/components/tasks/ThreadTaskChips'
 import { AddressChip } from '@/components/shared/AddressChip'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { RuntimeBadge } from '@/components/shared/RuntimeBadge'
@@ -134,6 +136,15 @@ export const ThreadView = forwardRef<HTMLElement, ThreadViewProps>(function Thre
               <Reply aria-hidden="true" />
               Reply
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => taskStore.openCreate({ title: latest.subject.replace(/^(re|fwd?):\s*/i, ''), messageId: latest.id })}
+            >
+              <ListPlus aria-hidden="true" />
+              Create task from thread
+            </Button>
+            <ThreadTaskChips threadId={threadId} />
             {mine.length > 0 && (
               <>
                 {archived ? (
