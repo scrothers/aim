@@ -6,9 +6,18 @@ import { toast } from 'sonner'
 import { buddiesFlag, helpFlag, navFlag, paletteFlag } from '@/lib/flag'
 import { cn } from '@/lib/utils'
 import { notifySupported, setNotificationsEnabled, useNotificationsEnabled } from '@/lib/notify'
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { useIsWide } from '@/lib/viewport'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useTheme } from '@/lib/theme'
-import { RemoteApprovalsToggle } from '@/components/approvals/RemoteApprovalsToggle'
+import { ApprovalsMenuItem, ApprovalsSwitch, useRemoteApprovals } from './ApprovalsSwitch'
 import { Logo } from './Logo'
 
 /** Latest dataUpdatedAt across all cached queries (ms), or 0. */
@@ -18,7 +27,8 @@ function latestUpdate(qc: ReturnType<typeof useQueryClient>): number {
   return t
 }
 
-export function UpdatedAgo() {
+/** Fixed width and tabular digits: the ticking label never resizes its neighbours. */
+export function UpdatedAgo({ className }: { className?: string }) {
   const qc = useQueryClient()
   useIsFetching() // re-render when any fetch settles
   const [now, setNow] = useState(() => Date.now())
@@ -29,29 +39,70 @@ export function UpdatedAgo() {
   const t = latestUpdate(qc)
   const s = t === 0 ? null : Math.max(0, Math.round((now - t) / 1000))
   return (
-    <span className="flex items-center gap-1.5 text-[13px] text-faint">
-      <span aria-hidden="true" className="size-1.5 rounded-full bg-online" />
+    <span data-testid="updated-ago" className={cn('flex items-center gap-1.5 text-[13px] whitespace-nowrap text-faint tabular-nums', className)}>
+      <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-online" />
       {s === null ? 'Connecting…' : `Updated ${s}s ago`}
     </span>
   )
 }
 
-function MoreMenu() {
+function OperatorChip() {
+  return (
+    <span className="flex shrink-0 items-center gap-2 rounded-full border py-1 pr-2.5 pl-1">
+      <span aria-hidden="true" className="flex size-6 items-center justify-center rounded-full bg-text text-[11px] font-bold text-panel">
+        OP
+      </span>
+      <span className="font-mono text-[13px]">operator</span>
+    </span>
+  )
+}
+
+/**
+ * Overflow menu. Below `xl` it also carries what the top bar has no room
+ * for: the refresh age, who is signed in and the remote-approvals toggle.
+ */
+function MoreMenu({ compact }: { compact: boolean }) {
   const { dark, toggle } = useTheme()
   const notify = useNotificationsEnabled()
+  const remote = useRemoteApprovals()
   const onToggle = async (on: boolean) => {
     const result = await setNotificationsEnabled(on)
     if (on && !result) toast.error('Notification permission was not granted')
   }
+  const remoteOn = compact && remote.enabled
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="More options"
-        className="flex size-8 items-center justify-center rounded-lg border text-muted-foreground hover:bg-hover"
+        aria-describedby={remoteOn ? 'more-remote-on' : undefined}
+        className="relative flex size-8 shrink-0 items-center justify-center rounded-lg border text-muted-foreground hover:bg-hover"
       >
         <MoreHorizontal aria-hidden="true" className="size-4" />
+        {remoteOn && (
+          <>
+            <span data-testid="remote-on-dot" aria-hidden="true" className="absolute top-1 right-1 size-2 rounded-full bg-brand ring-2 ring-panel" />
+            <span id="more-remote-on" className="sr-only">
+              Remote approvals on
+            </span>
+          </>
+        )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="min-w-56">
+        {compact && (
+          <>
+            <DropdownMenuLabel className="flex flex-col gap-1.5 font-normal">
+              <span className="flex items-center gap-2">
+                <span aria-hidden="true" className="flex size-6 items-center justify-center rounded-full bg-text text-[11px] font-bold text-panel">
+                  OP
+                </span>
+                <span className="font-mono text-[13px]">operator</span>
+              </span>
+              <UpdatedAgo />
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <ApprovalsMenuItem />
+          </>
+        )}
         {notifySupported() && (
           <DropdownMenuCheckboxItem checked={notify} onCheckedChange={(v) => void onToggle(v === true)}>
             {notify ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
@@ -71,40 +122,39 @@ function MoreMenu() {
   )
 }
 
+/** One row at every width: anything that does not fit moves into the More menu. */
 export function TopBar() {
   const { dark, toggle } = useTheme()
-  const iconBtn = 'flex size-8 items-center justify-center rounded-lg border text-muted-foreground hover:bg-hover'
+  const wide = useIsWide()
+  const iconBtn = 'flex size-8 shrink-0 items-center justify-center rounded-lg border text-muted-foreground hover:bg-hover'
   return (
-    <header className="flex h-14 items-center gap-2 border-b bg-panel px-2 md:flex-wrap md:gap-4 md:px-4">
+    <header className="flex h-14 shrink-0 flex-nowrap items-center gap-2 overflow-hidden border-b bg-panel px-2 md:gap-3 md:px-4">
       <button type="button" aria-label="Open navigation" onClick={() => navFlag.set(true)} className={cn(iconBtn, 'md:hidden')}>
         <Menu aria-hidden="true" className="size-4" />
       </button>
-      <Link to="/" aria-label="AIM home" className="flex items-center gap-2.5 max-md:min-h-11 max-md:min-w-11 max-md:justify-center">
+      <Link to="/" aria-label="AIM home" className="flex shrink-0 items-center gap-2.5 max-md:min-h-11 max-md:min-w-11 max-md:justify-center">
         <Logo />
         <span className="text-base font-bold tracking-[0.02em] max-md:hidden">AIM</span>
-        <span className="hidden text-[13px] text-faint sm:inline">Agent Instant Messaging</span>
+        <span className="hidden text-[13px] whitespace-nowrap text-faint lg:inline">Agent Instant Messaging</span>
       </Link>
       <button
         type="button"
         aria-label="Search mail, mailboxes and agents"
         onClick={() => paletteFlag.set(true)}
-        className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border bg-panel2 px-3 text-faint md:flex-[1_1_280px]"
+        className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border bg-panel2 px-3 text-faint max-md:ml-auto max-md:size-8 max-md:flex-none max-md:justify-center max-md:px-0"
       >
         <Search aria-hidden="true" className="size-4 shrink-0" />
-        <span className="min-w-0 flex-1 truncate text-left">Search mail, mailboxes and agents</span>
+        <span className="min-w-0 flex-1 truncate text-left max-md:hidden">Search mail, mailboxes and agents</span>
         <kbd className="rounded border px-1.5 py-px font-mono text-xs text-muted-foreground max-md:hidden">⌘K</kbd>
       </button>
-      <div className="flex items-center gap-2 md:ml-auto md:gap-4">
-        <RemoteApprovalsToggle />
-        <span className="max-md:hidden">
-          <UpdatedAgo />
-        </span>
-        <span className="flex items-center gap-2 rounded-full border py-1 pr-2.5 pl-1 max-md:hidden">
-          <span aria-hidden="true" className="flex size-6 items-center justify-center rounded-full bg-text text-[11px] font-bold text-panel">
-            OP
-          </span>
-          <span className="font-mono text-[13px]">operator</span>
-        </span>
+      <div className="flex shrink-0 items-center gap-2 md:gap-3">
+        {wide && (
+          <>
+            <ApprovalsSwitch />
+            <UpdatedAgo className="w-[8.5rem]" />
+            <OperatorChip />
+          </>
+        )}
         <button type="button" aria-label="Open buddy list" onClick={() => buddiesFlag.set(true)} className={cn(iconBtn, 'md:hidden')}>
           <Users aria-hidden="true" className="size-4" />
         </button>
@@ -116,7 +166,7 @@ export function TopBar() {
         >
           {dark ? <Sun aria-hidden="true" className="size-4" /> : <Moon aria-hidden="true" className="size-4" />}
         </button>
-        <MoreMenu />
+        <MoreMenu compact={!wide} />
       </div>
     </header>
   )

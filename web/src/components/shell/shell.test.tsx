@@ -9,10 +9,10 @@ import { helpFlag, paletteFlag } from '@/lib/flag'
 import { reloadNotifyPref, setNotificationsEnabled } from '@/lib/notify'
 import { ThemeProvider } from '@/lib/theme'
 import { composeStore } from '@/lib/compose'
-import { renderWithRouter } from '@/test/utils'
+import { mockViewport, renderWithRouter } from '@/test/utils'
 import { treeFixture } from '@/test/fixtures'
 
-const mocks = vi.hoisted(() => ({ GET: vi.fn(), POST: vi.fn() }))
+const mocks = vi.hoisted(() => ({ GET: vi.fn(), POST: vi.fn(), PUT: vi.fn() }))
 vi.mock('@/api/client', async (orig) => ({ ...(await orig<typeof import('@/api/client')>()), api: mocks }))
 
 import { CommandPalette } from './CommandPalette'
@@ -294,6 +294,60 @@ describe('mobile layout', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Navigation' })).toBeNull())
     await user.click(screen.getByRole('button', { name: 'Open buddy list' }))
     expect(await screen.findByRole('dialog', { name: 'Buddy list' })).toBeInTheDocument()
+  })
+})
+
+describe('TopBar', () => {
+  let remote = false
+  beforeEach(() => {
+    remote = true
+    const base = mocks.GET.getMockImplementation()!
+    mocks.GET.mockImplementation(async (path: string, ...rest: unknown[]) =>
+      path === '/api/settings/approvals'
+        ? ok({ enabled: remote, timeout_seconds: 300 })
+        : path === '/api/approvals'
+          ? ok({ items: [{ id: 'a1' }] })
+          : base(path, ...rest),
+    )
+  })
+  afterEach(() => {
+    delete (window as { matchMedia?: unknown }).matchMedia
+  })
+  const bar = () =>
+    renderWithRouter(
+      <Providers client={qc()}>
+        <TopBar />
+      </Providers>,
+    )
+
+  it('keeps the approvals switch, refresh age and operator in the bar at xl, without an approvals count', async () => {
+    mockViewport(1440)
+    await bar()
+    expect(await screen.findByRole('switch', { name: 'Remote approvals' })).toBeInTheDocument()
+    expect(screen.getByTestId('updated-ago')).toHaveClass('tabular-nums', 'w-[8.5rem]')
+    expect(screen.getByText('operator')).toBeInTheDocument()
+    expect(screen.queryByLabelText(/pending approval/)).toBeNull()
+    expect(screen.queryByTestId('remote-on-dot')).toBeNull()
+  })
+
+  it('moves them into the More menu below xl and flags remote approvals on the More button', async () => {
+    const user = userEvent.setup()
+    mockViewport(1024)
+    await bar()
+    expect(screen.queryByRole('switch', { name: 'Remote approvals' })).toBeNull()
+    expect(screen.queryByTestId('updated-ago')).toBeNull()
+    expect(await screen.findByTestId('remote-on-dot')).toBeInTheDocument()
+    const more = screen.getByRole('button', { name: 'More options' })
+    expect(more).toHaveAccessibleDescription('Remote approvals on')
+    await user.click(more)
+    const menu = await screen.findByRole('menu')
+    expect(within(menu).getByText('operator')).toBeInTheDocument()
+    expect(within(menu).getByTestId('updated-ago')).toBeInTheDocument()
+    const item = within(menu).getByRole('menuitemcheckbox', { name: 'Remote approvals' })
+    expect(item).toHaveAttribute('aria-checked', 'true')
+    mocks.PUT.mockResolvedValue(ok({ enabled: false, timeout_seconds: 300 }))
+    await user.click(item)
+    await waitFor(() => expect(mocks.PUT).toHaveBeenCalledWith('/api/settings/approvals', { body: { enabled: false, timeout_seconds: 300 } }))
   })
 })
 
