@@ -90,6 +90,17 @@
         ]
       }
     ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/opt/aim hook claude",
+            "timeout": 3630
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

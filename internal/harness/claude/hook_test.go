@@ -2,6 +2,7 @@ package claude_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -124,6 +125,22 @@ func TestParse(t *testing.T) {
 			wantOK: true,
 			want:   harness.Parsed{SessionID: "s1", Cwd: "/p", Request: wire.HookRequest{Op: wire.HookOpWatch}},
 		},
+		{
+			name: "permission request",
+			stdin: `{"session_id":"s1","cwd":"/p","hook_event_name":"PermissionRequest","permission_mode":"default",` +
+				`"tool_name":"Bash","tool_input":{"command":"git push origin main","description":"Push"},"permission_suggestions":[]}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "s1", Cwd: "/p", Request: wire.HookRequest{
+				Op: wire.HookOpApprove, ToolName: "Bash", Detail: "Bash: git push origin main",
+				ToolInput: json.RawMessage(`{"command":"git push origin main","description":"Push"}`)}},
+		},
+		{
+			name:   "permission request without input",
+			stdin:  `{"session_id":"s1","hook_event_name":"PermissionRequest","tool_name":"mcp__x__y"}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "s1", Request: wire.HookRequest{
+				Op: wire.HookOpApprove, ToolName: "mcp__x__y", Detail: "mcp__x__y"}},
+		},
 		{name: "unhandled event", stdin: `{"hook_event_name":"Stop"}`},
 		{name: "grok owns its events", stdin: `{"hook_event_name":"SessionStart"}`, env: map[string]string{"GROK_HOOK_EVENT": "session_start"}},
 		{name: "bad json", stdin: `{`, wantErr: true},
@@ -171,6 +188,13 @@ func TestRender(t *testing.T) {
 		{name: "watch wake", req: wire.HookRequest{Op: wire.HookOpWatch},
 			reply: wire.HookReply{Wake: true, Context: "new mail"}, wantExit: 2, wantErr: "new mail\n"},
 		{name: "watch superseded", req: wire.HookRequest{Op: wire.HookOpWatch}, reply: wire.HookReply{Superseded: true}},
+		{name: "approve allow", req: wire.HookRequest{Op: wire.HookOpApprove},
+			reply: wire.HookReply{Decision: wire.DecisionAllow, Reason: "ok"}},
+		{name: "approve deny", req: wire.HookRequest{Op: wire.HookOpApprove},
+			reply: wire.HookReply{Decision: wire.DecisionDeny, Reason: "use a branch"}},
+		{name: "approve deny without reason", req: wire.HookRequest{Op: wire.HookOpApprove},
+			reply: wire.HookReply{Decision: wire.DecisionDeny}},
+		{name: "approve no decision", req: wire.HookRequest{Op: wire.HookOpApprove}, reply: wire.HookReply{SignedOn: true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

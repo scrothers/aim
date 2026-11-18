@@ -24,6 +24,9 @@ func hookEntries(bin string) []harness.HookEntry {
 		harness.HookEntry{Event: "PostToolUse", Handler: handler(5)},
 		harness.HookEntry{Event: "Notification", Matcher: "permission_prompt|idle_prompt|agent_needs_input|elicitation_dialog", Handler: handler(5)},
 		harness.HookEntry{Event: "StopFailure", Handler: handler(5)},
+		// Answers permission dialogs from the console when remote approvals
+		// are on; off, it returns at once and the dialog shows as usual.
+		harness.HookEntry{Event: "PermissionRequest", Handler: handler(harness.ApprovalHookTimeout)},
 		harness.HookEntry{Event: "Stop", Handler: harness.Obj(
 			"type", "command",
 			"command", harness.HookCommand(bin, "claude", "watch"),

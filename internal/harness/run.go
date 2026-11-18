@@ -57,6 +57,7 @@ func runHook(ctx context.Context, h Hook, event string, stdin []byte, d Deps) (O
 	pre := d.preamble(ctx, h, p)
 	req := p.Request
 	req.Runtime = h.Name()
+	req.ToolInput = wire.TruncateToolInput(req.ToolInput)
 
 	dctx, cancel := context.WithTimeout(ctx, dialTimeout)
 	conn, err := d.Dial(dctx)
@@ -65,14 +66,17 @@ func runHook(ctx context.Context, h Hook, event string, stdin []byte, d Deps) (O
 		return Output{}, fmt.Errorf("dial: %w", err)
 	}
 	defer func() { _ = conn.Close() }()
-	if req.Op != wire.HookOpWatch {
+	switch req.Op {
+	case wire.HookOpWatch, wire.HookOpApprove:
+		// Both block on the daemon for as long as it takes (the daemon bounds
+		// an approval by its timeout; the runtime bounds the hook process).
+		// Closing the connection is how a cancelled wait stops blocking.
+		stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
+		defer stop()
+	default:
 		if err := conn.SetDeadline(time.Now().Add(eventTimeout)); err != nil {
 			return Output{}, fmt.Errorf("deadline: %w", err)
 		}
-	} else {
-		// Closing the connection is how a cancelled watch stops blocking.
-		stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
-		defer stop()
 	}
 	if err := wire.WritePreamble(conn, pre); err != nil {
 		return Output{}, fmt.Errorf("preamble: %w", err)

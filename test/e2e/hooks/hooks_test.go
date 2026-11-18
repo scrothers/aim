@@ -10,6 +10,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -64,19 +67,37 @@ func run(m *testing.M) int {
 type daemon struct {
 	cmd    *exec.Cmd
 	socket string
+	// web is the HTTP API address.
+	web string
 }
 
-// startDaemon runs a daemon on a short-path unix socket (the HTTP listener
-// takes an ephemeral port; TCP is off).
+// freeAddr returns a loopback address with a port that was free a moment ago.
+func freeAddr(t *testing.T) string {
+	t.Helper()
+	l, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("free port: %v", err)
+	}
+	addr := l.Addr().String()
+	if err := l.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	return addr
+}
+
+// startDaemon runs a daemon on a short-path unix socket and a loopback HTTP
+// port; TCP is off.
 func startDaemon(t *testing.T) *daemon {
 	t.Helper()
 	dir, err := os.MkdirTemp("/tmp", "aimh")
 	if err != nil {
 		t.Fatalf("mktemp: %v", err)
 	}
-	d := &daemon{socket: filepath.Join(dir, "a.sock")}
+	d := &daemon{socket: filepath.Join(dir, "a.sock"), web: freeAddr(t)}
 	d.cmd = exec.Command(aimBin, "daemon", "--db", filepath.Join(dir, "aim.db"),
-		"--socket", d.socket, "--listen", "", "--http", "127.0.0.1:0")
+		"--socket", d.socket, "--listen", "", "--http", d.web,
+		// Keep scheduled backups out of the real ~/.local/state/aim.
+		"--backup-dir", filepath.Join(dir, "backups"))
 	d.cmd.Env = append(os.Environ(), "XDG_STATE_HOME="+dir)
 	d.cmd.Stderr = os.Stderr
 	if err := d.cmd.Start(); err != nil {
@@ -96,7 +117,7 @@ func startDaemon(t *testing.T) *daemon {
 	})
 	deadline := time.Now().Add(15 * time.Second)
 	for {
-		if _, err := os.Stat(d.socket); err == nil {
+		if _, err := os.Stat(d.socket); err == nil && d.api(context.Background(), http.MethodGet, "/healthz", nil, nil) == http.StatusOK {
 			return d
 		}
 		if time.Now().After(deadline) {
@@ -104,6 +125,35 @@ func startDaemon(t *testing.T) *daemon {
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
+}
+
+// api calls the HTTP API with the browser guard headers and decodes a JSON
+// response into out (if non-nil). It returns the status code, or 0 when the
+// request failed.
+func (d *daemon) api(ctx context.Context, method, path string, body, out any) int {
+	var rd io.Reader = http.NoBody
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			return 0
+		}
+		rd = bytes.NewReader(b)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, "http://"+d.web+path, rd)
+	if err != nil {
+		return 0
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-AIM-Request", "1")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0
+	}
+	defer resp.Body.Close()
+	if out != nil && resp.StatusCode < 300 {
+		_ = json.NewDecoder(resp.Body).Decode(out)
+	}
+	return resp.StatusCode
 }
 
 type client struct {

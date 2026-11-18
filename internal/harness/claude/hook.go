@@ -23,6 +23,8 @@ type payload struct {
 	AgentType string `json:"agent_type"`
 	ToolUseID string `json:"tool_use_id"`
 	ToolName  string `json:"tool_name"`
+	// ToolInput is the tool's arguments (PermissionRequest, PreToolUse).
+	ToolInput json.RawMessage `json:"tool_input"`
 
 	NotificationType string `json:"notification_type"`
 	Message          string `json:"message"`
@@ -76,6 +78,10 @@ func (Runtime) Parse(event string, stdin []byte, getenv func(string) string) (ha
 		p.Request = wire.HookRequest{Op: wire.HookOpWatch}
 		return p, true, nil
 	}
+	if in.Event == "PermissionRequest" {
+		p.Request = harness.ApprovalRequest(in.ToolName, in.ToolInput)
+		return p, true, nil
+	}
 	req := wire.HookRequest{Op: wire.HookOpEvent}
 	switch in.Event {
 	case "SessionStart":
@@ -112,8 +118,13 @@ func (Runtime) Parse(event string, stdin []byte, getenv func(string) string) (ha
 }
 
 // Render writes additionalContext for events; for a watch, a wake prints the
-// context on stderr and exits 2, which wakes the idle session.
+// context on stderr and exits 2, which wakes the idle session. An approval
+// prints the PermissionRequest decision, or nothing without one, which lets
+// Claude Code show its own permission dialog.
 func (Runtime) Render(req wire.HookRequest, reply wire.HookReply) harness.Output {
+	if req.Op == wire.HookOpApprove {
+		return harness.Output{Stdout: harness.PermissionDecision("PermissionRequest", reply)}
+	}
 	if req.Op == wire.HookOpWatch {
 		if reply.Wake && reply.Context != "" {
 			return harness.Output{Stderr: []byte(reply.Context + "\n"), Exit: 2}
