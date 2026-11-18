@@ -120,6 +120,9 @@ func TaskDetail(d tasks.Detail) string {
 		fmt.Fprintf(&b, "\n%s\n", body)
 	}
 	b.WriteString("\n## History\n\n")
+	if len(d.Events) == 0 {
+		b.WriteString("_No history._\n")
+	}
 	for _, e := range d.Events {
 		fmt.Fprintf(&b, "- %s %s by %s", Stamp(e.At), e.Kind, e.Actor)
 		if e.FromStatus != "" || e.ToStatus != "" {

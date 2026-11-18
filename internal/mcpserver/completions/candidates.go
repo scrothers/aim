@@ -7,6 +7,7 @@ import (
 
 	"github.com/scrothers/aim/internal/address"
 	"github.com/scrothers/aim/internal/mail"
+	"github.com/scrothers/aim/internal/tasks"
 )
 
 // recentLimit bounds the mail scanned for id completions.
@@ -81,6 +82,39 @@ func (cp completer) addresses(ctx context.Context, withOperator bool) ([]string,
 		}
 	}
 	return append(scopes, ids...), nil
+}
+
+// taskIDs suggests recent open task ids: the caller's (created, assigned or
+// held) first, then those in its namespace.
+func (cp completer) taskIDs(ctx context.Context) ([]string, error) {
+	board, err := cp.c.TaskBoard()
+	if err != nil {
+		return nil, err
+	}
+	var queries []tasks.ListInput
+	if id, ok := cp.c.Entry.Identity(); ok {
+		queries = append(queries, tasks.ListInput{Involves: id.IdentityAddress().String()})
+	}
+	if ns := cp.c.Entry.Preamble().Namespace; ns != "" {
+		queries = append(queries, tasks.ListInput{Scope: ns})
+	}
+	if len(queries) == 0 {
+		queries = append(queries, tasks.ListInput{})
+	}
+	var out []string
+	for _, q := range queries {
+		q.OpenOnly, q.Limit = true, maxCompletions
+		res, err := board.List(ctx, q)
+		if err != nil {
+			return nil, err
+		}
+		for _, t := range res.Items {
+			if !slices.Contains(out, t.ID) {
+				out = append(out, t.ID)
+			}
+		}
+	}
+	return out, nil
 }
 
 // recentIDs extracts values from the caller's recent non-archived mail (their

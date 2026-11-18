@@ -12,6 +12,7 @@ import (
 
 	"github.com/scrothers/aim/internal/mail"
 	"github.com/scrothers/aim/internal/mcpserver/session"
+	"github.com/scrothers/aim/internal/tasks"
 )
 
 // MIMEMarkdown is the MIME type of every aim:// resource.
@@ -35,7 +36,7 @@ type resource struct {
 func (r resource) template() string { return r.prefix + "{" + r.variable + "}" }
 
 // all lists every resource in registration order: statics, then templates.
-var all = []resource{me, inbox, namespaceRoster, thread, message, mailbox, rosterOf}
+var all = []resource{me, inbox, namespaceRoster, myTasks, thread, message, mailbox, rosterOf, task}
 
 // Register adds the aim:// resources and templates to srv, acting for c.
 func Register(srv *mcp.Server, c *session.Conn) {
@@ -88,7 +89,7 @@ func render(ctx context.Context, c *session.Conn, uri string) (string, error) {
 
 // notFound maps unknown ids and addresses to the protocol's not-found error.
 func notFound(uri string, err error) error {
-	if errors.Is(err, mail.ErrMessageNotFound) || errors.Is(err, mail.ErrMailboxNotFound) {
+	if errors.Is(err, mail.ErrMessageNotFound) || errors.Is(err, mail.ErrMailboxNotFound) || errors.Is(err, tasks.ErrNotFound) {
 		return mcp.ResourceNotFoundError(uri)
 	}
 	return session.ToolErr(err)

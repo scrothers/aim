@@ -25,6 +25,7 @@ const (
 	kindRosterAddress
 	kindMessageID
 	kindThreadID
+	kindTaskID
 )
 
 // promptKind returns the kind of value a prompt argument holds.
@@ -60,6 +61,10 @@ func templateKind(uriTemplate, variable string) kind {
 	case resources.PrefixRosterOf + "{address}":
 		if variable == "address" {
 			return kindRosterAddress
+		}
+	case resources.PrefixTask + "{task_id}":
+		if variable == "task_id" {
+			return kindTaskID
 		}
 	}
 	return kindNone
@@ -101,6 +106,8 @@ func (cp completer) complete(ctx context.Context, req *mcp.CompleteRequest) (*mc
 		candidates, err = cp.recentIDs(ctx, func(m mail.Header) string { return m.ID })
 	case kindThreadID:
 		candidates, err = cp.recentIDs(ctx, func(m mail.Header) string { return m.ThreadID })
+	case kindTaskID:
+		candidates, err = cp.taskIDs(ctx)
 	case kindNone:
 	}
 	if err != nil {

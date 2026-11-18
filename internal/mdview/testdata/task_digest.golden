@@ -1,0 +1,15 @@
+# Your tasks
+
+## Held by you
+
+- **Fix login** `task-1` - started (stale), urgent priority, held by bob@github.com/acme/api, assigned to bob@github.com/acme/api, scope github.com/acme/api, due 2026-01-04 15:04 UTC
+
+## Assigned to you
+
+_Nothing is assigned to you._
+
+## Open in github.com/acme/api
+
+- **Docs** `task-2` - not_started
+
+Read one with `aim://task/{task_id}` or `task_get`; change it with `task_update`.

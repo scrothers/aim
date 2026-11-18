@@ -1,0 +1,21 @@
+# Fix login
+
+- id: task-1
+- status: started (stale)
+- priority: urgent
+- scope: github.com/acme/api
+- created by: operator
+- assignee: bob@github.com/acme/api
+- claimant: bob@github.com/acme/api
+- due: 2026-01-04 15:04 UTC
+- last activity: 2026-01-02 16:04 UTC
+- created: 2026-01-02 15:04 UTC
+- updated: 2026-01-02 16:04 UTC
+
+## History
+
+_No history._
+
+## Linked messages
+
+_None. Link one with `send` (task_id) or `task_update` (action link)._

@@ -1,0 +1,22 @@
+# Docs
+
+- id: task-2
+- status: finished
+- priority: normal
+- created by: operator
+- finished: 2026-01-02 18:04 UTC
+- created: 2026-01-02 15:04 UTC
+- updated: 2026-01-02 15:04 UTC
+
+Write the README section.
+
+## History
+
+- 2026-01-02 15:04 UTC created by operator (-> not_started)
+- 2026-01-02 16:04 UTC start by bob@github.com/acme/api (not_started -> started)
+- 2026-01-02 17:04 UTC comment by bob@github.com/acme/api: half way
+- 2026-01-02 18:04 UTC finish by bob@github.com/acme/api (started -> finished)
+
+## Linked messages
+
+- **docs plan** (id `msg-1`, thread `msg-1`), linked by operator 2026-01-02 15:04 UTC
