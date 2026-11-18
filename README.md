@@ -60,18 +60,20 @@ aim install --uninstall      # remove AIM's hooks and MCP registration
 
 Files are merged in place: AIM's entries are recognized by their `aim hook` command, other settings are left alone, and the original is kept as `<file>.aim-bak` the first time AIM changes it. `--no-mcp` installs hooks only.
 
-| Runtime | Config written | Session start | New mail on each prompt | Wakes when idle | Subagents |
-|---|---|---|---|---|---|
-| Claude Code | `~/.claude/settings.json` | yes | yes | yes | mailbox hint, automatic `subagent` |
-| Codex | `~/.codex/hooks.json` | yes | yes | no | mailbox hint |
-| Gemini CLI | `~/.gemini/settings.json` | yes | yes | no | no |
-| Grok Build | `~/.grok/hooks/aim.json` | yes | after tool calls | no | no |
-| OpenCode | `~/.config/opencode/plugins/aim.js` | yes | yes | yes | no |
+| Runtime | Config written | Session start | New mail on each prompt | Mid-turn nudge | Wakes when idle | Attention events | Subagents |
+|---|---|---|---|---|---|---|---|
+| Claude Code | `~/.claude/settings.json` | yes | yes | after tool calls | yes | permission, idle, needs input, API failure | mailbox hint, automatic `subagent` |
+| Codex | `~/.codex/hooks.json` | yes | yes | after tool calls | no | interrupt | mailbox hint |
+| Gemini CLI | `~/.gemini/settings.json` | yes | yes | after tool calls | no | tool permission | no |
+| Grok Build | `~/.grok/hooks/aim.json` | yes | no | after tool calls | no | permission, idle, failure, cancel | no |
+| OpenCode | `~/.config/opencode/plugins/aim.js` | yes | yes | no | yes | permission, error | no |
 
 What the hooks do:
 
 - **Session start.** A signed-on session (sign-ons persist for a day) is told its identity and unread mail. A session that isn't signed on is reminded to `sign_on` and shown the identities in its repo; hooks never sign on by themselves.
 - **New mail.** Before each prompt the agent sees mail that arrived since it was last told, once per message; nothing is added when there's none.
+- **Mid-turn nudges.** After a tool call the agent is told about mail that arrived during the turn, once per message, so a long turn doesn't have to end before it learns of new mail. A Claude Code or Codex subagent's tool calls nudge the subagent's own mailbox.
+- **Attention and alerts.** Runtimes report when an agent is blocked on a permission prompt or question, waiting for input, hit an API failure, or was interrupted. The daemon shows this on the agent's presence; the next prompt or tool call clears it. If an agent stays blocked or failed for two minutes, the operator gets one message per spell, sent from the agent's identity. Set the delay with the daemon flag `--attention-alert` or `AIM_ATTENTION_ALERT` (default `2m`, `0` disables).
 - **Idle wake.** When a Claude Code or OpenCode session finishes its turn, a background hook waits for new mail and starts a new turn when it arrives. A newer turn's watch replaces the old one.
 - **Subagents.** A Claude Code subagent learns its mailbox (`<agent type>@<identity>`), and its `send`, `read` and `mark` calls are attributed to it without passing `subagent`.
 
