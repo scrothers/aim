@@ -261,10 +261,14 @@ func TestHistoryTaskBoard(t *testing.T) {
 			t.Errorf("no task is %s", st)
 		}
 	}
-	for _, h := range tasks.Healths {
+	for _, h := range []tasks.Health{tasks.HealthActive, tasks.HealthIdle, tasks.HealthStale} {
 		if b.Health[h] == 0 {
 			t.Errorf("no held task is %s", h)
 		}
+	}
+	// Decayed leases are already stored as abandoned, not left held.
+	if b.Health[tasks.HealthAbandoned] != 0 || b.Status[tasks.StatusAbandoned] < 4 {
+		t.Errorf("abandoned health = %d, abandoned status = %d, want 0 and 4+", b.Health[tasks.HealthAbandoned], b.Status[tasks.StatusAbandoned])
 	}
 
 	details := readBoard(t, cfg.DB, fixedNow)
@@ -502,5 +506,80 @@ func TestLiveTasksAndApprovals(t *testing.T) {
 		}
 	case <-time.After(15 * time.Second):
 		t.Fatal("RunLive did not stop")
+	}
+}
+
+func TestLiveLeavesHistoryLeasesAlone(t *testing.T) {
+	dir := t.TempDir()
+	hist := devseed.HistoryConfig{DB: filepath.Join(dir, "aim.db"), Seed: 1, Days: 7, Messages: 60}
+	if _, err := devseed.SeedHistory(context.Background(), hist); err != nil {
+		t.Fatal(err)
+	}
+	cfg := daemon.Config{DBPath: hist.DB, Socket: filepath.Join(dir, "s"), HTTP: "127.0.0.1:0"}
+	ready := make(chan daemon.Addrs, 1)
+	cfg.Ready = func(a daemon.Addrs) { ready <- a }
+	dctx, dcancel := context.WithCancel(context.Background())
+	ddone := make(chan error, 1)
+	go func() { ddone <- daemon.Run(dctx, cfg, slog.New(slog.NewTextHandler(io.Discard, nil))) }()
+	t.Cleanup(func() { dcancel(); <-ddone })
+	var addrs daemon.Addrs
+	select {
+	case addrs = <-ready:
+	case <-time.After(10 * time.Second):
+		t.Fatal("daemon not ready")
+	}
+	base := "http://" + addrs.HTTP
+
+	heldActivity := func() map[string]time.Time {
+		var body struct {
+			Items []struct {
+				ID             string     `json:"id"`
+				Status         string     `json:"status"`
+				LastActivityAt *time.Time `json:"last_activity_at"`
+			} `json:"items"`
+		}
+		getJSON(t, base+"/api/tasks?limit=200", &body)
+		out := map[string]time.Time{}
+		for _, it := range body.Items {
+			if (it.Status == "claimed" || it.Status == "started") && it.LastActivityAt != nil {
+				out[it.ID] = *it.LastActivityAt
+			}
+		}
+		return out
+	}
+	before := heldActivity()
+	if len(before) < 5 {
+		t.Fatalf("only %d held history tasks", len(before))
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var out syncBuf
+	done := make(chan error, 1)
+	go func() {
+		done <- devseed.RunLive(ctx, devseed.LiveConfig{Addr: addrs.Socket, Seed: 1, Chatter: 10 * time.Millisecond, Out: &out})
+	}()
+	deadline := time.Now().Add(20 * time.Second)
+	for strings.Count(out.String(), " -> ") < 20 {
+		if time.Now().After(deadline) {
+			t.Fatalf("live agents did not chat; output:\n%s", out.String())
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	cancel()
+	<-done
+
+	after := heldActivity()
+	kept := 0
+	for id, was := range before {
+		if now, ok := after[id]; ok {
+			kept++
+			if !now.Equal(was) {
+				t.Errorf("%s: live activity renewed a history lease (%s -> %s)", id, was, now)
+			}
+		}
+	}
+	if kept < 5 {
+		t.Errorf("only %d history leases still held", kept)
 	}
 }

@@ -292,8 +292,9 @@ protocol (preamble, then MCP) and sends occasional mail and sign-on/off events.
 
 The history includes a task board written through the task service: every
 status, mixed priorities, overdue and assigned tasks, links to seeded mail,
-and claimed tasks at each lease stage (active, idle, stale, and decayed; the
-daemon's sweeper abandons the decayed ones within a minute of starting). A
+and claimed tasks at each lease stage (active, idle, stale, with the decayed
+ones already abandoned). Their claim sessions end in `-hist`, so live agents
+never renew them and they keep decaying under the daemon's sweeper. A
 database that already has tasks is left as is. `task dev:seed -- --approvals`
 also turns on remote approvals in the settings.
 

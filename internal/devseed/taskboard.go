@@ -408,7 +408,11 @@ func seedBoard(ctx context.Context, st *store.Store, svc *mail.Service, clk *clo
 		if p == nil {
 			return mail.Caller{}, fmt.Errorf("devseed: task board: unknown identity %q", who)
 		}
-		return callerOf(p), nil
+		// History leases use their own session ids, which no live agent
+		// connects with, so live activity never renews them.
+		c := callerOf(p)
+		c.SessionID += histSessionSuffix
+		return c, nil
 	}
 	run := &boardRun{
 		board: board, clk: clk, caller: caller, sent: sent, now: now,
@@ -417,9 +421,17 @@ func seedBoard(ctx context.Context, st *store.Store, svc *mail.Service, clk *clo
 	if err := run.execute(ctx); err != nil {
 		return BoardSummary{}, err
 	}
+	// Abandon the leases that decayed before now; their sessions are not
+	// connected, so the sweep stores the abandonment.
 	clk.set(now)
+	if _, err := board.Sweep(ctx); err != nil {
+		return BoardSummary{}, fmt.Errorf("devseed: final sweep: %w", err)
+	}
 	return summarizeBoard(ctx, board, now)
 }
+
+// histSessionSuffix marks the claim sessions of history-seeded tasks.
+const histSessionSuffix = "-hist"
 
 // boardRun replays every task's creation and steps in time order, as they
 // would have happened. Order matters: an agent's update renews every lease it
@@ -569,6 +581,6 @@ func (b BoardSummary) Print(w io.Writer) {
 	say(w, "tasks:      %d (%d not started, %d claimed, %d started, %d finished, %d abandoned), %d overdue\n", b.Tasks,
 		b.Status[tsk.StatusNotStarted], b.Status[tsk.StatusClaimed], b.Status[tsk.StatusStarted],
 		b.Status[tsk.StatusFinished], b.Status[tsk.StatusAbandoned], b.Overdue)
-	say(w, "task lease: %d active, %d idle, %d stale, %d decayed; %d events, %d message links\n",
-		b.Health[tsk.HealthActive], b.Health[tsk.HealthIdle], b.Health[tsk.HealthStale], b.Health[tsk.HealthAbandoned], b.Events, b.Links)
+	say(w, "task lease: %d active, %d idle, %d stale; %d events, %d message links\n",
+		b.Health[tsk.HealthActive], b.Health[tsk.HealthIdle], b.Health[tsk.HealthStale], b.Events, b.Links)
 }
