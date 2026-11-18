@@ -1,8 +1,10 @@
 name: CI
 
+# CI runs on every branch push (main included) and on pull requests, never
+# on tags; releases (release.yml) run only on v* tags.
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request:
 
 permissions:
