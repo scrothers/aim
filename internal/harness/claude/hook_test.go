@@ -141,6 +141,8 @@ func TestParse(t *testing.T) {
 			want: harness.Parsed{SessionID: "s1", Request: wire.HookRequest{
 				Op: wire.HookOpApprove, ToolName: "mcp__x__y", Detail: "mcp__x__y"}},
 		},
+		{name: "question stays in the terminal", stdin: `{"hook_event_name":"PermissionRequest","tool_name":"AskUserQuestion","tool_input":{}}`},
+		{name: "plan exit stays in the terminal", stdin: `{"hook_event_name":"PermissionRequest","tool_name":"ExitPlanMode","tool_input":{}}`},
 		{name: "unhandled event", stdin: `{"hook_event_name":"Stop"}`},
 		{name: "grok owns its events", stdin: `{"hook_event_name":"SessionStart"}`, env: map[string]string{"GROK_HOOK_EVENT": "session_start"}},
 		{name: "bad json", stdin: `{`, wantErr: true},

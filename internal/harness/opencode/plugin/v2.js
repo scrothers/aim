@@ -4,11 +4,19 @@
 // It spawns `aim hook opencode <event>` with a JSON payload on stdin and
 // treats stdout as Markdown context for the session. Errors are swallowed:
 // AIM must never break the agent.
+//
+// Remote approvals: the permission "evaluate" hook runs before OpenCode
+// publishes a prompt. For a decision that would ask, the plugin waits on
+// `aim hook opencode approve`; the operator's allow or deny in the AIM console
+// becomes the effect, and no decision leaves it at "ask" so the terminal
+// prompts as usual.
 import { spawn } from "node:child_process"
 import { Plugin } from "@opencode/plugin"
 
 const BIN = __AIM_BIN__
 const HOOK_TIMEOUT_MS = 10_000
+// The daemon ends an approval at its own timeout (at most an hour).
+const APPROVE_TIMEOUT_MS = 3_630_000
 const WAKE_CAP = 5
 const WAKE_WINDOW_MS = 10 * 60_000
 
@@ -59,6 +67,15 @@ function permissionText(event) {
   const p = (event && event.properties) || event || {}
   const m = p.title ?? p.permission ?? p.type
   return typeof m === "string" ? m : ""
+}
+
+// parseDecision reads the approve hook's {"decision","reason"} line, or null.
+function parseDecision(text) {
+  try {
+    const d = JSON.parse(text)
+    if (d && (d.decision === "allow" || d.decision === "deny")) return d
+  } catch {}
+  return null
 }
 
 export default Plugin.define({
@@ -119,6 +136,25 @@ export default Plugin.define({
         await inject("prompt", sessionID)
       } catch {}
     })
+
+    if (ctx.permission && typeof ctx.permission.hook === "function") {
+      await ctx.permission.hook("evaluate", async (event) => {
+        try {
+          if (event.effect !== "ask" || !event.sessionID) return
+          const meta = event.metadata && typeof event.metadata === "object" ? event.metadata : {}
+          const req = {
+            ...payload(event.sessionID),
+            tool: typeof event.action === "string" ? event.action : "",
+            title: "",
+            input: { ...meta, patterns: [...(event.resources ?? [])] },
+          }
+          const d = parseDecision(await run("approve", req, APPROVE_TIMEOUT_MS).promise)
+          if (!d) return
+          event.effect = d.decision
+          if (d.reason) event.message = d.reason
+        } catch {}
+      })
+    }
 
     ;(async () => {
       try {

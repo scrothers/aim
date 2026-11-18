@@ -1,6 +1,7 @@
 package opencode_test
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 
@@ -51,6 +52,21 @@ func TestParse(t *testing.T) {
 				Op: wire.HookOpEvent, Event: wire.HookStatus}},
 		},
 		{name: "status invalid attention", event: "status", stdin: `{"sessionID":"o1","attention":"bogus"}`},
+		{
+			name: "approve", event: "approve", wantOK: true,
+			stdin: `{"sessionID":"o1","directory":"/p","tool":"bash","title":"Run  npm publish",` +
+				`"input":{"command":"npm publish","patterns":["npm publish"]}}`,
+			want: harness.Parsed{SessionID: "o1", Cwd: "/p", Request: wire.HookRequest{
+				Op: wire.HookOpApprove, ToolName: "bash", Detail: "bash: Run npm publish",
+				ToolInput: json.RawMessage(`{"command":"npm publish","patterns":["npm publish"]}`)}},
+		},
+		{
+			name: "approve without title", event: "approve", wantOK: true,
+			stdin: `{"sessionID":"o1","tool":"edit","input":{"filePath":"/p/a.go"}}`,
+			want: harness.Parsed{SessionID: "o1", Request: wire.HookRequest{
+				Op: wire.HookOpApprove, ToolName: "edit", Detail: "edit: /p/a.go",
+				ToolInput: json.RawMessage(`{"filePath":"/p/a.go"}`)}},
+		},
 		{name: "missing event", stdin: in},
 		{name: "unknown event", event: "idle", stdin: in},
 		{name: "bad json", event: "prompt", stdin: `{`, wantErr: true},
@@ -86,6 +102,11 @@ func TestRender(t *testing.T) {
 		{"watch wake", wire.HookRequest{Op: wire.HookOpWatch}, wire.HookReply{Wake: true, Context: "new"}, "new\n"},
 		{"watch no wake", wire.HookRequest{Op: wire.HookOpWatch}, wire.HookReply{Context: "stale"}, ""},
 		{"watch superseded", wire.HookRequest{Op: wire.HookOpWatch}, wire.HookReply{Superseded: true}, ""},
+		{"approve allow", wire.HookRequest{Op: wire.HookOpApprove}, wire.HookReply{Decision: wire.DecisionAllow, Reason: "x"},
+			`{"decision":"allow"}` + "\n"},
+		{"approve deny", wire.HookRequest{Op: wire.HookOpApprove}, wire.HookReply{Decision: wire.DecisionDeny, Reason: "no"},
+			`{"decision":"deny","reason":"Denied by the operator in the AIM console. Reason: no"}` + "\n"},
+		{"approve none", wire.HookRequest{Op: wire.HookOpApprove}, wire.HookReply{SignedOn: true, Context: "x"}, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

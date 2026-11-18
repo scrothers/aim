@@ -52,6 +52,12 @@ func firstNonEmpty(vals ...string) string {
 	return ""
 }
 
+// needsInput lists tools whose PermissionRequest "allow" must carry
+// updatedInput (the user's answers or plan edits), which the console can't
+// supply; their dialogs always stay in the terminal. See
+// https://code.claude.com/docs/en/hooks#permissionrequest-decision-control.
+var needsInput = map[string]bool{"AskUserQuestion": true, "ExitPlanMode": true}
+
 // eventNames maps normalized events to Claude's PascalCase names.
 var eventNames = map[string]string{
 	wire.HookSessionStart:  "SessionStart",
@@ -79,6 +85,9 @@ func (Runtime) Parse(event string, stdin []byte, getenv func(string) string) (ha
 		return p, true, nil
 	}
 	if in.Event == "PermissionRequest" {
+		if needsInput[in.ToolName] {
+			return harness.Parsed{}, false, nil
+		}
 		p.Request = harness.ApprovalRequest(in.ToolName, in.ToolInput)
 		return p, true, nil
 	}

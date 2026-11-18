@@ -4,10 +4,18 @@
 // It spawns `aim hook opencode <event>` with a JSON payload on stdin and
 // treats stdout as Markdown context for the session. Errors are swallowed:
 // AIM must never break the agent.
+//
+// Remote approvals: OpenCode 1.x publishes permission.asked but no longer
+// calls the permission.ask plugin hook, so the plugin forwards each asked
+// permission to `aim hook opencode approve` while the terminal prompt shows,
+// and replies through the SDK when the operator decides in the AIM console.
+// Either answer wins; a terminal reply abandons the console's copy.
 import { spawn } from "node:child_process"
 
 const BIN = __AIM_BIN__
 const HOOK_TIMEOUT_MS = 10_000
+// The daemon ends an approval at its own timeout (at most an hour).
+const APPROVE_TIMEOUT_MS = 3_630_000
 const WAKE_CAP = 5
 const WAKE_WINDOW_MS = 10 * 60_000
 
@@ -59,10 +67,33 @@ function permissionText(event) {
   return typeof m === "string" ? m : ""
 }
 
+// approveRequest describes an asked permission for the console: the
+// permission (tool) name, its title and its metadata plus patterns.
+function approveRequest(p) {
+  const meta = p.metadata && typeof p.metadata === "object" ? p.metadata : {}
+  const patterns = p.patterns ?? (p.pattern === undefined ? [] : [].concat(p.pattern))
+  const tool = p.permission ?? p.type
+  return {
+    tool: typeof tool === "string" ? tool : "",
+    title: typeof p.title === "string" ? p.title : "",
+    input: { ...meta, patterns },
+  }
+}
+
+// parseDecision reads the approve hook's {"decision","reason"} line, or null.
+function parseDecision(text) {
+  try {
+    const d = JSON.parse(text)
+    if (d && (d.decision === "allow" || d.decision === "deny")) return d
+  } catch {}
+  return null
+}
+
 export const AimPlugin = async ({ client, directory }) => {
   const agents = new Map() // session id -> agent name
   const watchers = new Map() // session id -> in-flight watch
   const wakes = new Map() // session id -> wake timestamps
+  const approvals = new Map() // permission id -> in-flight approve
 
   const payload = (sessionID) => ({ sessionID, directory, agent: agents.get(sessionID) ?? "" })
 
@@ -110,6 +141,34 @@ export const AimPlugin = async ({ client, directory }) => {
     run("status", { ...payload(sessionID), attention, detail: detail ?? "" }, HOOK_TIMEOUT_MS).promise.catch(() => {})
   }
 
+  // approve waits for the operator's decision on an asked permission and
+  // replies with it; no decision leaves the terminal prompt to the user.
+  const approve = (sessionID, perm) => {
+    const id = perm && perm.id
+    if (!id || approvals.has(id)) return
+    const a = run("approve", { ...payload(sessionID), ...approveRequest(perm) }, APPROVE_TIMEOUT_MS)
+    approvals.set(id, a)
+    a.promise
+      .then(async (text) => {
+        if (approvals.get(id) !== a) return
+        approvals.delete(id)
+        const d = parseDecision(text)
+        if (!d) return
+        const response = d.decision === "allow" ? "once" : "reject"
+        await client.postSessionIdPermissionsPermissionId({ path: { id: sessionID, permissionID: id }, body: { response } })
+      })
+      .catch(() => approvals.delete(id))
+  }
+
+  // abandon stops waiting on the console once the terminal answered.
+  const abandon = (event) => {
+    const p = (event && event.properties) || {}
+    const id = p.requestID ?? p.permissionID
+    const a = approvals.get(id)
+    approvals.delete(id)
+    if (a) a.kill()
+  }
+
   return {
     event: async ({ event }) => {
       try {
@@ -122,8 +181,10 @@ export const AimPlugin = async ({ client, directory }) => {
           case "permission.asked":
           case "permission.updated":
             status(sessionID, "blocked", permissionText(event))
+            approve(sessionID, event.properties)
             break
           case "permission.replied":
+            abandon(event)
             status(sessionID, "")
             break
           case "session.created":

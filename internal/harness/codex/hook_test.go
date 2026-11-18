@@ -2,6 +2,7 @@ package codex_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -74,6 +75,15 @@ func TestParse(t *testing.T) {
 			want: harness.Parsed{SessionID: "s1", Request: wire.HookRequest{
 				Op: wire.HookOpEvent, Event: wire.HookStatus, Attention: wire.AttentionInterrupted}},
 		},
+		{
+			name: "permission request",
+			stdin: `{"session_id":"s1","cwd":"/p","hook_event_name":"PermissionRequest","turn_id":"t1","model":"m",` +
+				`"permission_mode":"default","tool_name":"Bash","tool_input":{"command":"cargo publish","description":null}}`,
+			wantOK: true,
+			want: harness.Parsed{SessionID: "s1", Cwd: "/p", Request: wire.HookRequest{
+				Op: wire.HookOpApprove, ToolName: "Bash", Detail: "Bash: cargo publish",
+				ToolInput: json.RawMessage(`{"command":"cargo publish","description":null}`)}},
+		},
 		{name: "no watch", event: "watch", stdin: `{"hook_event_name":"Stop"}`},
 		{name: "bad json", stdin: `nope`, wantErr: true},
 	}
@@ -112,6 +122,28 @@ func TestRender(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			out := codex.New().Render(wire.HookRequest{Op: wire.HookOpEvent, Event: tt.event}, tt.reply)
+			if out.Exit != 0 || len(out.Stderr) != 0 {
+				t.Errorf("exit/stderr = %d/%q", out.Exit, out.Stderr)
+			}
+			golden(t, tt.name, out.Stdout)
+		})
+	}
+}
+
+func TestRenderApprove(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		reply wire.HookReply
+	}{
+		{"approve allow", wire.HookReply{Decision: wire.DecisionAllow}},
+		{"approve deny", wire.HookReply{Decision: wire.DecisionDeny, Reason: "not on main"}},
+		{"approve no decision", wire.HookReply{SignedOn: true}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			out := codex.New().Render(wire.HookRequest{Op: wire.HookOpApprove}, tt.reply)
 			if out.Exit != 0 || len(out.Stderr) != 0 {
 				t.Errorf("exit/stderr = %d/%q", out.Exit, out.Stderr)
 			}

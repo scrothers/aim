@@ -18,6 +18,8 @@ func hookEntries(bin string) []harness.HookEntry {
 		{"UserPromptSubmit", 10},
 		{"SubagentStart", 10},
 		{"PostToolUse", 5},
+		// Remote approvals; Codex documents no cap for this event.
+		{"PermissionRequest", harness.ApprovalHookTimeout},
 		// Codex caps SessionEnd and Interrupt at 3 seconds.
 		{"Interrupt", 2},
 		{"SessionEnd", 2},

@@ -44,6 +44,17 @@
         ]
       }
     ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/opt/aim hook codex",
+            "timeout": 3630
+          }
+        ]
+      }
+    ],
     "Interrupt": [
       {
         "hooks": [
