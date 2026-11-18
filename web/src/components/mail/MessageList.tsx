@@ -106,7 +106,7 @@ export function MessageList(p: MessageListProps) {
       ) : p.items.length === 0 ? (
         <p className="m-0 p-4 text-faint">No messages.</p>
       ) : (
-        <ul className="m-0 min-h-0 flex-1 list-none overflow-y-auto p-0">
+        <ul className="m-0 min-h-0 flex-1 list-none overflow-y-auto p-0 max-md:pb-24">
           {p.items.map((h) => {
             const unread = p.showUnread && !h.read_at && !h.archived_at
             const selected = h.thread_id === p.selectedThread

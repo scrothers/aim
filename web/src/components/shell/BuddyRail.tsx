@@ -62,7 +62,7 @@ export function BuddySheet() {
   }
   return (
     <Sheet open={open} onOpenChange={buddiesFlag.set}>
-      <SheetContent side="right" className="w-[88%] gap-4 overflow-y-auto px-3 pb-4 sm:max-w-sm" showCloseButton>
+      <SheetContent side="right" className="w-[88%] gap-4 overflow-y-auto px-3 pb-4 sm:max-w-sm md:pt-14" showCloseButton>
         <SheetHeader className="sr-only">
           <SheetTitle>Buddy list</SheetTitle>
           <SheetDescription>Who is online right now</SheetDescription>

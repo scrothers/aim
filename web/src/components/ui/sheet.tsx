@@ -66,16 +66,26 @@ function SheetContent({
             "inset-x-0 top-0 h-auto border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
           side === "bottom" &&
             "inset-x-0 bottom-0 h-auto border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+          // Phones: the close button gets its own row, so trim the header's top padding under it.
+          showCloseButton && "max-md:[&>[data-slot=sheet-header]]:pt-0",
           className
         )}
         {...props}
       >
         {children}
         {showCloseButton && (
-          <SheetPrimitive.Close className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-secondary">
-            <XIcon className="size-4" />
-            <span className="sr-only">Close</span>
-          </SheetPrimitive.Close>
+          // Last in the DOM so opening the sheet still focuses its first field.
+          // Phones: a sticky header row shown first (order-first), outside the
+          // content flow, so the X never lands on a control. md+: the corner.
+          <div
+            data-slot="sheet-bar"
+            className="sticky top-0 z-10 order-first flex shrink-0 justify-end bg-background px-2 pt-[max(0.25rem,env(safe-area-inset-top))] md:pointer-events-none md:absolute md:top-3 md:right-3 md:bg-transparent md:p-0"
+          >
+            <SheetPrimitive.Close className="pointer-events-auto flex size-11 items-center justify-center rounded-md opacity-70 ring-offset-background transition-opacity hover:bg-hover hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none md:size-8">
+              <XIcon className="size-4" />
+              <span className="sr-only">Close</span>
+            </SheetPrimitive.Close>
+          </div>
         )}
       </SheetPrimitive.Content>
     </SheetPortal>

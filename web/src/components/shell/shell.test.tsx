@@ -290,10 +290,39 @@ describe('mobile layout', () => {
     await user.click(screen.getByRole('button', { name: 'Open navigation' }))
     const drawer = await screen.findByRole('dialog', { name: 'Navigation' })
     expect(within(drawer).getByRole('navigation', { name: 'Mailboxes' })).toBeInTheDocument()
+    // The close button sits in its own header row, after the content in tab order.
+    const close = within(drawer).getByRole('button', { name: 'Close' })
+    const bar = close.closest('[data-slot="sheet-bar"]')!
+    expect(bar).toHaveClass('order-first', 'sticky')
+    expect(bar.parentElement).toBe(drawer)
+    expect(drawer.lastElementChild).toBe(bar)
     await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Navigation' })).toBeNull())
     await user.click(screen.getByRole('button', { name: 'Open buddy list' }))
     expect(await screen.findByRole('dialog', { name: 'Buddy list' })).toBeInTheDocument()
+  })
+
+  it('phone shows a floating Compose on the mail list but not over a thread', async () => {
+    const user = userEvent.setup()
+    phone(true)
+    buddiesFlag.set(false)
+    navFlag.set(false)
+    const first = await shell()
+    await user.click(await screen.findByRole('button', { name: 'Compose' }))
+    expect(composeStore.isOpen()).toBe(true)
+    act(() => composeStore.close())
+    first.unmount()
+    const { AppShell } = await import('./AppShell')
+    await renderWithRouter(
+      <Providers client={qc()}>
+        <AppShell>
+          <p>page</p>
+        </AppShell>
+      </Providers>,
+      '/mail?thread=t1',
+    )
+    expect(await screen.findByRole('button', { name: 'Open navigation' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Compose' })).toBeNull()
   })
 })
 
