@@ -32,6 +32,105 @@ type Preamble struct {
 	// Resume is set by the shim when it redials after losing the daemon
 	// connection and replays its MCP handshake.
 	Resume bool `json:"resume,omitempty"`
+	// Kind selects the protocol after the preamble: empty for MCP, KindHook
+	// for one HookRequest/HookReply exchange.
+	Kind string `json:"kind,omitempty"`
+	// Client names the agent runtime when known before MCP initialize (hook
+	// connections set it; MCP connections report clientInfo instead).
+	Client string `json:"client,omitempty"`
+	// AgentPID is the process id of the agent runtime that spawned the shim
+	// or hook, on Machine. It joins hook connections to MCP connections of
+	// the same agent when no session id is shared.
+	AgentPID int `json:"agent_pid,omitempty"`
+}
+
+// KindHook marks a hook connection.
+const KindHook = "hook"
+
+// Hook operations.
+const (
+	// HookOpEvent handles one normalized hook event and replies at once.
+	HookOpEvent = "event"
+	// HookOpWatch blocks until new mail arrives for the agent, then replies.
+	HookOpWatch = "watch"
+)
+
+// Normalized hook events, shared by every runtime adapter.
+const (
+	HookSessionStart  = "session-start"
+	HookPrompt        = "prompt"
+	HookSubagentStart = "subagent-start"
+	HookPreTool       = "pre-tool"
+	HookPostTool      = "post-tool"
+	HookSessionEnd    = "session-end"
+)
+
+// HookRequest is the single request line a hook connection sends after its
+// preamble.
+type HookRequest struct {
+	Op      string `json:"op"`
+	Event   string `json:"event,omitempty"`
+	Runtime string `json:"runtime,omitempty"`
+	// Source qualifies session-start: startup, resume, clear, compact.
+	Source string `json:"source,omitempty"`
+	// AgentID and AgentType identify a subagent when the hook fires inside
+	// one; Subagent is the mailbox name derived from AgentType.
+	AgentID   string `json:"agent_id,omitempty"`
+	AgentType string `json:"agent_type,omitempty"`
+	Subagent  string `json:"subagent,omitempty"`
+	// ToolUseID is the runtime's id for the tool call a pre-tool hook
+	// precedes (Claude Code sends the same id as MCP _meta).
+	ToolUseID string `json:"tool_use_id,omitempty"`
+	ToolName  string `json:"tool_name,omitempty"`
+}
+
+// HookReply is the daemon's single reply line to a HookRequest.
+type HookReply struct {
+	SignedOn bool   `json:"signed_on"`
+	Identity string `json:"identity,omitempty"`
+	// Context is Markdown for the agent's context; empty means say nothing.
+	Context string `json:"context,omitempty"`
+	// Wake reports that a watch ended because new mail arrived.
+	Wake bool `json:"wake,omitempty"`
+	// Superseded reports that a newer watch for the same agent replaced
+	// this one.
+	Superseded bool `json:"superseded,omitempty"`
+}
+
+// WriteLine writes v as one JSON line.
+func WriteLine(w io.Writer, v any) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return fmt.Errorf("wire: marshal line: %w", err)
+	}
+	b = append(b, '\n')
+	if _, err := w.Write(b); err != nil {
+		return fmt.Errorf("wire: write line: %w", err)
+	}
+	return nil
+}
+
+// ReadLine reads one JSON line of at most MaxPreambleBytes into v.
+func ReadLine(r *bufio.Reader, v any) error {
+	var line []byte
+	for {
+		chunk, err := r.ReadSlice('\n')
+		line = append(line, chunk...)
+		if len(line) > MaxPreambleBytes {
+			return fmt.Errorf("wire: line exceeds %d bytes", MaxPreambleBytes)
+		}
+		if err == nil || (errors.Is(err, io.EOF) && len(bytes.TrimSpace(line)) > 0) {
+			break
+		}
+		if errors.Is(err, bufio.ErrBufferFull) {
+			continue
+		}
+		return fmt.Errorf("wire: read line: %w", err)
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(line), v); err != nil {
+		return fmt.Errorf("wire: decode line: %w", err)
+	}
+	return nil
 }
 
 // WritePreamble writes p as a single JSON line. V is forced to Version.

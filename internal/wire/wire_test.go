@@ -92,6 +92,64 @@ func TestNamespaceFromRemote(t *testing.T) {
 	}
 }
 
+func TestHookLinesRoundTrip(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	in := wire.Preamble{SessionID: "s", Kind: wire.KindHook, Client: "codex", AgentPID: 42}
+	if err := wire.WritePreamble(&buf, in); err != nil {
+		t.Fatal(err)
+	}
+	req := wire.HookRequest{Op: wire.HookOpEvent, Event: wire.HookPrompt, ToolUseID: "t1"}
+	if err := wire.WriteLine(&buf, req); err != nil {
+		t.Fatal(err)
+	}
+	br := bufio.NewReader(&buf)
+	p, err := wire.ReadPreamble(br)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in.V = wire.Version
+	if p != in {
+		t.Fatalf("preamble = %+v, want %+v", p, in)
+	}
+	var got wire.HookRequest
+	if err := wire.ReadLine(br, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got != req {
+		t.Fatalf("request = %+v, want %+v", got, req)
+	}
+}
+
+func TestReadLineWithoutNewline(t *testing.T) {
+	t.Parallel()
+	var r wire.HookReply
+	if err := wire.ReadLine(bufio.NewReader(strings.NewReader(`{"signed_on":true}`)), &r); err != nil || !r.SignedOn {
+		t.Fatalf("ReadLine = %+v, %v", r, err)
+	}
+}
+
+func TestReadLineErrors(t *testing.T) {
+	t.Parallel()
+	tests := map[string]string{
+		"empty":     "",
+		"bad json":  "nope\n",
+		"too large": strings.Repeat("a", wire.MaxPreambleBytes+10) + "\n",
+	}
+	for name, in := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			var r wire.HookReply
+			if err := wire.ReadLine(bufio.NewReaderSize(strings.NewReader(in), 4096), &r); err == nil {
+				t.Fatal("want error")
+			}
+		})
+	}
+	if err := wire.WriteLine(failWriter{}, 1); err == nil {
+		t.Fatal("WriteLine to failing writer: want error")
+	}
+}
+
 type closeRecorder struct{ closed bool }
 
 func (c *closeRecorder) Close() error { c.closed = true; return nil }
