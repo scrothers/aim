@@ -3,7 +3,9 @@ import { Check, X } from 'lucide-react'
 import { useApprovals, useApprovalSettings, useDecideApproval, useSaveApprovalSettings, type Approval, type Decision } from '@/api/approvals'
 import { describeInput } from '@/lib/approvalInput'
 import { ago } from '@/lib/identity'
+import { PageHeader } from '@/components/shared/PageHeader'
 import { RuntimeBadge } from '@/components/shared/RuntimeBadge'
+import { CountBadge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -126,7 +128,7 @@ export function ApprovalsPage() {
   const items = q.data?.items ?? []
   return (
     <section aria-label="Approvals" className="box-border flex min-w-0 flex-1 flex-col gap-4 p-6 max-md:p-4">
-      <h1 className="m-0 text-[22px] leading-[30px] font-semibold">Approvals</h1>
+      <PageHeader title="Approvals" badge={<CountBadge count={items.length} attention label="pending" />} />
       {q.isError ? (
         <p role="alert" className="m-0 text-destructive">
           Could not load approvals.

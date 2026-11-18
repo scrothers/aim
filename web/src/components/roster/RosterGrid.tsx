@@ -7,8 +7,10 @@ import { ago, parseAddress, runtimeFor } from '@/lib/identity'
 import { AddressChip } from '@/components/shared/AddressChip'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { PresenceDot } from '@/components/shared/PresenceDot'
+import { PageHeader } from '@/components/shared/PageHeader'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { EditSheet } from './EditSheet'
 import { RoleDescription } from './RoleDescription'
@@ -104,13 +106,16 @@ export function RosterGrid({ editing, onEdit }: { editing?: string; onEdit: (add
 
   return (
     <section aria-label="Roster" className="box-border flex min-w-0 flex-1 flex-col gap-4 p-6 max-md:p-4">
-      <header className="flex flex-wrap items-center gap-3">
-        <h1 className="m-0 flex-1 text-[22px] leading-[30px] font-semibold">Roster</h1>
-        <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
-          <input type="checkbox" checked={showRetired} onChange={(e) => setShowRetired(e.target.checked)} />
-          Show retired
-        </label>
-      </header>
+      <PageHeader
+        title="Roster"
+        actions={
+          // A real checkbox inside an outline-button label: same look as other page actions.
+          <label className={cn(buttonVariants({ variant: 'outline' }), 'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring')}>
+            <input type="checkbox" checked={showRetired} onChange={(e) => setShowRetired(e.target.checked)} className="accent-brand" />
+            Show retired
+          </label>
+        }
+      />
       {q.isError ? (
         <p role="alert" className="m-0 text-destructive">
           Could not load the roster.

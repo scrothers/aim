@@ -5,14 +5,15 @@ import { Maximize2, Minus, Plus } from 'lucide-react'
 import { orgChartQuery, type OrgChartNode } from '@/api/roster'
 import { OPERATOR } from '@/lib/address'
 import { layoutOrgChart, OPERATOR_ID } from '@/lib/orgchart'
+import { parseAddress } from '@/lib/identity'
+import { PageHeader } from '@/components/shared/PageHeader'
+import { PresenceDot } from '@/components/shared/PresenceDot'
+import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { Button } from '@/components/ui/button'
 
 const ZOOM_MIN = 0.25
 const ZOOM_MAX = 1.5
 const ZOOM_STEP = 0.25
-import { parseAddress } from '@/lib/identity'
-import { PresenceDot } from '@/components/shared/PresenceDot'
-import { RobotAvatar } from '@/components/shared/RobotAvatar'
 
 function NodeCard({ node }: { node: OrgChartNode }) {
   const who = parseAddress(node.address)
@@ -70,29 +71,31 @@ export function OrgChart() {
   const fit = () => setScale(clamp(boxW > 0 ? Math.min(1, (boxW - 2) / layout.width) : 1))
 
   return (
-    <section aria-label="Org chart" className="box-border flex min-w-0 flex-1 flex-col gap-2 p-6 max-md:p-4">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="m-0 mr-auto text-[22px] leading-[30px] font-semibold">Org chart</h1>
-        <div role="group" aria-label="Zoom" className="flex items-center gap-1">
-          <Button variant="outline" size="icon-sm" aria-label="Zoom out" disabled={scale <= ZOOM_MIN} onClick={() => setScale((s) => clamp(s - ZOOM_STEP))}>
-            <Minus aria-hidden="true" />
-          </Button>
-          <output aria-label="Zoom level" className="min-w-11 text-center font-mono text-xs text-muted-foreground">
-            {Math.round(scale * 100)}%
-          </output>
-          <Button variant="outline" size="icon-sm" aria-label="Zoom in" disabled={scale >= ZOOM_MAX} onClick={() => setScale((s) => clamp(s + ZOOM_STEP))}>
-            <Plus aria-hidden="true" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={fit}>
-            <Maximize2 aria-hidden="true" />
-            Fit width
-          </Button>
-          <Button variant="ghost" size="sm" disabled={scale === 1} onClick={() => setScale(1)}>
-            Reset
-          </Button>
-        </div>
-      </div>
-      <p className="m-0 text-[13px] text-muted-foreground">Lines follow reports_to. Escalations climb toward operator.</p>
+    <section aria-label="Org chart" className="box-border flex min-w-0 flex-1 flex-col gap-4 p-6 max-md:p-4">
+      <PageHeader
+        title="Org chart"
+        description="Lines follow reports_to. Escalations climb toward operator."
+        actions={
+          <div role="group" aria-label="Zoom" className="flex items-center gap-1">
+            <Button variant="outline" size="icon" aria-label="Zoom out" disabled={scale <= ZOOM_MIN} onClick={() => setScale((s) => clamp(s - ZOOM_STEP))}>
+              <Minus aria-hidden="true" />
+            </Button>
+            <output aria-label="Zoom level" className="min-w-11 text-center font-mono text-xs text-muted-foreground">
+              {Math.round(scale * 100)}%
+            </output>
+            <Button variant="outline" size="icon" aria-label="Zoom in" disabled={scale >= ZOOM_MAX} onClick={() => setScale((s) => clamp(s + ZOOM_STEP))}>
+              <Plus aria-hidden="true" />
+            </Button>
+            <Button variant="outline" onClick={fit}>
+              <Maximize2 aria-hidden="true" />
+              Fit width
+            </Button>
+            <Button variant="outline" disabled={scale === 1} onClick={() => setScale(1)}>
+              Reset
+            </Button>
+          </div>
+        }
+      />
       {q.isError ? (
         <p role="alert" className="m-0 text-destructive">
           Could not load the org chart.

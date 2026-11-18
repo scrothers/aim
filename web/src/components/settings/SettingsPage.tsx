@@ -17,6 +17,7 @@ import {
   type WebhookView,
 } from '@/api/settings'
 import { ago } from '@/lib/identity'
+import { PageHeader } from '@/components/shared/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -469,7 +470,7 @@ export function SettingsPage() {
   const s = q.data
   return (
     <section aria-label="Settings" className="box-border flex min-w-0 flex-1 flex-col gap-4 p-6 max-md:p-4">
-      <h1 className="m-0 text-[22px] leading-[30px] font-semibold">Settings</h1>
+      <PageHeader title="Settings" />
       {q.isError ? (
         <p role="alert" className="m-0 text-destructive">
           Could not load settings.

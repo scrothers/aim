@@ -7,6 +7,7 @@ import { helpFlag, isTyping, paletteFlag } from '@/lib/flag'
 import { taskStore } from '@/lib/tasks'
 import { useIsMobile } from '@/lib/viewport'
 import { cn } from '@/lib/utils'
+import { PageHeader } from '@/components/shared/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useAssigneeCandidates } from './AssigneeInput'
@@ -217,19 +218,23 @@ export function TasksPage() {
 
   return (
     <section aria-label="Tasks" className="box-border flex min-w-0 flex-1 flex-col gap-4 p-6 max-md:p-4">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="m-0 mr-auto text-[22px] leading-[30px] font-semibold">Tasks</h1>
-        {mobile && (
-          <Button variant="outline" aria-expanded={filtersOpen} aria-controls="task-filters" onClick={() => setFiltersOpen((o) => !o)}>
-            <ListFilter aria-hidden="true" />
-            Filters{filtered ? ' (active)' : ''}
-          </Button>
-        )}
-        <Button onClick={() => taskStore.openCreate()}>
-          <Plus aria-hidden="true" />
-          New task
-        </Button>
-      </div>
+      <PageHeader
+        title="Tasks"
+        actions={
+          <>
+            {mobile && (
+              <Button variant="outline" aria-expanded={filtersOpen} aria-controls="task-filters" onClick={() => setFiltersOpen((o) => !o)}>
+                <ListFilter aria-hidden="true" />
+                Filters{filtered ? ' (active)' : ''}
+              </Button>
+            )}
+            <Button onClick={() => taskStore.openCreate()}>
+              <Plus aria-hidden="true" />
+              New task
+            </Button>
+          </>
+        }
+      />
 
       <div
         id="task-filters"

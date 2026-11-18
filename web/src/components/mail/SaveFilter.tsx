@@ -6,7 +6,18 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 
 /** "Save view" button: names the current params and stores them as a shared filter. */
-export function SaveFilterButton({ params, label = 'Save view', suggestion = '' }: { params: FilterParams; label?: string; suggestion?: string }) {
+export function SaveFilterButton({
+  params,
+  label = 'Save view',
+  suggestion = '',
+  size = 'sm',
+}: {
+  params: FilterParams
+  label?: string
+  suggestion?: string
+  /** `default` in a page header, `sm` in the denser mail list header. */
+  size?: 'sm' | 'default'
+}) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const create = useCreateFilter()
@@ -19,7 +30,7 @@ export function SaveFilterButton({ params, label = 'Save view', suggestion = '' 
     <>
       <Button
         variant="outline"
-        size="sm"
+        size={size}
         className="max-md:h-11"
         onClick={() => {
           setName(suggestion)

@@ -8,6 +8,7 @@ import { useMailboxAddresses } from '@/api/queries'
 import { ago } from '@/lib/identity'
 import { stripMarkdown } from '@/lib/markdown'
 import { AddressChip } from '@/components/shared/AddressChip'
+import { PageHeader } from '@/components/shared/PageHeader'
 import { RobotAvatar } from '@/components/shared/RobotAvatar'
 import { SaveFilterButton } from '@/components/mail/SaveFilter'
 import { Button } from '@/components/ui/button'
@@ -106,10 +107,10 @@ export function SearchPage({ params, onSearch }: { params: SearchPageParams; onS
   const formKey = JSON.stringify(params)
   return (
     <section aria-label="Search" className="box-border flex min-w-0 flex-1 flex-col gap-4 p-6 max-md:p-4">
-      <header className="flex flex-wrap items-center gap-3">
-        <h1 className="m-0 flex-1 text-[22px] leading-[30px] font-semibold">Search all mail</h1>
-        {active && <SaveFilterButton label="Save search" params={searchFilterParams(params)} suggestion={params.q} />}
-      </header>
+      <PageHeader
+        title="Search all mail"
+        actions={active && <SaveFilterButton label="Save search" params={searchFilterParams(params)} suggestion={params.q} size="default" />}
+      />
       <Form key={formKey} value={params} onSubmit={onSearch} />
       {!active ? (
         <p className="m-0 text-[13px] text-faint">Enter words to search every mailbox, including archived mail.</p>

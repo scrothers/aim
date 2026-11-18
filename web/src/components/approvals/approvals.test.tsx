@@ -58,6 +58,10 @@ describe('ApprovalsPage', () => {
     const { container } = render(wrap(<ApprovalsPage />))
     const cards = await screen.findAllByTestId('approval')
     expect(cards).toHaveLength(5)
+    // The shared page header carries the pending count as an attention badge.
+    const h1 = screen.getByRole('heading', { level: 1, name: 'Approvals' })
+    expect(h1.closest('[data-slot="page-header"]')).toContainElement(screen.getByLabelText('5 pending'))
+    expect(screen.getByLabelText('5 pending')).toHaveAttribute('data-variant', 'count-attention')
     expect(cards[0]!.querySelector('pre code')).toHaveTextContent('rm -rf <b>x</b>')
     expect(container.querySelector('b b')).toBeNull()
     expect(cards[0]).toHaveTextContent('builder@github.com/acme/api')
