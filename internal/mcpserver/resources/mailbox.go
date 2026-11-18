@@ -16,7 +16,7 @@ const (
 	digestLimit = mail.DefaultListLimit
 )
 
-var mailbox = resource{name: "mailbox", title: "Mailbox digest", prefix: PrefixMailbox, variable: "address", render: renderMailbox}
+var mailbox = resource{name: "mailbox", title: "Unread mail for an address", prefix: PrefixMailbox, variable: "address", render: renderMailbox}
 
 func renderMailbox(ctx context.Context, c *session.Conn, addr string) (string, error) {
 	res, err := c.Svc.List(ctx, mail.ListInput{Address: addr, State: mail.StateUnread, Limit: digestLimit})

@@ -11,7 +11,7 @@ import (
 // PrefixMessage starts the message template; the message id follows encoded.
 const PrefixMessage = "aim://message/"
 
-var message = resource{name: "message", title: "Message", prefix: PrefixMessage, variable: "message_id", render: renderMessage}
+var message = resource{name: "message", title: "Message (peek)", prefix: PrefixMessage, variable: "message_id", render: renderMessage}
 
 func renderMessage(ctx context.Context, c *session.Conn, id string) (string, error) {
 	m, err := c.Svc.Read(ctx, c.Caller(), mail.ReadInput{MessageID: id, Peek: true})

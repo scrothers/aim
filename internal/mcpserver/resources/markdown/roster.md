@@ -1,1 +1,3 @@
-Identities registered in this session's git namespace, with presence.
+Registered identities in this session's git namespace (the repo `whoami` reports, for example `github.com/acme/api`): each one's address, role, description, `reports_to`, recent subagents and presence: offline, or each signed-on session as online or idle, with machine, away message and any blocked or failed state.
+
+Use it to find your own identity before `sign_on`, check before `register`, or pick a recipient for `send`. Org-scoped identities (`name@github.com/acme`) sit outside a repo namespace: read `aim://roster/github.com%2Facme` instead. Without a git remote it shows a hint to use `aim://roster/{address}` or the `roster` tool. Retired identities are hidden. No subscribe; read it again for fresh presence.
