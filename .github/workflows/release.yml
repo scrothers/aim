@@ -19,6 +19,7 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write # create the GitHub release and upload assets
+      packages: write # push the container image to ghcr.io
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -35,6 +36,15 @@ jobs:
           node-version: 22
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
+      # Multi-platform image builds need a buildx builder beyond the default
+      # docker driver. The Dockerfile only copies prebuilt binaries into
+      # the arm64 image, so no QEMU emulation is needed.
+      - name: Set up buildx and log in to ghcr.io
+        run: |
+          docker buildx create --name goreleaser --driver docker-container --bootstrap --use
+          echo "${GITHUB_TOKEN}" | docker login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
           distribution: goreleaser

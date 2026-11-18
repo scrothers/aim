@@ -44,3 +44,15 @@ updates:
     groups:
       actions-minor-patch:
         update-types: [minor, patch]
+
+  # Base image digests in the Dockerfile (distroless, busybox).
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 5
+    groups:
+      docker-base-images:
+        patterns: ["*"]

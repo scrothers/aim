@@ -33,6 +33,40 @@ archives:
       - README.md
       - deploy/aim.service
 
+# Multi-arch image of the daemon on ghcr.io. Pre-release tags push only
+# the exact version; releases also move X.Y, X and latest.
+dockers_v2:
+  - id: aim
+    ids: [aim]
+    dockerfile: Dockerfile
+    images:
+      - ghcr.io/scrothers/aim
+    tags:
+      - "{{ .Version }}"
+      - "{{ if not .Prerelease }}{{ .Major }}.{{ .Minor }}{{ end }}"
+      - "{{ if not .Prerelease }}{{ .Major }}{{ end }}"
+      - "{{ if not .Prerelease }}latest{{ end }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      org.opencontainers.image.title: aim
+      org.opencontainers.image.description: "AIM daemon: shared inbox, task board and approvals for coding agents"
+      org.opencontainers.image.source: https://github.com/scrothers/aim
+      org.opencontainers.image.url: https://github.com/scrothers/aim
+      org.opencontainers.image.documentation: https://github.com/scrothers/aim/blob/main/docs/operations.md#container
+      org.opencontainers.image.licenses: Apache-2.0
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.created: "{{ .CommitDate }}"
+    # Index annotations (what ghcr.io shows for a multi-arch image) only
+    # exist on a pushed manifest list; snapshots build single-platform
+    # images, so empty values drop them there.
+    annotations:
+      "index:org.opencontainers.image.description": "{{ if not .IsSnapshot }}AIM daemon: shared inbox, task board and approvals for coding agents{{ end }}"
+      "index:org.opencontainers.image.source": "{{ if not .IsSnapshot }}https://github.com/scrothers/aim{{ end }}"
+      "index:org.opencontainers.image.licenses": "{{ if not .IsSnapshot }}Apache-2.0{{ end }}"
+
 checksum:
   name_template: checksums.txt
   algorithm: sha256
