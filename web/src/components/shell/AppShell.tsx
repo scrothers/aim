@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { ComposeSheet } from '@/components/mail/ComposeSheet'
 import { CreateTaskSheet } from '@/components/tasks/CreateTaskSheet'
+import { TaskDrawer } from '@/components/tasks/TaskDrawer'
 import { useIsMobile } from '@/lib/viewport'
 import { CommandPalette } from './CommandPalette'
 import { OperatorAlerts } from './OperatorAlerts'
@@ -22,6 +23,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {!mobile && <BuddyRail />}
         {mobile && <MobileChrome />}
         <ComposeSheet />
+        <TaskDrawer />
         <CreateTaskSheet />
         <CommandPalette />
         <ShortcutsDialog />
