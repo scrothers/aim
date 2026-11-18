@@ -7,7 +7,7 @@
 # /data must exist and belong to the nonroot user so a fresh named volume
 # inherits that ownership. Distroless has no shell, so make it in a
 # throwaway stage. It runs on the build platform: no emulation needed.
-FROM --platform=$BUILDPLATFORM busybox:1.37@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec AS data
+FROM --platform=$BUILDPLATFORM busybox:1.38@sha256:a46257e06c82ad85242d0d38077d0a52d9896389ca60a1a59d3463db586e5fa4 AS data
 RUN mkdir -p /data/backups && chown -R 65532:65532 /data && chmod 0700 /data
 
 FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
