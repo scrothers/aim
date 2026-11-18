@@ -108,7 +108,9 @@ func (d *daemon) launch(t *testing.T) {
 	t.Helper()
 	d.cmd = exec.Command(aimBin, "daemon",
 		"--db", filepath.Join(d.dir, "aim.db"),
-		"--socket", d.socket, "--listen", d.tcp, "--http", d.web)
+		"--socket", d.socket, "--listen", d.tcp, "--http", d.web,
+		// Keep scheduled backups out of the real ~/.local/state/aim.
+		"--backup-dir", filepath.Join(d.dir, "backups"))
 	d.cmd.Stderr = os.Stderr
 	if err := d.cmd.Start(); err != nil {
 		t.Fatalf("start daemon: %v", err)
