@@ -1,36 +1,42 @@
-import { useId, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Command as CommandPrimitive } from 'cmdk'
 import { X } from 'lucide-react'
 import { isValidAddress } from '@/lib/address'
 import { cn } from '@/lib/utils'
 import { AddressChip } from '@/components/shared/AddressChip'
+import { CommandItem, CommandList } from '@/components/ui/command'
+import { KIND_LABEL, rankCandidates, useRecipientCandidates } from './recipientCandidates'
 
 export interface RecipientInputProps {
   label: string
   value: string[]
   onChange: (next: string[]) => void
-  /** Known addresses offered as autocomplete. */
-  options?: string[]
   /** Exposes the pending (uncommitted) text so the composer can flush it on send. */
   pendingRef?: { current: string }
 }
 
-/** Chip input: commits on Enter, comma, space, Tab or blur; validates with the address grammar. */
-export function RecipientInput({ label, value, onChange, options = [], pendingRef }: RecipientInputProps) {
+/**
+ * Chip input: commits on Enter, comma, space, Tab or blur; validates with the
+ * address grammar. While type-ahead suggestions are open, arrows move, and
+ * Enter or Tab accepts the highlighted one.
+ */
+export function RecipientInput({ label, value, onChange, pendingRef }: RecipientInputProps) {
   const [text, setText] = useState('')
   const [error, setError] = useState('')
   const [focused, setFocused] = useState(false)
-  const listId = useId()
+  const [dismissed, setDismissed] = useState(false)
+  const [active, setActive] = useState('')
+  const candidates = useRecipientCandidates()
 
   const setPending = (t: string) => {
     setText(t)
     if (pendingRef) pendingRef.current = t
   }
 
-  const suggestions = useMemo(() => {
-    const q = text.trim().toLowerCase()
-    if (!q) return []
-    return options.filter((o) => !value.includes(o) && o.toLowerCase().includes(q)).slice(0, 6)
-  }, [text, options, value])
+  const suggestions = useMemo(() => rankCandidates(candidates, text, value), [candidates, text, value])
+  const open = focused && !dismissed && suggestions.length > 0
+  // cmdk reports the highlight; fall back to the first row when it is stale.
+  const current = suggestions.some((s) => s.address === active) ? active : (suggestions[0]?.address ?? '')
 
   const commit = (raw: string): boolean => {
     const addr = raw.trim().replace(/,$/, '')
@@ -49,7 +55,14 @@ export function RecipientInput({ label, value, onChange, options = [], pendingRe
     <div className="flex flex-col gap-1">
       <div className="flex items-start gap-2">
         <span className="w-8 shrink-0 pt-1.5 text-xs font-semibold text-faint">{label}</span>
-        <div className="relative flex min-w-0 flex-1 flex-wrap items-center gap-1.5 rounded-md border bg-panel px-1.5 py-1 focus-within:ring-2 focus-within:ring-ring/40">
+        <CommandPrimitive
+          shouldFilter={false}
+          loop
+          label={`${label} recipients`}
+          value={current}
+          onValueChange={setActive}
+          className="relative flex min-w-0 flex-1 flex-wrap items-center gap-1.5 rounded-md border bg-panel px-1.5 py-1 focus-within:ring-2 focus-within:ring-ring/40"
+        >
           {value.map((addr) => (
             <span key={addr} className="inline-flex items-center gap-1 rounded-full bg-accent-soft py-0.5 pr-1 pl-2.5 text-[13px]">
               <AddressChip address={addr} />
@@ -63,16 +76,15 @@ export function RecipientInput({ label, value, onChange, options = [], pendingRe
               </button>
             </span>
           ))}
-          <input
+          <CommandPrimitive.Input
             aria-label={`${label} recipients`}
             aria-invalid={error ? true : undefined}
-            aria-autocomplete="list"
-            aria-controls={suggestions.length ? listId : undefined}
             value={text}
             placeholder={value.length === 0 ? 'name@host/org/repo' : ''}
-            onChange={(e) => {
+            onValueChange={(t) => {
               setError('')
-              setPending(e.target.value)
+              setDismissed(false)
+              setPending(t)
             }}
             onFocus={() => setFocused(true)}
             onBlur={() => {
@@ -81,7 +93,14 @@ export function RecipientInput({ label, value, onChange, options = [], pendingRe
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) return // send shortcut bubbles to the composer
-              if (e.key === 'Enter' || e.key === ',' || e.key === ' ' || (e.key === 'Tab' && text.trim())) {
+              if (open && (e.key === 'Enter' || e.key === 'Tab') && current) {
+                e.preventDefault() // also stops cmdk from handling Enter itself
+                commit(current)
+              } else if (open && e.key === 'Escape') {
+                e.preventDefault()
+                e.stopPropagation() // closes the list, not the composer
+                setDismissed(true)
+              } else if (e.key === 'Enter' || e.key === ',' || e.key === ' ' || (e.key === 'Tab' && text.trim())) {
                 if (text.trim()) {
                   e.preventDefault()
                   commit(text)
@@ -92,31 +111,38 @@ export function RecipientInput({ label, value, onChange, options = [], pendingRe
             }}
             className="min-w-40 flex-1 bg-transparent px-1 py-0.5 font-mono text-[13px] outline-none"
           />
-          {focused && suggestions.length > 0 && (
-            <ul
-              id={listId}
-              role="listbox"
-              aria-label={`${label} suggestions`}
-              className="absolute top-full left-0 z-20 mt-1 w-full overflow-hidden rounded-md border bg-popover py-1 shadow-md"
-            >
-              {suggestions.map((s) => (
-                <li key={s} role="option" aria-selected={false}>
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    className={cn('flex w-full items-center px-3 py-1.5 text-left text-[13px] hover:bg-hover')}
-                    onMouseDown={(e) => {
-                      e.preventDefault()
-                      commit(s)
-                    }}
-                  >
-                    <AddressChip address={s} />
-                  </button>
-                </li>
+          <CommandList
+            label={`${label} suggestions`}
+            hidden={!open}
+            className="absolute top-full left-0 z-20 mt-1 w-full rounded-md border bg-popover py-1 shadow-md"
+          >
+            {open &&
+              suggestions.map((s) => (
+                <CommandItem
+                  key={s.address}
+                  value={s.address}
+                  // Keep focus in the input so blur does not commit the typed text first.
+                  onMouseDown={(e) => e.preventDefault()}
+                  onSelect={() => commit(s.address)}
+                  className="px-3 py-1.5 text-[13px] data-[selected=true]:bg-hover data-[selected=true]:text-foreground"
+                >
+                  {s.kind === 'identity' || s.kind === 'subagent' ? (
+                    <span
+                      role="img"
+                      aria-label={s.online ? 'Online' : 'Offline'}
+                      className={cn('size-2 shrink-0 rounded-full', s.online ? 'bg-online' : 'bg-faint/50')}
+                    />
+                  ) : (
+                    <span aria-hidden="true" className="size-2 shrink-0" />
+                  )}
+                  <AddressChip address={s.address} className="min-w-0 truncate" />
+                  <span className="ml-auto shrink-0 text-xs text-faint">
+                    {s.kind === 'identity' && s.role ? s.role : KIND_LABEL[s.kind]}
+                  </span>
+                </CommandItem>
               ))}
-            </ul>
-          )}
-        </div>
+          </CommandList>
+        </CommandPrimitive>
       </div>
       {error && (
         <p role="alert" className="m-0 pl-10 text-xs text-destructive">

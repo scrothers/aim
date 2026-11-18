@@ -183,6 +183,50 @@ test('command palette jumps to a mailbox and finds a message', async ({ page }) 
   await expect(page.getByRole('article', { name: 'Thread' }).getByRole('heading', { name: 'Release plan zebrafish' })).toBeVisible()
 })
 
+test('compose: keyboard type-ahead recipient and WYSIWYG body render as bold and a list', async ({ page }) => {
+  await page.goto('/mail')
+  await page.getByRole('button', { name: 'Compose' }).click()
+  const sheet = page.getByRole('dialog')
+  await expect(sheet.getByRole('form', { name: 'New message' })).toBeVisible()
+
+  // Type-ahead: the online coordinator is the top match; Enter accepts it.
+  const to = sheet.getByRole('combobox', { name: 'To recipients' })
+  await to.click()
+  await to.pressSequentially('coord')
+  await expect(sheet.getByRole('option').first()).toContainText('coordinator')
+  await to.press('Enter')
+  await expect(sheet.getByRole('button', { name: `Remove ${COORD}` })).toBeVisible()
+
+  await sheet.getByLabel('Subject').fill('WYSIWYG kiwi')
+
+  const editor = sheet.getByRole('textbox', { name: 'Message body' })
+  await editor.click()
+  await page.keyboard.press('Control+b')
+  await page.keyboard.type('loud')
+  await page.keyboard.press('Control+b')
+  await page.keyboard.type(' words')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('- first')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('second')
+  await expect(editor.locator('strong')).toHaveText('loud')
+  await expect(editor.locator('li')).toHaveCount(2)
+
+  await page.keyboard.press('Control+Enter') // send shortcut works from inside the editor
+  await expect(sheet).toHaveCount(0)
+
+  await page.getByRole('link', { name: 'Sent' }).click()
+  await page
+    .getByRole('region', { name: 'Message list' })
+    .getByRole('button', { name: /WYSIWYG kiwi/ })
+    .first()
+    .click()
+  const thread = page.getByRole('article', { name: 'Thread' })
+  const body = thread.locator('.prose-aim') // message rows are <li> too
+  await expect(body.locator('strong')).toHaveText('loud')
+  await expect(body.locator('ul > li')).toHaveText(['first', 'second'])
+})
+
 test('theme toggle switches the dark class', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' })
   await page.goto('/mail')
