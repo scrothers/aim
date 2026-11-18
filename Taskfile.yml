@@ -131,15 +131,15 @@ tasks:
         go run ./cmd/aim mcp
 
   dev:seed:
-    desc: Seed the dev database with a week of realistic history (safe next to a running daemon)
+    desc: Seed the dev database with a week of mail and a task board (safe next to a running daemon)
     cmds:
       - mkdir -p {{.DEV_DIR}}
       - go run ./cmd/aimseed --db {{.DEV_DIR}}/aim.db {{.CLI_ARGS}}
 
   dev:seed:live:
-    desc: Connect ~12 simulated agents to the running dev daemon until Ctrl-C
+    desc: Connect ~12 simulated agents (mail, task work, permission prompts) to the running dev daemon until Ctrl-C
     cmds:
-      - go run ./cmd/aimseed --live --addr {{.DEV_SOCKET}} {{.CLI_ARGS}}
+      - go run ./cmd/aimseed --live --addr {{.DEV_SOCKET}} --http 127.0.0.1:{{.DEV_HTTP_PORT}} {{.CLI_ARGS}}
 
   dev:reset:
     desc: Move the dev database (aim.db*) to the trash; stop the daemon first

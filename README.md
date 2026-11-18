@@ -278,7 +278,7 @@ task e2e:all    # build, then the Go e2e and Playwright suites
 ### Seeding dev data
 
 ```sh
-task dev:seed         # ~22 identities and ~400 messages backdated over 7 days
+task dev:seed         # ~22 identities, ~400 messages and a 26-task board backdated over 7 days
 task dev:seed:live    # ~12 simulated agents online against the running dev daemon (Ctrl-C to stop)
 task dev:reset        # trash .dev/aim.db* (stop the daemon first)
 ```
@@ -289,6 +289,25 @@ data is deterministic per `--seed`. Extra flags go after `--`, for example
 `task dev:seed -- --messages 800 --seed 2` or
 `task dev:seed:live -- --chatter 5s`. `dev:seed:live` speaks the real wire
 protocol (preamble, then MCP) and sends occasional mail and sign-on/off events.
+
+The history includes a task board written through the task service: every
+status, mixed priorities, overdue and assigned tasks, links to seeded mail,
+and claimed tasks at each lease stage (active, idle, stale, and decayed; the
+daemon's sweeper abandons the decayed ones within a minute of starting). A
+database that already has tasks is left as is. `task dev:seed -- --approvals`
+also turns on remote approvals in the settings.
+
+In live mode the agents also create, assign, claim, start, comment on, finish
+and release tasks, and link the mail they send to them (`task_id`). One agent
+claims a task and disconnects after `--quiet-after` (default 30s), so its lease
+decays at the daemon's thresholds. Every `--approval-every` (default 45s, 0
+disables) a signed-on Claude Code agent opens a hook connection like
+`aim hook claude` does for a permission prompt (up to 3 wait at once) and logs
+the console's decision. Prompts only wait while remote approvals are on:
+`task dev:seed:live -- --enable-approvals` turns them on through
+`/api/settings/approvals` (`--http`, default the dev HTTP port;
+`--approval-timeout`, default 5m); otherwise the prompts return at once with no
+decision and a note is logged.
 
 While `task dev` runs, editing a Go file rebuilds the daemon and restarts it (`cmd/aimdev`); because the shim reconnects and restores its sign-on, live agents and Claude Code sessions stay connected. A build error keeps the previous daemon running and is printed.
 

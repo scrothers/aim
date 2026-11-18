@@ -233,7 +233,7 @@ func readBoard(t *testing.T, dbPath string, now time.Time) []tasks.Detail {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var out []tasks.Detail
+	out := make([]tasks.Detail, 0, len(res.Items))
 	for _, tk := range res.Items {
 		d, err := svc.Get(ctx, tk.ID)
 		if err != nil {
@@ -322,8 +322,9 @@ func TestHistoryTaskBoardDeterministic(t *testing.T) {
 		}
 	}
 	shape := func(cfg devseed.HistoryConfig) []string {
-		var out []string
-		for _, d := range readBoard(t, cfg.DB, fixedNow) {
+		board := readBoard(t, cfg.DB, fixedNow)
+		out := make([]string, 0, len(board))
+		for _, d := range board {
 			out = append(out, fmt.Sprintf("%s|%s|%s|%s|%d|%d", d.ID, d.Title, d.Status, d.Priority, len(d.Events), len(d.Links)))
 		}
 		return out
