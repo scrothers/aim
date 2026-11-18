@@ -8,10 +8,10 @@ import { reloadNotifyPref, setNotificationsEnabled } from '@/lib/notify'
 const mocks = vi.hoisted(() => ({ GET: vi.fn(), POST: vi.fn(), PUT: vi.fn() }))
 vi.mock('@/api/client', async (orig) => ({ ...(await orig<typeof import('@/api/client')>()), api: mocks }))
 
+import { timeoutLabel } from '@/lib/approvals'
+import { ApprovalsSwitch } from '@/components/shell/ApprovalsSwitch'
 import { OperatorAlerts } from '@/components/shell/OperatorAlerts'
-import { renderWithRouter } from '@/test/utils'
 import { ApprovalsPage } from './ApprovalsPage'
-import { RemoteApprovalsToggle } from './RemoteApprovalsToggle'
 
 const ok = (data: unknown) => ({ data, response: new Response(null, { status: 200 }) })
 
@@ -129,18 +129,21 @@ describe('ApprovalsPage', () => {
   })
 })
 
-describe('RemoteApprovalsToggle', () => {
-  it('toggles enabled via PUT and shows the pending badge', async () => {
+describe('ApprovalsSwitch', () => {
+  it('toggles enabled via PUT', async () => {
     const user = userEvent.setup()
     settings = { enabled: false, timeout_seconds: 300 }
-    items = [mk({}), mk({ id: 'appr-2' })]
-    await renderWithRouter(wrap(<RemoteApprovalsToggle />))
+    render(wrap(<ApprovalsSwitch />))
     const sw = await screen.findByRole('switch', { name: 'Remote approvals' })
     await waitFor(() => expect(sw).toBeEnabled())
     expect(sw).toHaveAttribute('aria-checked', 'false')
-    expect(await screen.findByLabelText('2 pending approvals')).toBeInTheDocument()
     await user.click(sw)
     await waitFor(() => expect(mocks.PUT).toHaveBeenCalledWith('/api/settings/approvals', { body: { enabled: true, timeout_seconds: 300 } }))
+  })
+
+  it('labels timeouts in minutes when whole', () => {
+    expect(timeoutLabel(300)).toBe('5 min')
+    expect(timeoutLabel(90)).toBe('90 s')
   })
 })
 

@@ -1,6 +1,6 @@
 import { ShieldCheck } from 'lucide-react'
 import { useApprovalSettings, useSaveApprovalSettings } from '@/api/approvals'
-import { timeoutLabel } from '@/components/approvals/RemoteApprovalsToggle'
+import { timeoutLabel } from '@/lib/approvals'
 import { DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 
