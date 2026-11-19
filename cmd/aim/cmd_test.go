@@ -77,7 +77,7 @@ func TestOpenAPICmd(t *testing.T) {
 func TestRootCmd(t *testing.T) {
 	t.Parallel()
 	root := newRootCmd()
-	if len(root.Commands()) != 7 {
+	if len(root.Commands()) != 8 {
 		t.Fatalf("commands = %d", len(root.Commands()))
 	}
 	root.SetArgs([]string{"daemon", "--log-level", "loud"})
