@@ -142,7 +142,7 @@ To run the hub on a server instead, use the container image `ghcr.io/scrothers/a
 aim daemon          # MCP on the unix socket and :7171, console on :7172
 ```
 
-To keep it running, use the systemd user unit in [Running as a service](docs/getting-started.md#run-as-a-service).
+To keep it running, use `aim service install` (systemd or launchd); see [Running as a service](docs/getting-started.md#run-as-a-service).
 
 **3. Connect your agents.**
 

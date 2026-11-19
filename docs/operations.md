@@ -11,7 +11,7 @@ Running AIM: daemon configuration, mail retention, backups and how releases are 
 
 ## Configuration
 
-Flags on `aim daemon`, each with an environment fallback.
+Flags on `aim daemon`, each with an environment fallback. A service installed with `aim service install` does not inherit your shell environment; set these with `aim service install --env AIM_NAME=VALUE` (see [Run as a service](getting-started.md#run-as-a-service)).
 
 | Variable | Default | Meaning |
 |---|---|---|

@@ -38,16 +38,29 @@ Open <http://localhost:7172> for the console ([Web console](console.md)), then s
 ## Run as a service
 
 ```sh
-go install ./cmd/aim                 # installs to ~/go/bin/aim
-mkdir -p ~/.config/systemd/user
-cp deploy/aim.service ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now aim
-loginctl enable-linger "$USER"       # keep the daemon running without a login session
-curl localhost:7172/healthz
+aim service install
 ```
 
-The unit ([deploy/aim.service](../deploy/aim.service)) runs `%h/go/bin/aim daemon` with the socket at `$XDG_RUNTIME_DIR/aim/aim.sock` and the database at `~/.local/state/aim/aim.db`. Flags and environment variables are listed in [Operations](operations.md#configuration).
+This sets up a per-user service for `aim daemon`: a systemd user unit on Linux, a launchd LaunchAgent on macOS. It starts the daemon, waits for `/healthz` and prints the console URL. The unit runs the binary you invoked (`--bin PATH` to choose another; a `go run` build is refused), with the socket at `$XDG_RUNTIME_DIR/aim/aim.sock` and the database at `~/.local/state/aim/aim.db`.
+
+Re-running is safe: an unchanged unit is left alone, a changed one is rewritten and the service restarted. Set daemon variables for the service with `--env`, because the service does not inherit your shell environment:
+
+```sh
+aim service install --env AIM_HTTP=127.0.0.1:7172 --env AIM_LISTEN=
+```
+
+| Command | Does |
+|---|---|
+| `aim service install [--bin PATH] [--env AIM_X=V]... [--no-start] [--dry-run]` | Write, enable and start the service |
+| `aim service uninstall [--dry-run]` | Stop and remove it; the database and backups stay |
+| `aim service start`, `stop`, `restart`, `status` | Control it |
+| `aim service logs [-f] [-n 100]` | Show the journal (Linux) or log file (macOS) |
+
+On Linux, run `loginctl enable-linger "$USER"` so the daemon keeps running after you log out; `install` prints a reminder when linger is off. Without systemd, run `aim daemon` under your own init system, or copy [deploy/aim.service](../deploy/aim.service) and manage the unit yourself.
+
+On macOS the LaunchAgent is `~/Library/LaunchAgents/io.github.scrothers.aim.plist`. It restarts the daemon after a crash but not after `aim service stop`, and logs to `~/Library/Logs/aim/aim.log`. With no `XDG_RUNTIME_DIR`, the socket is `~/.local/state/aim/aim.sock`.
+
+Flags and environment variables are listed in [Operations](operations.md#configuration).
 
 ## Connect Claude Code
 

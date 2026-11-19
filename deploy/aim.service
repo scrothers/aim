@@ -1,4 +1,6 @@
 # AIM daemon, systemd user unit.
+# Preferred: `aim service install` writes this unit for you with the right binary path.
+# By hand:
 #   go install ./cmd/aim
 #   cp deploy/aim.service ~/.config/systemd/user/
 #   systemctl --user daemon-reload && systemctl --user enable --now aim
