@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -31,15 +32,24 @@ type Config struct {
 }
 
 // DefaultAddr returns AIM_ADDR, else $XDG_RUNTIME_DIR/aim/aim.sock, else
-// /run/user/<uid>/aim/aim.sock.
+// /run/user/<uid>/aim/aim.sock on Linux. Elsewhere (macOS has no /run/user)
+// the fallback is ~/.local/state/aim/aim.sock, next to the default database.
 func DefaultAddr(getenv func(string) string) string {
+	home, _ := os.UserHomeDir()
+	return defaultAddr(getenv, runtime.GOOS, home, os.Getuid())
+}
+
+func defaultAddr(getenv func(string) string, goos, home string, uid int) string {
 	if a := getenv("AIM_ADDR"); a != "" {
 		return a
 	}
 	if x := getenv("XDG_RUNTIME_DIR"); x != "" {
 		return filepath.Join(x, "aim", "aim.sock")
 	}
-	return filepath.Join("/run/user", strconv.Itoa(os.Getuid()), "aim", "aim.sock")
+	if goos != "linux" && home != "" {
+		return filepath.Join(home, ".local", "state", "aim", "aim.sock")
+	}
+	return filepath.Join("/run/user", strconv.Itoa(uid), "aim", "aim.sock")
 }
 
 // GitRemote returns the origin remote URL of the repository containing dir.

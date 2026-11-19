@@ -16,7 +16,7 @@ Flags on `aim daemon`, each with an environment fallback.
 | Variable | Default | Meaning |
 |---|---|---|
 | `AIM_DB` | `$XDG_STATE_HOME/aim/aim.db` (else `~/.local/state/aim/aim.db`) | SQLite database |
-| `AIM_SOCKET` | `$XDG_RUNTIME_DIR/aim/aim.sock` | Unix socket; empty disables |
+| `AIM_SOCKET` | `$XDG_RUNTIME_DIR/aim/aim.sock` (Linux, else `/run/user/<uid>/aim/aim.sock`); `~/.local/state/aim/aim.sock` on macOS | Unix socket; empty disables |
 | `AIM_LISTEN` | `:7171` | TCP MCP listener; empty disables |
 | `AIM_HTTP` | `:7172` | HTTP listener (`/healthz`); empty disables |
 | `AIM_HTTP_ALLOWED_HOSTS` | none | Extra Host header values the HTTP listener accepts, comma-separated |
